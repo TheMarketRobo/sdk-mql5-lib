@@ -70,5 +70,26 @@ public:
      * @return true if the update was successful, otherwise false.
      */
     virtual bool update_field(string field_name, string new_value) = 0;
+
+    /**
+     * @brief Retrieves the current value of a field, converted to a string.
+     *
+     * The SDK calls this method to get the `old_value` for a configuration
+     * change notification before the value is updated.
+     *
+     * @param field_name The name of the field to retrieve.
+     * @return A string representation of the field's current value.
+     */
+    virtual string get_field_as_string(string field_name) = 0;
+
+    /**
+     * @brief Provides the SDK with a list of all developer-defined configuration field names.
+     *
+     * The SDK calls this method to know which fields to look for in a server
+     * configuration change request.
+     *
+     * @param[out] field_names The string array to be filled with the names of the configuration fields.
+     */
+    virtual void get_field_names(string &field_names[]) = 0;
 };
 //+------------------------------------------------------------------+

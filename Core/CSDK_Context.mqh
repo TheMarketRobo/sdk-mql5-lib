@@ -15,7 +15,6 @@
 #include "../Services/Chttp_Service.mqh"
 #include "../Services/Cdata_Collector_Service.mqh"
 #include "../Interfaces/Irobot_Config.mqh"
-#include "../Interfaces/Irobot_Callback.mqh"
 
 /**
  * @class CSDK_Context
@@ -35,10 +34,9 @@ public:
     
     // Developer Interfaces
     Irobot_Config*          robot_config;
-    Irobot_Callback*        robot_callback;
 
 public:
-    CSDK_Context(string api_key, string robot_version, long magic_number, Irobot_Config* config, Irobot_Callback* callback, string base_url);
+    CSDK_Context(string api_key, string robot_version, long magic_number, Irobot_Config* config, string base_url);
     ~CSDK_Context();
 
     bool start();
@@ -49,7 +47,7 @@ public:
 //+------------------------------------------------------------------+
 //| Implementation                                                   |
 //+------------------------------------------------------------------+
-CSDK_Context::CSDK_Context(string api_key, string robot_version, long magic_number, Irobot_Config* config, Irobot_Callback* callback, string base_url)
+CSDK_Context::CSDK_Context(string api_key, string robot_version, long magic_number, Irobot_Config* config, string base_url)
 {
     // Initialize all pointers to NULL
     session_manager       = NULL;
@@ -60,11 +58,9 @@ CSDK_Context::CSDK_Context(string api_key, string robot_version, long magic_numb
     http_service          = NULL;
     data_collector        = NULL;
     robot_config          = NULL;
-    robot_callback        = NULL;
 
     // Store developer interfaces
     robot_config = config;
-    robot_callback = callback;
 
     // Create services first (lowest level dependencies)
     http_service = new Chttp_Service(base_url);
@@ -77,10 +73,10 @@ CSDK_Context::CSDK_Context(string api_key, string robot_version, long magic_numb
     token_manager = new CToken_Manager();
     if(CheckPointer(token_manager) == POINTER_INVALID) { Print("SDK Error: Failed to create CToken_Manager"); return; }
 
-    config_manager = new Cconfiguration_Manager(robot_config, robot_callback);
+    config_manager = new Cconfiguration_Manager(robot_config);
     if(CheckPointer(config_manager) == POINTER_INVALID) { Print("SDK Error: Failed to create Cconfiguration_Manager"); return; }
 
-    symbol_manager = new CSymbol_Manager(robot_callback);
+    symbol_manager = new CSymbol_Manager();
     if(CheckPointer(symbol_manager) == POINTER_INVALID) { Print("SDK Error: Failed to create CSymbol_Manager"); return; }
     
     // Create high-level managers that use other components

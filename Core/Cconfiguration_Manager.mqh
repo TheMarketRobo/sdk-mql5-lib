@@ -8,8 +8,8 @@
 
 #include <Object.mqh>
 #include "../Interfaces/Irobot_Config.mqh"
-#include "../Interfaces/Irobot_Callback.mqh"
 #include "../Services/Json.mqh"
+#include "../Utils/CSDK_Events.mqh"
 
 /**
  * @class Cconfiguration_Manager
@@ -19,11 +19,10 @@ class Cconfiguration_Manager : public CObject
 {
 private:
     Irobot_Config* m_robot_config;
-    Irobot_Callback* m_robot_callback;
     CJAVal* m_pending_change_results; // Results to be sent in the next heartbeat
 
 public:
-    Cconfiguration_Manager(Irobot_Config* robot_config, Irobot_Callback* robot_callback);
+    Cconfiguration_Manager(Irobot_Config* robot_config);
     ~Cconfiguration_Manager();
 
     bool validate_initial_config(const CJAVal &server_config);
@@ -35,10 +34,9 @@ public:
 //+------------------------------------------------------------------+
 //| Implementation                                                   |
 //+------------------------------------------------------------------+
-Cconfiguration_Manager::Cconfiguration_Manager(Irobot_Config* robot_config, Irobot_Callback* robot_callback)
+Cconfiguration_Manager::Cconfiguration_Manager(Irobot_Config* robot_config)
 {
     m_robot_config = robot_config;
-    m_robot_callback = robot_callback;
     m_pending_change_results = NULL;
 }
 
@@ -66,45 +64,67 @@ bool Cconfiguration_Manager::validate_initial_config(const CJAVal &server_config
  */
 void Cconfiguration_Manager::process_change_request(const CJAVal &change_request)
 {
-    if(CheckPointer(m_robot_config) == POINTER_INVALID || CheckPointer(m_robot_callback) == POINTER_INVALID) return;
+    if(CheckPointer(m_robot_config) == POINTER_INVALID) return;
 
     clear_pending_results();
     m_pending_change_results = new CJAVal(JA_OBJECT);
     if(m_pending_change_results == NULL) return;
-    
-    // Assuming change_request is a JSON object of key-value pairs
-    // A full JSON library would provide a way to iterate keys.
-    // This is a conceptual implementation.
 
-    // Example for a single field change:
-    string field_to_change = "risk_level"; // This would be dynamic in a real scenario
-    CJAVal* new_value_node = change_request[field_to_change];
+    // Get the list of field names from the developer's config
+    string field_names[];
+    m_robot_config.get_field_names(field_names);
 
-    if(CheckPointer(new_value_node) != POINTER_INVALID)
+    CJAVal* accepted_changes = new CJAVal(JA_ARRAY);
+    CJAVal* rejected_changes = new CJAVal(JA_ARRAY);
+
+    // Iterate through the developer's fields and check for changes
+    for(int i = 0; i < ArraySize(field_names); i++)
     {
-        string new_value_str = new_value_node.to_string();
-        string reason = "";
-        
-        // 1. Validate using developer's validation method
-        if(m_robot_config.validate_field(field_to_change, new_value_str, reason))
-        {
-            string old_value_str = ""; // Need a way to get old value from m_robot_config
-            
-            // 2. Update developer's config object
-            m_robot_config.update_field(field_to_change, new_value_str);
+        string field_name = field_names[i];
+        CJAVal* new_value_node = change_request[field_name];
 
-            // 3. Notify robot about the change
-            m_robot_callback.on_configuration_changed(field_to_change, old_value_str, new_value_str);
-
-            // 4. Add to accepted results
-            // m_pending_change_results.Add("accepted_changes", ...);
-        }
-        else
+        if(CheckPointer(new_value_node) != POINTER_INVALID)
         {
-            // 5. Add to rejected results
-            // m_pending_change_results.Add("rejected_changes", ...);
+            string new_value_str = new_value_node.to_string();
+            string reason = "";
+
+            string old_value_str = m_robot_config.get_field_as_string(field_name);
+
+            if(m_robot_config.validate_field(field_name, new_value_str, reason))
+            {
+                m_robot_config.update_field(field_name, new_value_str);
+
+                // Add to accepted results
+                CJAVal* change = new CJAVal(JA_OBJECT);
+                CJAVal* field_val = new CJAVal(); field_val.set_string(field_name);
+                CJAVal* new_val = new CJAVal(); new_val.set_string(new_value_str);
+                change.Add("field_name", field_val);
+                change.Add("value", new_val);
+                accepted_changes.Add(change);
+            }
+            else
+            {
+                // Add to rejected results
+                CJAVal* rejection = new CJAVal(JA_OBJECT);
+                CJAVal* field_val = new CJAVal(); field_val.set_string(field_name);
+                CJAVal* reason_val = new CJAVal(); reason_val.set_string(reason);
+                rejection.Add("field_name", field_val);
+                rejection.Add("reason", reason_val);
+                rejected_changes.Add(rejection);
+            }
         }
     }
+    
+    // Store results for the next heartbeat
+    if(accepted_changes.count() > 0)
+        m_pending_change_results.Add("accepted_changes", accepted_changes);
+    else
+        delete accepted_changes;
+
+    if(rejected_changes.count() > 0)
+        m_pending_change_results.Add("rejected_changes", rejected_changes);
+    else
+        delete rejected_changes;
 }
 
 /**

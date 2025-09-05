@@ -7,10 +7,10 @@
 #define CSYMBOL_MANAGER_MQH
 
 #include <Object.mqh>
-#include <Arrays/ArrayObj.h>
-#include "../Interfaces/Irobot_Callback.mqh"
+#include <Arrays/ArrayObj.mqh>
 #include "../Models/Csession_Symbol.mqh"
 #include "../Services/Json.mqh"
+#include "../Utils/CSDK_Events.mqh"
 
 /**
  * @class CSymbol_Manager
@@ -19,12 +19,11 @@
 class CSymbol_Manager : public CObject
 {
 private:
-    Irobot_Callback* m_robot_callback;
     CArrayObj* m_session_symbols; // List of Csession_Symbol
     CJAVal* m_pending_change_results;
 
 public:
-    CSymbol_Manager(Irobot_Callback* robot_callback);
+    CSymbol_Manager();
     ~CSymbol_Manager();
 
     void set_initial_symbols(CArrayObj* symbols);
@@ -36,9 +35,8 @@ public:
 //+------------------------------------------------------------------+
 //| Implementation                                                   |
 //+------------------------------------------------------------------+
-CSymbol_Manager::CSymbol_Manager(Irobot_Callback* robot_callback)
+CSymbol_Manager::CSymbol_Manager()
 {
-    m_robot_callback = robot_callback;
     m_session_symbols = new CArrayObj();
     m_pending_change_results = NULL;
 }
@@ -65,8 +63,6 @@ void CSymbol_Manager::set_initial_symbols(CArrayObj* symbols)
  */
 void CSymbol_Manager::process_change_request(const CJAVal &change_request)
 {
-    if(CheckPointer(m_robot_callback) == POINTER_INVALID) return;
-    
     // Conceptual implementation. A full JSON library would make iteration easier.
     // Example for a single symbol change:
     string symbol_to_change = "EURUSD";
@@ -88,8 +84,11 @@ void CSymbol_Manager::process_change_request(const CJAVal &change_request)
                 // Update our internal state
                 symbol.set_active_to_trade(new_status);
 
-                // Notify the robot
-                m_robot_callback.on_symbol_status_changed(symbol_to_change, new_status);
+                // Fire symbol change event
+                SSymbol_Change_Event event_data;
+                event_data.symbol = symbol_to_change;
+                event_data.active_to_trade = new_status;
+                Fire_Symbol_Change_Event(0, event_data);
                 
                 // TODO: Add to pending results for next heartbeat
                 break;

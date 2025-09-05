@@ -8,6 +8,7 @@
 
 #include <Object.mqh>
 #include "../Models/Cfinal_Stats.mqh"
+#include "../Utils/CSDK_Events.mqh"
 
 // Forward declaration to break circular dependency
 class CSDK_Context;
@@ -143,6 +144,13 @@ bool Csession_Manager::end_session(string reason, Cfinal_Stats* final_stats)
 {
     if(!m_is_active) return false;
     
+    // Fire termination start event
+    STermination_Event start_event;
+    start_event.reason = reason;
+    start_event.success = false; // Will be updated based on result
+    start_event.message = "Termination started";
+    Fire_Termination_Start_Event(0, start_event);
+    
     // Build payload with session_id, reason, final_stats
     CJAVal* payload = new CJAVal(JA_OBJECT);
     if(payload == NULL) return false;
@@ -164,17 +172,32 @@ bool Csession_Manager::end_session(string reason, Cfinal_Stats* final_stats)
     Chttp_Response* response = m_context.http_service.post("/end", m_context.token_manager.get_token(), payload_str);
     delete payload;
 
+    bool success = false;
+    string message = "";
+    
     if(CheckPointer(response) != POINTER_INVALID && response.code == 200)
     {
         m_is_active = false;
-        Print("SDK Info: Session terminated successfully.");
+        success = true;
+        message = "Session terminated successfully.";
+        Print("SDK Info: ", message);
         delete response;
-        return true;
+    }
+    else
+    {
+        message = "End session failed. Code: " + (string)response.code + ", Body: " + response.body;
+        Print("SDK Error: ", message);
+        if(response != NULL) delete response;
     }
     
-    Print("SDK Error: End session failed. Code: ", response.code, ", Body: ", response.body);
-    if(response != NULL) delete response;
-    return false;
+    // Fire termination end event
+    STermination_Event end_event;
+    end_event.reason = reason;
+    end_event.success = success;
+    end_event.message = message;
+    Fire_Termination_End_Event(0, end_event);
+    
+    return success;
 }
 
 /**
@@ -192,15 +215,29 @@ bool Csession_Manager::refresh_token()
     Chttp_Response* response = m_context.http_service.post("/refresh", "", payload_str);
     delete payload;
     
+    bool success = false;
+    string message = "";
+    
     if(CheckPointer(response) != POINTER_INVALID && response.code == 200)
     {
         m_context.token_manager.set_token(response.json_body["jwt"].get_string());
+        success = true;
+        message = "Token refreshed successfully";
         delete response;
-        return true;
     }
-
-    delete response;
-    return false;
+    else
+    {
+        message = "Token refresh failed. Code: " + (string)response.code + ", Body: " + response.body;
+        delete response;
+    }
+    
+    // Fire token refresh event
+    SToken_Refresh_Event event_data;
+    event_data.success = success;
+    event_data.message = message;
+    Fire_Token_Refresh_Event(0, event_data);
+    
+    return success;
 }
 
 #endif
