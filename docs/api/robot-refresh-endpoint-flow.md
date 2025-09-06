@@ -275,6 +275,35 @@ def update_session_jwt(session_id: int, jwt_token: Dict[str, Any]):
     """
 
     db_manager.execute_query(query, (issued_at, expires_at, session_id))
+
+def get_heartbeat_interval_for_session(session_id: int) -> int:
+    """Get the appropriate heartbeat interval for a session"""
+    # Default interval is 60 seconds
+    default_interval = 60
+    max_interval = 300  # 5 minutes maximum
+    min_interval = 1    # 1 second minimum
+    
+    # Check session-specific or license-specific interval overrides
+    query = """
+    SELECT s.heartbeat_interval_override, l.plan_type_id, pt.default_heartbeat_interval
+    FROM sessions s
+    JOIN licenses l ON s.license_id = l.id
+    JOIN plan_types pt ON l.plan_type_id = pt.id
+    WHERE s.id = %s
+    """
+    
+    result = db_manager.execute_query(query, (session_id,))
+    if result:
+        session_override = result[0].get('heartbeat_interval_override')
+        plan_default = result[0].get('default_heartbeat_interval') or default_interval
+        
+        # Use session override if set, otherwise plan default
+        interval = session_override if session_override else plan_default
+        
+        # Ensure within allowed bounds
+        return max(min_interval, min(max_interval, interval))
+    
+    return default_interval
 ```
 
 ### Step 9: Response Construction
@@ -283,7 +312,8 @@ response_data = {
     'jwt': jwt_token['token'],
     'expires_in': jwt_token['expires_in'],
     'issued_at': jwt_token['issued_at'],
-    'expires_at': jwt_token['expires_at']
+    'expires_at': jwt_token['expires_at'],
+    'heartbeat_interval_seconds': get_heartbeat_interval_for_session(session_data['id'])
 }
 ```
 
@@ -395,6 +425,15 @@ SET jwt_issued_at = %s,
 WHERE id = %s
 ```
 
+### Heartbeat Interval Query
+```sql
+SELECT s.heartbeat_interval_override, l.plan_type_id, pt.default_heartbeat_interval
+FROM sessions s
+JOIN licenses l ON s.license_id = l.id
+JOIN plan_types pt ON l.plan_type_id = pt.id
+WHERE s.id = %s
+```
+
 ## Response Structure
 
 ### Successful Response (200 OK)
@@ -403,7 +442,8 @@ WHERE id = %s
   "jwt": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6ImtleS0xMjMifQ...",
   "expires_in": 300,
   "issued_at": "2024-01-15T10:30:00.000Z",
-  "expires_at": "2024-01-15T10:35:00.000Z"
+  "expires_at": "2024-01-15T10:35:00.000Z",
+  "heartbeat_interval_seconds": 60
 }
 ```
 
@@ -414,6 +454,9 @@ WHERE id = %s
 - **`expires_in`**: Token validity duration in seconds (typically 300)
 - **`issued_at`**: Token issuance timestamp in ISO 8601 format
 - **`expires_at`**: Token expiration timestamp in ISO 8601 format
+
+#### Session Configuration Fields
+- **`heartbeat_interval_seconds`**: Server-specified interval between heartbeats (1-300 seconds)
 
 ## Error Scenarios
 
@@ -709,6 +752,11 @@ class TokenManager:
         # Robot can decode the new expiration time
         payload = json.loads(base64.b64decode(self.current_jwt.split('.')[1]))
         self.jwt_expires_at = datetime.fromtimestamp(payload['exp'])
+        
+        # Update heartbeat interval if provided by server
+        if hasattr(response, 'heartbeat_interval_seconds'):
+            self.update_heartbeat_interval(response.heartbeat_interval_seconds)
+        
         return response
 ```
 
@@ -792,6 +840,7 @@ class TokenRefreshManager {
 4. **Response Processing with Data Restoration**
    - Extract new JWT token from server response
    - Update internal token storage and expiration time
+   - **Critical**: Update heartbeat interval from server response
    - **Critical**: Restore cached heartbeat data for next transmission
    - **Critical**: Restore pending configuration/symbol change results
    - Resume normal operations with new token and preserved data
@@ -808,6 +857,21 @@ class TokenRefreshManager {
        // Restore pending change results for next heartbeat
        config_manager.RestorePendingResults(cached_config_results);
        symbol_manager.RestorePendingResults(cached_symbol_results);
+   }
+   
+   void ProcessRefreshResponse(RefreshResponse response) {
+       // Update JWT token
+       current_jwt = response.jwt;
+       jwt_expires_at = ParseTokenExpiration(response.jwt);
+       
+       // Update heartbeat interval from server
+       if (response.heartbeat_interval_seconds > 0) {
+           UpdateHeartbeatInterval(response.heartbeat_interval_seconds);
+           ResetHeartbeatTimer(); // Apply new interval immediately
+       }
+       
+       // Restore any pending data
+       RestorePendingData();
    }
    ```
 
@@ -840,6 +904,28 @@ bool SendTradeOrder(string symbol, double volume) {
     
     // Proceed with trade order - token is guaranteed valid
     return ExecuteTradeRequest(symbol, volume);
+}
+```
+
+**Automatic Heartbeat Interval Management:**
+The SDK automatically handles heartbeat interval updates from refresh responses:
+
+```mql5
+// SDK internal - developer doesn't need to handle this
+void ProcessRefreshResponse(string response_json) {
+    RefreshResponse response = ParseResponse(response_json);
+    
+    // Update token (existing functionality)
+    UpdateToken(response.jwt);
+    
+    // Update heartbeat interval (new functionality)
+    if (response.heartbeat_interval_seconds > 0) {
+        heartbeat_manager.UpdateInterval(response.heartbeat_interval_seconds);
+        Print("Heartbeat interval updated to: ", response.heartbeat_interval_seconds, " seconds");
+    }
+    
+    // Resume normal operations
+    ResumeNormalOperation();
 }
 ```
 
@@ -907,6 +993,13 @@ bool RefreshTokenWithFallback() {
 - Batch multiple operations after successful refresh
 - Monitor refresh success rates and adjust timing if needed
 
+**Heartbeat Interval Optimization:**
+- Server dynamically adjusts heartbeat intervals based on system load
+- Lower intervals (1-30 seconds) for high-priority sessions
+- Higher intervals (60-300 seconds) for normal sessions during high load
+- SDK automatically applies new intervals from refresh responses
+- Reduces server load while maintaining session monitoring
+
 **Memory Management:**
 - Clear old JWT tokens after successful refresh
 - Limit storage of failed refresh attempts
@@ -942,6 +1035,11 @@ bool RefreshTokenWithFallback() {
 **Problem:** Refresh requests taking longer than expected
 **Cause:** Database connection issues or KMS latency
 **Solution:** Monitor database and KMS performance metrics
+
+#### Heartbeat Interval Not Updating
+**Problem:** Robot continues using old heartbeat interval after refresh
+**Cause:** SDK not processing heartbeat_interval_seconds from refresh response
+**Solution:** Verify SDK properly handles refresh response field and resets timer
 
 ### Debug Information
 ```python
