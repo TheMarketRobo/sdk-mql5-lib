@@ -15,6 +15,13 @@ class CSDK_Context;
 /**
  * @class CHeartbeat_Manager
  * @brief Manages the periodic heartbeat communication with the server.
+ *
+ * ## Heartbeat Payload (matches RobotHeartbeatRequest)
+ * - sequence: Monotonically increasing sequence number
+ * - timestamp: ISO 8601 formatted timestamp in UTC
+ * - dynamic_data: Real-time account data and performance metrics
+ * - config_change_results: Results of configuration change requests (optional)
+ * - symbols_change_results: Results of symbol change requests (optional)
  */
 class CHeartbeat_Manager : public CObject
 {
@@ -31,6 +38,9 @@ private:
     // Data persistence for retries
     CJAVal* m_pending_heartbeat_data;
     bool m_waiting_for_confirmation;
+    
+    // Helper methods
+    string get_iso_timestamp();
 
 public:
     CHeartbeat_Manager(CSDK_Context* context);
@@ -79,8 +89,23 @@ bool CHeartbeat_Manager::is_time_to_send()
 }
 
 /**
+ * @brief Generates an ISO 8601 formatted timestamp string.
+ * @return String in format "2024-01-15T10:30:00.000Z"
+ */
+string CHeartbeat_Manager::get_iso_timestamp()
+{
+    datetime current = TimeCurrent();
+    MqlDateTime dt;
+    TimeToStruct(current, dt);
+    
+    return StringFormat("%04d-%02d-%02dT%02d:%02d:%02d.000Z",
+                        dt.year, dt.mon, dt.day, dt.hour, dt.min, dt.sec);
+}
+
+/**
  * @brief Builds the JSON payload for a heartbeat request.
  * @return A CJAVal object representing the payload.
+ * @note Payload matches RobotHeartbeatRequest schema from API contract.
  */
 CJAVal* CHeartbeat_Manager::build_heartbeat_payload()
 {
@@ -93,22 +118,33 @@ CJAVal* CHeartbeat_Manager::build_heartbeat_payload()
     CJAVal* payload = new CJAVal(JA_OBJECT);
     if(payload == NULL) return NULL;
 
-    CJAVal* session_id_val = new CJAVal();
-    session_id_val.set_long(m_session_id);
-    payload.Add("session_id", session_id_val);
+    // ===========================================================================
+    // REQUIRED FIELDS (from RobotHeartbeatRequest)
+    // ===========================================================================
 
+    // sequence: integer - Monotonically increasing sequence number
     CJAVal* sequence_val = new CJAVal();
     sequence_val.set_long(m_sequence + 1); // Increment sequence for this attempt
     payload.Add("sequence", sequence_val);
     
-    // Add other required fields like timestamp and dynamic_data
+    // timestamp: string - ISO 8601 formatted timestamp in UTC
+    CJAVal* timestamp_val = new CJAVal();
+    timestamp_val.set_string(get_iso_timestamp());
+    payload.Add("timestamp", timestamp_val);
+    
+    // dynamic_data: object - Real-time account data and performance metrics
     payload.Add("dynamic_data", m_context.data_collector.get_dynamic_data());
     
-    // Add change results if they exist
+    // ===========================================================================
+    // OPTIONAL FIELDS (change results from previous requests)
+    // ===========================================================================
+    
+    // config_change_results: object - Results of configuration change requests
     CJAVal* config_results = m_context.config_manager.get_pending_results();
     if(CheckPointer(config_results) != POINTER_INVALID)
         payload.Add("config_change_results", config_results);
 
+    // symbols_change_results: object - Results of symbol change requests
     CJAVal* symbol_results = m_context.symbol_manager.get_pending_results();
     if(CheckPointer(symbol_results) != POINTER_INVALID)
         payload.Add("symbols_change_results", symbol_results);

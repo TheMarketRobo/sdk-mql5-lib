@@ -19,6 +19,20 @@
 /**
  * @class CSDK_Context
  * @brief A service container for managing the lifecycle and dependencies of all SDK components.
+ *
+ * ## Token Refresh Configuration
+ * The SDK implements proactive token refresh to ensure uninterrupted session continuity.
+ * By default, tokens are refreshed 300 seconds (5 minutes) before expiration.
+ * This threshold can be configured via set_token_refresh_threshold_seconds().
+ *
+ * ## Components
+ * - session_manager: Manages session lifecycle (/start, /end, /refresh)
+ * - heartbeat_manager: Manages periodic heartbeat communication
+ * - token_manager: Manages JWT token storage and proactive refresh
+ * - config_manager: Manages robot configuration changes
+ * - symbol_manager: Manages symbol activation changes
+ * - http_service: HTTP client for API communication
+ * - data_collector: Collects static and dynamic data from MQL5
  */
 class CSDK_Context : public CObject
 {
@@ -42,6 +56,10 @@ public:
     bool start();
     void on_timer();
     void terminate(string reason);
+    
+    // Token Refresh Configuration
+    void set_token_refresh_threshold_seconds(int seconds);
+    int  get_token_refresh_threshold_seconds() const;
 };
 
 //+------------------------------------------------------------------+
@@ -154,6 +172,33 @@ void CSDK_Context::terminate(string reason)
         session_manager.end_session(reason, stats);
         delete stats;
     }
+}
+
+/**
+ * @brief Sets the token refresh threshold in seconds.
+ * @param seconds Number of seconds before expiration to trigger proactive refresh.
+ * @note Default is 300 seconds (5 minutes). Minimum is 60 seconds, maximum is 3600 seconds.
+ *       Call this BEFORE calling start() for the setting to take effect.
+ */
+void CSDK_Context::set_token_refresh_threshold_seconds(int seconds)
+{
+    if(CheckPointer(token_manager) != POINTER_INVALID)
+    {
+        token_manager.set_refresh_threshold_seconds(seconds);
+    }
+}
+
+/**
+ * @brief Gets the current token refresh threshold in seconds.
+ * @return Number of seconds before expiration when token refresh is triggered.
+ */
+int CSDK_Context::get_token_refresh_threshold_seconds() const
+{
+    if(CheckPointer(token_manager) != POINTER_INVALID)
+    {
+        return token_manager.get_refresh_threshold_seconds();
+    }
+    return 300; // Default value
 }
 
 #endif
