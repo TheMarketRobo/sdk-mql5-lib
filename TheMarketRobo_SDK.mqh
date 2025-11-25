@@ -1,62 +1,45 @@
 //+------------------------------------------------------------------+
 //|                                           TheMarketRobo_SDK.mqh |
-//|                        Copyright 2024, The Market Robo Inc. |
+//|                        Copyright 2024, The Market Robo Inc.      |
 //|                                        https://themarketrobo.com |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2024, The Market Robo Inc."
 #property link      "https://themarketrobo.com"
 #property version   "1.00"
+#property strict
 
 /**
  * @file TheMarketRobo_SDK.mqh
- * @brief Single-include file for The Market Robo SDK.
+ * @brief Main include file for TheMarketRobo SDK.
  *
- * This file exposes all the classes required for robot development.
- * Include this one file in your Expert Advisor.
+ * Include this file in your Expert Advisor to access all SDK functionality.
  *
  * ## Quick Start
  * ```cpp
- * #include <TheMarketRobo_SDK.mqh>
+ * #include <TheMarketRobo/TheMarketRobo_SDK.mqh>
  *
- * // Customer input parameters
- * input string InpApiKey = "";         // API Key
- * input long   InpMagicNumber = 12345; // Magic Number
+ * input string InpApiKey = "";           // API Key
+ * input long   InpMagicNumber = 12345;   // Magic Number
  *
- * // Your robot configuration class
- * class CMyConfig : public Irobot_Config
+ * class CMyRobotConfig : public IRobotConfig
  * {
- * private:
- *     int m_max_trades;
- *     
- * protected:
- *     virtual void define_schema() override
- *     {
- *         m_schema.add_field(
- *             CConfig_Field::create_integer("max_trades", "Max Trades", true, 5)
- *                 .with_range(1, 20)
- *         );
- *     }
- *     
- *     virtual void apply_defaults() override
- *     {
- *         m_max_trades = m_schema.get_default_int("max_trades");
- *     }
- *     
- *     // Implement remaining abstract methods...
+ * public:
+ *     CMyRobotConfig() { define_schema(); apply_defaults(); }
+ *     virtual void define_schema() override { ... }
+ *     virtual void apply_defaults() override { ... }
+ *     virtual string to_json() override { ... }
+ *     virtual bool update_from_json(const CJAVal &config_json) override { ... }
+ *     virtual bool update_field(string field_name, string new_value) override { ... }
+ *     virtual string get_field_as_string(string field_name) override { ... }
  * };
  *
- * // Your robot class
  * class CMyRobot : public CTheMarketRobo_Bot_Base
  * {
  * public:
- *     CMyRobot() : CTheMarketRobo_Bot_Base(
- *         "your-robot-version-uuid-here",
- *         new CMyConfig()
- *     ) {}
- *     
- *     virtual void on_tick() override { }
- *     virtual void on_config_changed(string event_json) override { }
- *     virtual void on_symbol_changed(string event_json) override { }
+ *     CMyRobot() : CTheMarketRobo_Bot_Base("uuid-here", new CMyRobotConfig()) {}
+ *     virtual void on_tick() override { ... }
+ *     virtual void on_config_changed(string event_json) override { ... }
+ *     virtual void on_symbol_changed(string event_json) override { ... }
  * };
  *
  * CMyRobot* robot = NULL;
@@ -70,24 +53,51 @@
  * void OnDeinit(const int reason) { robot.on_deinit(reason); delete robot; }
  * void OnTick() { robot.on_tick(); }
  * void OnTimer() { robot.on_timer(); }
- * void OnChartEvent(const int id, const long& l, const double& d, const string& s) 
- * { robot.on_chart_event(id, l, d, s); }
+ * void OnChartEvent(const int id, const long &lparam, const double &dparam, const string &sparam)
+ * {
+ *     robot.on_chart_event(id, lparam, dparam, sparam);
+ * }
  * ```
  */
 
-//=============================================================================
-// Configuration Schema Classes (for defining robot config schema in code)
-//=============================================================================
-#include "Models/CConfig_Field.mqh"     // Field types: integer, decimal, boolean, radio, multiple
-#include "Models/CConfig_Schema.mqh"    // Schema container for all fields
+#ifndef THEMARKETROBO_SDK_MQH
+#define THEMARKETROBO_SDK_MQH
 
-//=============================================================================
-// Developer-facing Interfaces and Base Classes
-//=============================================================================
-#include "Interfaces/Irobot_Config.mqh"  // Abstract config class with schema support
-#include "CTheMarketRobo_Bot_Base.mqh"   // Main robot base class
+//+------------------------------------------------------------------+
+//| Core SDK Components                                               |
+//+------------------------------------------------------------------+
 
-//=============================================================================
-// SDK Constants (for reference)
-//=============================================================================
-#include "Core/CSDK_Constants.mqh"       // SDK version, API URLs, defaults
+// SDK Constants and Configuration
+#include "Core/CSDKConstants.mqh"
+#include "Core/CSDKOptions.mqh"
+
+// Services
+#include "Services/Json.mqh"
+#include "Services/CHttpService.mqh"
+#include "Services/CDataCollectorService.mqh"
+
+// Models
+#include "Models/CConfigField.mqh"
+#include "Models/CConfigSchema.mqh"
+#include "Models/CSessionSymbol.mqh"
+#include "Models/CFinalStats.mqh"
+
+// Interfaces
+#include "Interfaces/IRobotConfig.mqh"
+
+// Core Managers
+#include "Core/CTokenManager.mqh"
+#include "Core/CConfigurationManager.mqh"
+#include "Core/CSymbolManager.mqh"
+#include "Core/CHeartbeatManager.mqh"
+#include "Core/CSessionManager.mqh"
+#include "Core/CSDKContext.mqh"
+
+// Utilities
+#include "Utils/CSDK_Events.mqh"
+
+// Main Base Class
+#include "CTheMarketRobo_Bot_Base.mqh"
+
+#endif
+//+------------------------------------------------------------------+
