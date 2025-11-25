@@ -36,7 +36,7 @@ public:
     ~CTheMarketRobo_Bot_Base();
 
     //--- SDK Lifecycle Methods (to be called from MQL5 entry points)
-    virtual int     on_init(string api_key, string robot_version, long magic_number, string base_url);
+    virtual int     on_init(string api_key, string robot_version_uuid, long magic_number, string base_url);
     virtual void    on_deinit(const int reason);
     virtual void    on_timer();
     virtual void    on_chart_event(const int id, const long &lparam, const double &dparam, const string &sparam);
@@ -67,7 +67,7 @@ CTheMarketRobo_Bot_Base::~CTheMarketRobo_Bot_Base()
         delete m_sdk_context;
 }
 
-int CTheMarketRobo_Bot_Base::on_init(string api_key, string robot_version, long magic_number, string base_url)
+int CTheMarketRobo_Bot_Base::on_init(string api_key, string robot_version_uuid, long magic_number, string base_url)
 {
     if(CheckPointer(m_robot_config) == POINTER_INVALID)
     {
@@ -75,7 +75,7 @@ int CTheMarketRobo_Bot_Base::on_init(string api_key, string robot_version, long 
         return INIT_FAILED;
     }
 
-    m_sdk_context = new CSDK_Context(api_key, robot_version, magic_number, m_robot_config, base_url);
+    m_sdk_context = new CSDK_Context(api_key, robot_version_uuid, magic_number, m_robot_config, base_url);
     if(CheckPointer(m_sdk_context) == POINTER_INVALID)
     {
         Print("SDK Error: Failed to create SDK Context.");

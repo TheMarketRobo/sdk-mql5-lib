@@ -36,7 +36,7 @@ public:
     Irobot_Config*          robot_config;
 
 public:
-    CSDK_Context(string api_key, string robot_version, long magic_number, Irobot_Config* config, string base_url);
+    CSDK_Context(string api_key, string robot_version_uuid, long magic_number, Irobot_Config* config, string base_url);
     ~CSDK_Context();
 
     bool start();
@@ -47,7 +47,7 @@ public:
 //+------------------------------------------------------------------+
 //| Implementation                                                   |
 //+------------------------------------------------------------------+
-CSDK_Context::CSDK_Context(string api_key, string robot_version, long magic_number, Irobot_Config* config, string base_url)
+CSDK_Context::CSDK_Context(string api_key, string robot_version_uuid, long magic_number, Irobot_Config* config, string base_url)
 {
     // Initialize all pointers to NULL
     session_manager       = NULL;
@@ -80,7 +80,7 @@ CSDK_Context::CSDK_Context(string api_key, string robot_version, long magic_numb
     if(CheckPointer(symbol_manager) == POINTER_INVALID) { Print("SDK Error: Failed to create CSymbol_Manager"); return; }
     
     // Create high-level managers that use other components
-    session_manager = new Csession_Manager(api_key, robot_version, magic_number, GetPointer(this));
+    session_manager = new Csession_Manager(api_key, robot_version_uuid, magic_number, GetPointer(this));
     if(CheckPointer(session_manager) == POINTER_INVALID) { Print("SDK Error: Failed to create Csession_Manager"); return; }
 
     heartbeat_manager = new CHeartbeat_Manager(GetPointer(this));

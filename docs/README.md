@@ -277,7 +277,7 @@ Enable detailed logging by checking:
 ### CTheMarketRobo_Bot_Base Methods
 
 #### Lifecycle Methods
-- `on_init(string api_key, string robot_version, long magic_number, string base_url)` - Initialize SDK
+- `on_init(string api_key, string robot_version_uuid, long magic_number, string base_url)` - Initialize SDK
 - `on_deinit(int reason)` - Cleanup resources
 - `on_timer()` - Handle timer events
 - `on_chart_event(int id, long &lparam[], double &dparam[], string &sparam[])` - Handle chart events

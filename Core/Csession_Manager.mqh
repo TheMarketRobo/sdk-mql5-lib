@@ -23,7 +23,7 @@ private:
     // Session State
     ulong m_session_id;
     string m_api_key;
-    string m_robot_version;
+    string m_robot_version_uuid;
     long m_magic_number;
     bool m_is_active;
 
@@ -31,7 +31,7 @@ private:
     CSDK_Context* m_context;
 
 public:
-    Csession_Manager(string api_key, string robot_version, long magic_number, CSDK_Context* context);
+    Csession_Manager(string api_key, string robot_version_uuid, long magic_number, CSDK_Context* context);
     ~Csession_Manager();
 
     bool start_session();
@@ -50,10 +50,10 @@ public:
 //+------------------------------------------------------------------+
 //| Implementation                                                   |
 //+------------------------------------------------------------------+
-Csession_Manager::Csession_Manager(string api_key, string robot_version, long magic_number, CSDK_Context* context)
+Csession_Manager::Csession_Manager(string api_key, string robot_version_uuid, long magic_number, CSDK_Context* context)
 {
     m_api_key = api_key;
-    m_robot_version = robot_version;
+    m_robot_version_uuid = robot_version_uuid;
     m_magic_number = magic_number;
     m_session_id = 0;
     m_is_active = false;
@@ -80,8 +80,8 @@ bool Csession_Manager::start_session()
     payload.Add("api_key", api_key_val);
 
     CJAVal* version_val = new CJAVal();
-    version_val.set_string(m_robot_version);
-    payload.Add("robot_version", version_val);
+    version_val.set_string(m_robot_version_uuid);
+    payload.Add("robot_version_uuid", version_val);
 
     // Get static fields and session symbols from the collector via context
     payload.Add("static_fields", m_context.data_collector.get_static_fields(m_magic_number));

@@ -96,7 +96,7 @@ Sent during `/heartbeat`.
 ```json
 {
   "api_key": "string",
-  "robot_version": "string",
+  "robot_version_uuid": "string",
   "static_fields": { ... }, // See 3.1
   "session_symbols": [ ... ] // See 3.2
 }

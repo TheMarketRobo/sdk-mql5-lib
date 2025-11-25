@@ -22,7 +22,7 @@ X-API-Key: <license_key> (optional, can also be in body)
 
 {
   "api_key": "string (required)",
-  "robot_version": "string (required)",
+  "robot_version_uuid": "string (required)",
   "static_fields": {
     "account_number": "string",
     "broker": "string",
@@ -82,7 +82,7 @@ X-API-Key: <license_key> (optional, can also be in body)
 #### Developer-Provided Parameters (SDK Input)
 These parameters must be provided by the developer when initializing the robot:
 - **`api_key`**: License key obtained from customer purchase (user input)
-- **`robot_version`**: Version string hardcoded by developer (e.g., "2.1.0")
+- **`robot_version_uuid`**: Version string hardcoded by developer (e.g., "2.1.0")
 
 #### SDK-Generated Parameters (MQL5 Functions)
 These parameters are automatically collected by the SDK using MQL5 built-in functions:
@@ -128,7 +128,7 @@ The server performs multiple validation checks in sequence:
 api_key = extract_api_key(event)
 
 # 2. Basic input validation
-validate_required_fields(body, ['api_key', 'robot_version'])
+validate_required_fields(body, ['api_key', 'robot_version_uuid'])
 
 # 3. License validation
 license_info = validate_license(api_key)
@@ -449,7 +449,7 @@ The JWT token contains the following claims that robots can decode locally:
   "message": "Required fields missing from request",
   "code": "VALIDATION_ERROR",
   "details": {
-    "missing_fields": ["robot_version", "static_fields"]
+    "missing_fields": ["robot_version_uuid", "static_fields"]
   },
   "action_required": "Include all required fields in request"
 }
@@ -637,7 +637,7 @@ public:
 };
 
 // SDK initialization method
-bool InitializeRobotConnection(string api_key, string robot_version, MyRobotConfig& config)
+bool InitializeRobotConnection(string api_key, string robot_version_uuid, MyRobotConfig& config)
 ```
 
 **SDK Internal Process:**

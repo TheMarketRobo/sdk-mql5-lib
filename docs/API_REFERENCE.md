@@ -18,12 +18,12 @@ CTheMarketRobo_Bot_Base(Irobot_Config* robot_config)
 #### on_init
 
 ```cpp
-virtual int on_init(string api_key, string robot_version, long magic_number, string base_url)
+virtual int on_init(string api_key, string robot_version_uuid, long magic_number, string base_url)
 ```
 
 **Parameters:**
 - `api_key`: Your robot's API key from TheMarketRobo platform
-- `robot_version`: Version string for your robot (e.g., "1.0.0")
+- `robot_version_uuid`: Version string for your robot (e.g., "1.0.0")
 - `magic_number`: Unique identifier for trades
 - `base_url`: API base URL (default: "https://api.themarketrobo.com")
 
