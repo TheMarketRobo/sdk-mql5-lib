@@ -1,6 +1,6 @@
 //+------------------------------------------------------------------+
-//|                                                Cfinal_Stats.mqh |
-//|                        Copyright 2024, The Market Robo Inc. |
+//|                                                  CFinalStats.mqh |
+//|                        Copyright 2024, The Market Robo Inc.      |
 //|                                        https://themarketrobo.com |
 //+------------------------------------------------------------------+
 #ifndef CFINAL_STATS_MQH
@@ -10,14 +10,14 @@
 #include "../Services/Json.mqh"
 
 /**
- * @class Cfinal_Stats
+ * @class CFinalStats
  * @brief Represents the final trading statistics for a session.
  *
  * This class encapsulates all performance metrics and session details
  * that are sent to the server when a trading session is terminated via
  * the `/end` endpoint.
  */
-class Cfinal_Stats : public CObject 
+class CFinalStats : public CObject 
 {
 private:
     int m_total_trades;
@@ -30,30 +30,25 @@ private:
     string m_shutdown_reason;
 
 public:
-    Cfinal_Stats();
-    ~Cfinal_Stats();
+    CFinalStats();
+    ~CFinalStats();
 
-    // Setters
-    void set_total_trades(int total_trades) { m_total_trades = total_trades; }
-    void set_winning_trades(int winning_trades) { m_winning_trades = winning_trades; }
-    void set_losing_trades(int losing_trades) { m_losing_trades = losing_trades; }
-    void set_total_pnl(double total_pnl) { m_total_pnl = total_pnl; }
-    void set_max_drawdown(double max_drawdown) { m_max_drawdown = max_drawdown; }
-    void set_session_duration_minutes(int duration) { m_session_duration_minutes = duration; }
-    void set_last_error(string last_error) { m_last_error = last_error; }
-    void set_shutdown_reason(string reason) { m_shutdown_reason = reason; }
+    void set_total_trades(int total_trades);
+    void set_winning_trades(int winning_trades);
+    void set_losing_trades(int losing_trades);
+    void set_total_pnl(double total_pnl);
+    void set_max_drawdown(double max_drawdown);
+    void set_session_duration_minutes(int duration);
+    void set_last_error(string last_error);
+    void set_shutdown_reason(string reason);
 
-    /**
-     * @brief Converts the final statistics into a JSON object.
-     * @return A CJAVal object representing the final statistics.
-     */
     CJAVal* to_json();
 };
 
 //+------------------------------------------------------------------+
-//| Implementation                                                   |
+//| Constructor                                                       |
 //+------------------------------------------------------------------+
-Cfinal_Stats::Cfinal_Stats()
+CFinalStats::CFinalStats()
 {
     m_total_trades = 0;
     m_winning_trades = 0;
@@ -65,11 +60,29 @@ Cfinal_Stats::Cfinal_Stats()
     m_shutdown_reason = "";
 }
 
-Cfinal_Stats::~Cfinal_Stats()
+//+------------------------------------------------------------------+
+//| Destructor                                                        |
+//+------------------------------------------------------------------+
+CFinalStats::~CFinalStats()
 {
 }
 
-CJAVal* Cfinal_Stats::to_json()
+//+------------------------------------------------------------------+
+//| Setters                                                           |
+//+------------------------------------------------------------------+
+void CFinalStats::set_total_trades(int total_trades) { m_total_trades = total_trades; }
+void CFinalStats::set_winning_trades(int winning_trades) { m_winning_trades = winning_trades; }
+void CFinalStats::set_losing_trades(int losing_trades) { m_losing_trades = losing_trades; }
+void CFinalStats::set_total_pnl(double total_pnl) { m_total_pnl = total_pnl; }
+void CFinalStats::set_max_drawdown(double max_drawdown) { m_max_drawdown = max_drawdown; }
+void CFinalStats::set_session_duration_minutes(int duration) { m_session_duration_minutes = duration; }
+void CFinalStats::set_last_error(string last_error) { m_last_error = last_error; }
+void CFinalStats::set_shutdown_reason(string reason) { m_shutdown_reason = reason; }
+
+//+------------------------------------------------------------------+
+//| Convert to JSON                                                   |
+//+------------------------------------------------------------------+
+CJAVal* CFinalStats::to_json()
 {
     CJAVal* json = new CJAVal(JA_OBJECT);
     if(json == NULL) return NULL;
@@ -108,5 +121,7 @@ CJAVal* Cfinal_Stats::to_json()
 
     return json;
 }
+
 #endif
 //+------------------------------------------------------------------+
+

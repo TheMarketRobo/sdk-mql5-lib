@@ -2,12 +2,13 @@
 
 ## Get Started in 5 Minutes
 
-This guide will help you create your first trading robot using TheMarketRobo SDK in just a few minutes.
+This guide will help you create your first trading robot using TheMarketRobo SDK.
 
 ### Prerequisites
 
 - MetaTrader 5 installed
 - Valid TheMarketRobo API key
+- Robot version UUID from TheMarketRobo platform
 - Basic MQL5 knowledge
 
 ### Step 1: Create Your Robot Configuration
@@ -15,102 +16,137 @@ This guide will help you create your first trading robot using TheMarketRobo SDK
 Create a new file `MyBotConfig.mqh`:
 
 ```cpp
-#include <TheMarketRobo/SDK/TheMarketRobo_SDK.mqh>
+#include <TheMarketRobo/TheMarketRobo_SDK.mqh>
 
-class CMy_Bot_Config : public Irobot_Config
+class CMyRobotConfig : public IRobotConfig
 {
+private:
+    // Actual configuration values
+    double m_max_risk;
+    int    m_max_trades;
+    bool   m_use_news_filter;
+    string m_trading_mode;
+
 public:
-    double max_risk_per_trade;
-    int max_trades_per_day;
-    bool enable_news_filter;
-
-    CMy_Bot_Config()
+    CMyRobotConfig()
     {
-        max_risk_per_trade = 1.5;
-        max_trades_per_day = 10;
-        enable_news_filter = true;
+        define_schema();
+        apply_defaults();
     }
 
-    virtual bool validate_field(string field_name, string new_value, string &reason) override
+protected:
+    // Define configuration fields using schema
+    virtual void define_schema() override
     {
-        if(field_name == "max_risk_per_trade")
-        {
-            double risk = StringToDouble(new_value);
-            if(risk > 0 && risk <= 5.0) return true;
-            reason = "Risk must be between 0.1 and 5.0";
-            return false;
-        }
-        if(field_name == "max_trades_per_day")
-        {
-            int trades = (int)StringToInteger(new_value);
-            if(trades >= 0 && trades <= 100) return true;
-            reason = "Trades per day must be between 0 and 100";
-            return false;
-        }
-        if(field_name == "enable_news_filter") return true;
-
-        reason = "Unknown field: " + field_name;
-        return false;
+        m_schema.add_field(
+            CConfigField::create_decimal("max_risk", "Max Risk %", true, 1.5)
+                .with_range(0.1, 5.0)
+                .with_precision(1)
+                .with_description("Maximum risk per trade")
+                .with_group("Risk Management", 1)
+        );
+        
+        m_schema.add_field(
+            CConfigField::create_integer("max_trades", "Max Trades/Day", true, 10)
+                .with_range(0, 100)
+                .with_group("Risk Management", 2)
+        );
+        
+        m_schema.add_field(
+            CConfigField::create_boolean("use_news_filter", "News Filter", true, true)
+                .with_description("Filter trades during news events")
+                .with_group("Features", 1)
+        );
+        
+        m_schema.add_field(
+            CConfigField::create_radio("trading_mode", "Trading Mode", true, "moderate")
+                .with_option("conservative", "Conservative")
+                .with_option("moderate", "Moderate")
+                .with_option("aggressive", "Aggressive")
+                .with_group("Strategy", 1)
+        );
+    }
+    
+    // Apply default values from schema
+    virtual void apply_defaults() override
+    {
+        m_max_risk = m_schema.get_default_double("max_risk");
+        m_max_trades = m_schema.get_default_int("max_trades");
+        m_use_news_filter = m_schema.get_default_bool("use_news_filter");
+        m_trading_mode = m_schema.get_default_string("trading_mode");
     }
 
+public:
+    // Serialize to JSON
     virtual string to_json() override
     {
         return StringFormat(
-            "{\"max_risk_per_trade\":%.2f,\"max_trades_per_day\":%d,\"enable_news_filter\":%s}",
-            max_risk_per_trade, max_trades_per_day, enable_news_filter ? "true" : "false"
+            "{\"max_risk\":%.2f,\"max_trades\":%d,\"use_news_filter\":%s,\"trading_mode\":\"%s\"}",
+            m_max_risk, m_max_trades, 
+            m_use_news_filter ? "true" : "false",
+            m_trading_mode
         );
     }
 
+    // Update from server JSON
     virtual bool update_from_json(const CJAVal &config_json) override
     {
-        bool success = true;
-        CJAVal* risk_node = config_json["max_risk_per_trade"];
-        if(CheckPointer(risk_node) != POINTER_INVALID)
-            max_risk_per_trade = risk_node.get_double();
-        else success = false;
-
-        CJAVal* trades_node = config_json["max_trades_per_day"];
-        if(CheckPointer(trades_node) != POINTER_INVALID)
-            max_trades_per_day = (int)trades_node.get_long();
-        else success = false;
-
-        CJAVal* news_node = config_json["enable_news_filter"];
-        if(CheckPointer(news_node) != POINTER_INVALID)
-            enable_news_filter = news_node.get_bool();
-        else success = false;
-
-        return success;
-    }
-
-    virtual bool update_field(string field_name, string new_value) override
-    {
-        if(field_name == "max_risk_per_trade")
-            max_risk_per_trade = StringToDouble(new_value);
-        else if(field_name == "max_trades_per_day")
-            max_trades_per_day = (int)StringToInteger(new_value);
-        else if(field_name == "enable_news_filter")
-            enable_news_filter = (new_value == "true");
-        else return false;
-
+        CJAVal* node;
+        
+        node = config_json["max_risk"];
+        if(CheckPointer(node) != POINTER_INVALID)
+            m_max_risk = node.get_double();
+            
+        node = config_json["max_trades"];
+        if(CheckPointer(node) != POINTER_INVALID)
+            m_max_trades = (int)node.get_long();
+            
+        node = config_json["use_news_filter"];
+        if(CheckPointer(node) != POINTER_INVALID)
+            m_use_news_filter = node.get_bool();
+            
+        node = config_json["trading_mode"];
+        if(CheckPointer(node) != POINTER_INVALID)
+            m_trading_mode = node.get_string();
+            
         return true;
     }
 
-    virtual string get_field_as_string(string field_name) override
+    // Update a specific field
+    virtual bool update_field(string field_name, string new_value) override
     {
-        if(field_name == "max_risk_per_trade")
-            return DoubleToString(max_risk_per_trade, 2);
-        if(field_name == "max_trades_per_day")
-            return IntegerToString(max_trades_per_day);
-        if(field_name == "enable_news_filter")
-            return enable_news_filter ? "true" : "false";
-        return "";
+        if(field_name == "max_risk")
+            m_max_risk = StringToDouble(new_value);
+        else if(field_name == "max_trades")
+            m_max_trades = (int)StringToInteger(new_value);
+        else if(field_name == "use_news_filter")
+            m_use_news_filter = (new_value == "true");
+        else if(field_name == "trading_mode")
+            m_trading_mode = new_value;
+        else 
+            return false;
+        return true;
     }
 
-    virtual void get_field_names(string &field_names[]) override
+    // Get field value as string
+    virtual string get_field_as_string(string field_name) override
     {
-        string names[] = {"max_risk_per_trade", "max_trades_per_day", "enable_news_filter"};
-        ArrayCopy(field_names, names);
+        if(field_name == "max_risk")
+            return DoubleToString(m_max_risk, 2);
+        if(field_name == "max_trades")
+            return IntegerToString(m_max_trades);
+        if(field_name == "use_news_filter")
+            return m_use_news_filter ? "true" : "false";
+        if(field_name == "trading_mode")
+            return m_trading_mode;
+        return "";
     }
+    
+    // Getters for trading logic
+    double get_max_risk() const { return m_max_risk; }
+    int    get_max_trades() const { return m_max_trades; }
+    bool   use_news_filter() const { return m_use_news_filter; }
+    string get_trading_mode() const { return m_trading_mode; }
 };
 ```
 
@@ -121,72 +157,66 @@ Create a new file `MyTradingBot.mq5`:
 ```cpp
 #include "MyBotConfig.mqh"
 
-//--- Input parameters
-input string InpApiKey = "YOUR_API_KEY_HERE";
-input long InpMagicNumber = 12345;
-input string InpBaseApiUrl = "https://api.themarketrobo.com";
+//--- Customer-provided input parameters
+input string InpApiKey = "";           // API Key (from TheMarketRobo)
+input long   InpMagicNumber = 12345;   // Magic Number
+
+//--- Programmer-defined robot version UUID
+#define ROBOT_VERSION_UUID "550e8400-e29b-41d4-a716-446655440000"
 
 //--- Global variables
-CMy_Bot* g_bot;
+CMyRobot* robot = NULL;
 
 //+------------------------------------------------------------------+
 //| Expert Advisor Class                                             |
 //+------------------------------------------------------------------+
-class CMy_Bot : public CTheMarketRobo_Bot_Base
+class CMyRobot : public CTheMarketRobo_Bot_Base
 {
 private:
-    CMy_Bot_Config m_config;
+    CMyRobotConfig* m_config;
 
 public:
-    CMy_Bot() : CTheMarketRobo_Bot_Base(&m_config) {}
-
-    void on_tick() override
+    CMyRobot() : CTheMarketRobo_Bot_Base(ROBOT_VERSION_UUID, new CMyRobotConfig())
     {
-        // Your trading logic here
-        if(m_config.enable_news_filter && is_buy_signal())
+        m_config = (CMyRobotConfig*)m_robot_config;
+    }
+
+    virtual void on_tick() override
+    {
+        if(m_config.use_news_filter() && is_buy_signal())
         {
-            Print("Buy signal detected!");
+            Print("Buy signal detected! Risk: ", m_config.get_max_risk(), "%");
             // Add your buy order logic here
         }
     }
 
-    void on_config_changed(string event_json) override
+    virtual void on_config_changed(string event_json) override
     {
-        CJAVal event_data;
-        if(event_data.parse(event_json))
+        CJAVal event;
+        if(event.parse(event_json))
         {
-            string field = event_data["field"].get_string();
-            string new_value = event_data["new_value"].get_string();
-
-            PrintFormat("Config updated: %s = %s", field, new_value);
-
-            // React to configuration changes
-            if(field == "max_risk_per_trade")
-            {
-                PrintFormat("Risk updated to %.2f%%", StringToDouble(new_value));
-            }
+            string field = event["field"].get_string();
+            string value = event["new_value"].get_string();
+            PrintFormat("Config updated: %s = %s", field, value);
         }
     }
 
-    void on_symbol_changed(string event_json) override
+    virtual void on_symbol_changed(string event_json) override
     {
-        CJAVal event_data;
-        if(event_data.parse(event_json))
+        CJAVal event;
+        if(event.parse(event_json))
         {
-            string symbol = event_data["symbol"].get_string();
-            bool active = event_data["active_to_trade"].get_bool();
-
-            PrintFormat("Symbol %s is now %s", symbol, active ? "active" : "inactive");
+            string symbol = event["symbol"].get_string();
+            bool active = event["active_to_trade"].get_bool();
+            PrintFormat("Symbol %s: %s", symbol, active ? "ACTIVE" : "INACTIVE");
         }
     }
 
 private:
     bool is_buy_signal()
     {
-        // Simple example: check if price is above moving average
         double ma = iMA(Symbol(), PERIOD_H1, 20, 0, MODE_SMA, PRICE_CLOSE);
         double price = iClose(Symbol(), PERIOD_H1, 0);
-
         return price > ma;
     }
 };
@@ -196,53 +226,54 @@ private:
 //+------------------------------------------------------------------+
 int OnInit()
 {
-    g_bot = new CMy_Bot();
-    if(CheckPointer(g_bot) == POINTER_INVALID) return INIT_FAILED;
-
-    return g_bot.on_init(InpApiKey, "1.0.0", InpMagicNumber, InpBaseApiUrl);
+    robot = new CMyRobot();
+    if(CheckPointer(robot) == POINTER_INVALID)
+        return INIT_FAILED;
+    
+    // Optional: Configure SDK features
+    robot.set_enable_config_change_requests(true);
+    robot.set_token_refresh_threshold(300);
+    
+    // Initialize with customer inputs
+    return robot.on_init(InpApiKey, InpMagicNumber);
 }
 
 void OnDeinit(const int reason)
 {
-    if(CheckPointer(g_bot) != POINTER_INVALID)
+    if(CheckPointer(robot) != POINTER_INVALID)
     {
-        g_bot.on_deinit(reason);
-        delete g_bot;
+        robot.on_deinit(reason);
+        delete robot;
     }
 }
 
 void OnTimer()
 {
-    if(CheckPointer(g_bot) != POINTER_INVALID)
-        g_bot.on_timer();
+    if(CheckPointer(robot) != POINTER_INVALID)
+        robot.on_timer();
 }
 
 void OnTick()
 {
-    if(CheckPointer(g_bot) != POINTER_INVALID)
-        g_bot.on_tick();
+    if(CheckPointer(robot) != POINTER_INVALID)
+        robot.on_tick();
 }
 
 void OnChartEvent(const int id, const long &lparam, const double &dparam, const string &sparam)
 {
-    if(CheckPointer(g_bot) != POINTER_INVALID)
-        g_bot.on_chart_event(id, lparam, dparam, sparam);
+    if(CheckPointer(robot) != POINTER_INVALID)
+        robot.on_chart_event(id, lparam, dparam, sparam);
 }
 ```
 
 ### Step 3: Configure Your Robot
 
-1. **Get your API Key:**
-   - Log into your TheMarketRobo account
-   - Go to Settings → API Keys
-   - Copy your API key
+1. **Get your robot version UUID:**
+   - Register your robot on TheMarketRobo platform
+   - Copy the assigned UUID
+   - Replace `ROBOT_VERSION_UUID` in your code
 
-2. **Update the input parameters:**
-   ```cpp
-   input string InpApiKey = "sk-your-actual-api-key-here";
-   ```
-
-3. **Compile the Expert Advisor:**
+2. **Compile the Expert Advisor:**
    - Press F7 in MetaEditor
    - Fix any compilation errors
 
@@ -250,79 +281,58 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
 
 1. **Attach to a chart:**
    - Open a chart (EURUSD recommended for testing)
-   - Drag your compiled EA (.ex5 file) onto the chart
-   - Configure the input parameters
+   - Drag your compiled EA onto the chart
+   - Enter your API key in the input parameters
+   - Set your preferred magic number
    - Click "OK"
 
 2. **Monitor the logs:**
    - Check the Experts tab for messages
    - Look for "SDK session started successfully!"
-   - Monitor for any error messages
 
-### Step 5: Test Configuration Updates
+### What's Different from the Old API?
 
-1. **Change configuration on the server:**
-   - Log into TheMarketRobo dashboard
-   - Update your robot's configuration
-   - The EA will automatically receive and apply changes
+| Old API | New API |
+|---------|---------|
+| `on_init(api_key, version, magic, base_url)` | `on_init(api_key, magic_number)` |
+| `Irobot_Config` with manual validation | `IRobotConfig` with schema-based validation |
+| base_url as parameter | SDK_API_BASE_URL constant |
+| Constructor takes config pointer | Constructor takes UUID + config pointer |
 
-2. **Verify the update:**
-   - Check the logs for configuration change messages
-   - Verify your trading logic uses the new values
+### Parameter Responsibilities
 
-## What Just Happened?
-
-✅ **Authentication**: SDK automatically authenticated with your API key
-✅ **Session Management**: Secure session established with the server
-✅ **Configuration Sync**: Your robot configuration is now synced with the server
-✅ **Real-time Updates**: Changes on the server are automatically applied
-✅ **Error Handling**: SDK handles network issues and authentication problems
-✅ **Security**: All communication is encrypted and secure
+| Parameter | Who Provides | Where Defined |
+|-----------|--------------|---------------|
+| robot_version_uuid | Programmer | In constructor |
+| config schema | Programmer | In IRobotConfig.define_schema() |
+| api_key | Customer | Input parameter |
+| magic_number | Customer | Input parameter |
+| base_url | SDK | CSDKConstants.mqh |
 
 ## Next Steps
 
-Now that you have a working robot, you can:
-
-1. **Add Trading Logic**: Implement your trading strategy in `on_tick()`
-2. **Configure Risk Management**: Set up proper position sizing and stop losses
-3. **Add Indicators**: Use technical indicators for better signals
-4. **Test Thoroughly**: Backtest your strategy before going live
-5. **Monitor Performance**: Track your robot's performance on the dashboard
+1. **Add Trading Logic**: Implement your strategy in `on_tick()`
+2. **Configure Risk**: Set up proper position sizing
+3. **Add More Config Fields**: Extend your schema
+4. **Test Thoroughly**: Backtest before going live
 
 ## Troubleshooting
 
-### Common Issues
+**"Invalid robot_version_uuid"**
+- UUID must be exactly 36 characters
+- Format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 **"Failed to start SDK session"**
 - Check your API key is correct
 - Verify internet connection
-- Ensure the base URL is correct
 
-**No trading activity**
-- Check that `enable_trading` is true in your config
-- Verify your signal conditions are met
-- Look for error messages in the logs
+**"Schema not initialized"**
+- Ensure `define_schema()` is called in constructor
 
-**Configuration not updating**
-- Check server-side configuration
-- Verify JSON format in your config class
-- Look for validation errors in logs
+## Full Example
 
-### Getting Help
+See the complete example in:
+- `docs/README.md` - Full documentation
+- Source files in sdk-mql5-lib/
 
-- Check the logs in MetaTrader's Experts tab
-- Review the full documentation in `docs/`
-- Contact TheMarketRobo support with error messages
-
-## Full Example Repository
-
-For a complete working example with advanced features, check out:
-- `Experts/TheMarketRobo/SDK/Example_Bot.mq5` - Complete implementation
-- `docs/EXAMPLES.md` - Additional code examples
-- `docs/TROUBLESHOOTING.md` - Solutions to common problems
-
-**Time to completion: 5 minutes**
-**Lines of code: ~150**
-**Features: Authentication, config sync, error handling**
-
-You're now ready to build powerful trading robots with TheMarketRobo SDK! 🚀
+**You're ready to build with TheMarketRobo SDK!**
