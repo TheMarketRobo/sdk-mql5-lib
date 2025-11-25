@@ -11,6 +11,7 @@
 #define CTHEMARKETROBO_BOT_BASE_MQH
 
 #include "Core/CSDK_Context.mqh"
+#include "Core/CSDK_Constants.mqh"
 #include "Utils/CSDK_Events.mqh"
 #include "Interfaces/Irobot_Config.mqh"
 
@@ -25,26 +26,59 @@
  * session management behind the scenes. Developers should inherit from this
  * class to implement their specific trading logic.
  *
- * ## Token Refresh Configuration
- * The SDK implements proactive token refresh to ensure uninterrupted API access.
- * By default, tokens are refreshed 300 seconds (5 minutes) before expiration.
- * Use set_token_refresh_threshold() to customize this behavior.
+ * ## Parameter Categories
+ *
+ * ### Programmer-Defined (Hardcoded in Robot)
+ * - **robot_version_uuid**: Unique identifier for this robot version (set via constructor)
+ * - **Irobot_Config**: Configuration class with schema definition
+ *
+ * ### Customer-Provided (Input Parameters)
+ * - **api_key**: Robot API key from TheMarketRobo platform (input parameter)
+ * - **magic_number**: MT5 magic number to identify trades (input parameter)
+ *
+ * ### SDK Constants (Hardcoded in SDK)
+ * - **base_url**: API endpoint (SDK_API_BASE_URL constant)
+ *
+ * ## Feature Configuration
+ * The SDK supports optional features that can be enabled/disabled BEFORE on_init():
+ * - **Config change requests**: Server-initiated configuration changes (default: enabled)
+ * - **Symbol change requests**: Server-initiated symbol activation changes (default: enabled)
+ * - **Token refresh threshold**: Seconds before expiration to refresh token (default: 300)
  *
  * ## Usage Example
  * ```cpp
- * class MyRobot : public CTheMarketRobo_Bot_Base
+ * // In your robot's header file
+ * input string InpApiKey = "";           // API Key (Customer provides)
+ * input long   InpMagicNumber = 12345;   // Magic Number (Customer provides)
+ * 
+ * class CMyRobotConfig : public Irobot_Config { ... };
+ * 
+ * class CMyRobot : public CTheMarketRobo_Bot_Base
  * {
  * public:
- *     MyRobot(Irobot_Config* config) : CTheMarketRobo_Bot_Base(config) {}
+ *     // Programmer sets robot_version_uuid in constructor
+ *     CMyRobot() : CTheMarketRobo_Bot_Base(
+ *         "550e8400-e29b-41d4-a716-446655440000",  // robot_version_uuid (programmer-defined)
+ *         new CMyRobotConfig()                      // config class (programmer-defined)
+ *     ) {}
  *     
- *     int on_init(string api_key, string robot_version_uuid, long magic_number, string base_url)
- *     {
- *         // Optional: Customize token refresh threshold (default: 300 seconds)
- *         set_token_refresh_threshold(600); // Refresh 10 minutes before expiration
- *         
- *         return CTheMarketRobo_Bot_Base::on_init(api_key, robot_version_uuid, magic_number, base_url);
- *     }
+ *     virtual void on_tick() override { ... }
+ *     virtual void on_config_changed(string event_json) override { ... }
+ *     virtual void on_symbol_changed(string event_json) override { ... }
  * };
+ * 
+ * CMyRobot* robot = NULL;
+ * 
+ * int OnInit()
+ * {
+ *     robot = new CMyRobot();
+ *     
+ *     // Optional: Configure SDK features before init
+ *     robot.set_enable_config_change_requests(true);
+ *     
+ *     // Initialize with customer-provided inputs
+ *     return robot.on_init(InpApiKey, InpMagicNumber);
+ * }
  * ```
  */
 class CTheMarketRobo_Bot_Base
@@ -52,14 +86,31 @@ class CTheMarketRobo_Bot_Base
 protected:
     CSDK_Context*   m_sdk_context;
     Irobot_Config*  m_robot_config;
-    int             m_token_refresh_threshold_seconds;  // Configurable refresh threshold
+    string          m_robot_version_uuid;  // Programmer-defined robot version
+    
+    // Configurable options (stored for deferred application)
+    int             m_token_refresh_threshold_seconds;
+    bool            m_enable_config_change_requests;
+    bool            m_enable_symbol_change_requests;
 
 public:
-    CTheMarketRobo_Bot_Base(Irobot_Config* robot_config);
+    /**
+     * @brief Constructor for robot base class.
+     * @param robot_version_uuid Programmer-defined unique identifier for this robot version.
+     *                           This is a UUID assigned by TheMarketRobo platform when registering the robot.
+     * @param robot_config Programmer-defined configuration class implementing Irobot_Config.
+     */
+    CTheMarketRobo_Bot_Base(string robot_version_uuid, Irobot_Config* robot_config);
     ~CTheMarketRobo_Bot_Base();
 
     //--- SDK Lifecycle Methods (to be called from MQL5 entry points)
-    virtual int     on_init(string api_key, string robot_version_uuid, long magic_number, string base_url);
+    /**
+     * @brief Initializes the SDK and starts the session.
+     * @param api_key Customer-provided API key from TheMarketRobo platform.
+     * @param magic_number Customer-provided MT5 magic number for trade identification.
+     * @return INIT_SUCCEEDED on success, INIT_FAILED on failure.
+     */
+    virtual int     on_init(string api_key, long magic_number);
     virtual void    on_deinit(const int reason);
     virtual void    on_timer();
     virtual void    on_chart_event(const int id, const long &lparam, const double &dparam, const string &sparam);
@@ -69,9 +120,20 @@ public:
     virtual void    on_config_changed(string event_json) = 0;
     virtual void    on_symbol_changed(string event_json) = 0;
     
-    //--- Token Refresh Configuration
+    //--- SDK Feature Configuration (call BEFORE on_init())
     void            set_token_refresh_threshold(int seconds);
     int             get_token_refresh_threshold() const;
+    
+    void            set_enable_config_change_requests(bool enable);
+    bool            is_config_change_requests_enabled() const;
+    
+    void            set_enable_symbol_change_requests(bool enable);
+    bool            is_symbol_change_requests_enabled() const;
+    
+    void            print_sdk_configuration() const;
+    
+    //--- Getters
+    string          get_robot_version_uuid() const { return m_robot_version_uuid; }
 
 protected:
     //--- Internal Event Handlers
@@ -82,11 +144,18 @@ protected:
 //+------------------------------------------------------------------+
 //| CTheMarketRobo_Bot_Base Implementation                           |
 //+------------------------------------------------------------------+
-CTheMarketRobo_Bot_Base::CTheMarketRobo_Bot_Base(Irobot_Config* robot_config)
+CTheMarketRobo_Bot_Base::CTheMarketRobo_Bot_Base(string robot_version_uuid, Irobot_Config* robot_config)
 {
     m_sdk_context = NULL;
     m_robot_config = robot_config;
-    m_token_refresh_threshold_seconds = 300; // Default: 5 minutes before expiration
+    m_robot_version_uuid = robot_version_uuid;
+    
+    // Default feature configuration
+    m_token_refresh_threshold_seconds = SDK_DEFAULT_TOKEN_REFRESH_THRESHOLD;
+    m_enable_config_change_requests = true;   // Enabled by default
+    m_enable_symbol_change_requests = true;   // Enabled by default
+    
+    Print("SDK Info: Robot Version UUID = ", m_robot_version_uuid);
 }
 
 CTheMarketRobo_Bot_Base::~CTheMarketRobo_Bot_Base()
@@ -98,17 +167,8 @@ CTheMarketRobo_Bot_Base::~CTheMarketRobo_Bot_Base()
 /**
  * @brief Sets the token refresh threshold in seconds.
  * @param seconds Number of seconds before token expiration to trigger proactive refresh.
- * @note Default is 300 seconds (5 minutes). Call this BEFORE on_init() for the setting to take effect.
+ * @note Default is 300 seconds (5 minutes). Call this BEFORE on_init() for best results.
  *       Minimum value is 60 seconds, maximum is 3600 seconds.
- *
- * ## Example
- * ```cpp
- * int MyRobot::on_init(...)
- * {
- *     set_token_refresh_threshold(600); // Refresh 10 minutes before expiration
- *     return CTheMarketRobo_Bot_Base::on_init(...);
- * }
- * ```
  */
 void CTheMarketRobo_Bot_Base::set_token_refresh_threshold(int seconds)
 {
@@ -134,23 +194,133 @@ int CTheMarketRobo_Bot_Base::get_token_refresh_threshold() const
     return m_token_refresh_threshold_seconds;
 }
 
-int CTheMarketRobo_Bot_Base::on_init(string api_key, string robot_version_uuid, long magic_number, string base_url)
+/**
+ * @brief Enables or disables configuration change request handling.
+ * @param enable When false, SDK ignores config change requests from server
+ *               and doesn't send config_change_results in heartbeats.
+ * @note Call this BEFORE on_init() for best results.
+ */
+void CTheMarketRobo_Bot_Base::set_enable_config_change_requests(bool enable)
 {
+    m_enable_config_change_requests = enable;
+    
+    // If context already exists, update it directly
+    if(CheckPointer(m_sdk_context) != POINTER_INVALID)
+    {
+        m_sdk_context.set_enable_config_change_requests(enable);
+    }
+}
+
+/**
+ * @brief Checks if configuration change request handling is enabled.
+ * @return true if enabled, false otherwise.
+ */
+bool CTheMarketRobo_Bot_Base::is_config_change_requests_enabled() const
+{
+    if(CheckPointer(m_sdk_context) != POINTER_INVALID)
+    {
+        return m_sdk_context.is_config_change_requests_enabled();
+    }
+    return m_enable_config_change_requests;
+}
+
+/**
+ * @brief Enables or disables symbol change request handling.
+ * @param enable When false, SDK ignores symbol change requests from server
+ *               and doesn't send symbols_change_results in heartbeats.
+ * @note Call this BEFORE on_init() for best results.
+ */
+void CTheMarketRobo_Bot_Base::set_enable_symbol_change_requests(bool enable)
+{
+    m_enable_symbol_change_requests = enable;
+    
+    // If context already exists, update it directly
+    if(CheckPointer(m_sdk_context) != POINTER_INVALID)
+    {
+        m_sdk_context.set_enable_symbol_change_requests(enable);
+    }
+}
+
+/**
+ * @brief Checks if symbol change request handling is enabled.
+ * @return true if enabled, false otherwise.
+ */
+bool CTheMarketRobo_Bot_Base::is_symbol_change_requests_enabled() const
+{
+    if(CheckPointer(m_sdk_context) != POINTER_INVALID)
+    {
+        return m_sdk_context.is_symbol_change_requests_enabled();
+    }
+    return m_enable_symbol_change_requests;
+}
+
+/**
+ * @brief Prints the current SDK configuration to the terminal.
+ */
+void CTheMarketRobo_Bot_Base::print_sdk_configuration() const
+{
+    Print("=== SDK Configuration ===");
+    Print("  Robot Version UUID: ", m_robot_version_uuid);
+    Print("  API Base URL: ", SDK_API_BASE_URL);
+    
+    if(CheckPointer(m_sdk_context) != POINTER_INVALID)
+    {
+        m_sdk_context.print_configuration();
+    }
+    else
+    {
+        Print("  Token refresh threshold: ", m_token_refresh_threshold_seconds, " seconds");
+        Print("  Config change requests: ", m_enable_config_change_requests ? "ENABLED" : "DISABLED");
+        Print("  Symbol change requests: ", m_enable_symbol_change_requests ? "ENABLED" : "DISABLED");
+    }
+    Print("=========================");
+}
+
+/**
+ * @brief Initializes the SDK and starts the session.
+ * @param api_key Customer-provided API key from TheMarketRobo platform.
+ * @param magic_number Customer-provided MT5 magic number for trade identification.
+ * @return INIT_SUCCEEDED on success, INIT_FAILED on failure.
+ */
+int CTheMarketRobo_Bot_Base::on_init(string api_key, long magic_number)
+{
+    // Validate programmer-provided robot_version_uuid
+    if(m_robot_version_uuid == "" || StringLen(m_robot_version_uuid) != SDK_UUID_LENGTH)
+    {
+        Print("SDK Error: Invalid robot_version_uuid. Must be a valid UUID (36 characters).");
+        return INIT_FAILED;
+    }
+    
+    // Validate customer-provided api_key
+    if(api_key == "")
+    {
+        Print("SDK Error: API Key is required. Please provide a valid API key.");
+        Alert("TheMarketRobo SDK: API Key is required!");
+        return INIT_FAILED;
+    }
+    
     if(CheckPointer(m_robot_config) == POINTER_INVALID)
     {
         Print("SDK Error: Robot configuration is not valid.");
         return INIT_FAILED;
     }
+    
+    Print("SDK Info: Initializing with Magic Number = ", magic_number);
 
-    m_sdk_context = new CSDK_Context(api_key, robot_version_uuid, magic_number, m_robot_config, base_url);
+    m_sdk_context = new CSDK_Context(api_key, m_robot_version_uuid, magic_number, m_robot_config);
     if(CheckPointer(m_sdk_context) == POINTER_INVALID)
     {
         Print("SDK Error: Failed to create SDK Context.");
         return INIT_FAILED;
     }
     
-    // Apply the token refresh threshold configuration
+    // Apply all deferred configuration settings
     m_sdk_context.set_token_refresh_threshold_seconds(m_token_refresh_threshold_seconds);
+    m_sdk_context.set_enable_config_change_requests(m_enable_config_change_requests);
+    m_sdk_context.set_enable_symbol_change_requests(m_enable_symbol_change_requests);
+    
+    // Log the applied configuration
+    print_sdk_configuration();
 
     if(!m_sdk_context.start())
     {
@@ -164,7 +334,6 @@ int CTheMarketRobo_Bot_Base::on_init(string api_key, string robot_version_uuid, 
     }
 
     Print("SDK session started successfully!");
-    Print("SDK Info: Token will be refreshed ", m_token_refresh_threshold_seconds, " seconds before expiration.");
     EventSetTimer(1);
     return INIT_SUCCEEDED;
 }

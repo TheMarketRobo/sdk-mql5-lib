@@ -14,16 +14,30 @@
 /**
  * @class Cconfiguration_Manager
  * @brief Manages the robot's configuration, including validation and updates.
+ *
+ * ## Feature Toggle Support
+ * This manager can be enabled or disabled via set_enabled(). When disabled:
+ * - process_change_request() is a no-op
+ * - get_pending_results() always returns NULL
+ * - Initial config validation still works (required for session start)
+ *
+ * This follows the Open/Closed Principle - the behavior is modified without
+ * changing the existing method interfaces.
  */
 class Cconfiguration_Manager : public CObject
 {
 private:
     Irobot_Config* m_robot_config;
     CJAVal* m_pending_change_results; // Results to be sent in the next heartbeat
+    bool m_enabled;                    // Feature toggle
 
 public:
     Cconfiguration_Manager(Irobot_Config* robot_config);
     ~Cconfiguration_Manager();
+
+    // Feature toggle
+    void set_enabled(bool enabled) { m_enabled = enabled; }
+    bool is_enabled() const { return m_enabled; }
 
     bool validate_initial_config(const CJAVal &server_config);
     void process_change_request(const CJAVal &change_request);
@@ -38,6 +52,7 @@ Cconfiguration_Manager::Cconfiguration_Manager(Irobot_Config* robot_config)
 {
     m_robot_config = robot_config;
     m_pending_change_results = NULL;
+    m_enabled = true; // Default: enabled
 }
 
 Cconfiguration_Manager::~Cconfiguration_Manager()
@@ -49,6 +64,7 @@ Cconfiguration_Manager::~Cconfiguration_Manager()
  * @brief Validates the initial server configuration against the developer's config.
  * @param server_config The configuration object from the /start response.
  * @return true if validation passes, false otherwise.
+ * @note This always works regardless of enabled state (required for session start).
  */
 bool Cconfiguration_Manager::validate_initial_config(const CJAVal &server_config)
 {
@@ -61,9 +77,17 @@ bool Cconfiguration_Manager::validate_initial_config(const CJAVal &server_config
 /**
  * @brief Processes a configuration change request from a heartbeat response.
  * @param change_request The JSON object with requested changes.
+ * @note When disabled (set_enabled(false)), this method is a no-op.
  */
 void Cconfiguration_Manager::process_change_request(const CJAVal &change_request)
 {
+    // Early exit if disabled
+    if(!m_enabled)
+    {
+        Print("SDK Info: Config change request received but feature is DISABLED. Ignoring.");
+        return;
+    }
+    
     if(CheckPointer(m_robot_config) == POINTER_INVALID) return;
 
     clear_pending_results();
@@ -101,6 +125,8 @@ void Cconfiguration_Manager::process_change_request(const CJAVal &change_request
                 change.Add("field_name", field_val);
                 change.Add("value", new_val);
                 accepted_changes.Add(change);
+                
+                Print("SDK Info: Config field '", field_name, "' updated to '", new_value_str, "'");
             }
             else
             {
@@ -111,6 +137,8 @@ void Cconfiguration_Manager::process_change_request(const CJAVal &change_request
                 rejection.Add("field_name", field_val);
                 rejection.Add("reason", reason_val);
                 rejected_changes.Add(rejection);
+                
+                Print("SDK Warning: Config field '", field_name, "' rejected. Reason: ", reason);
             }
         }
     }
@@ -129,10 +157,12 @@ void Cconfiguration_Manager::process_change_request(const CJAVal &change_request
 
 /**
  * @brief Gets the results of the last change request to be sent in the next heartbeat.
- * @return A CJAVal object with the results, or NULL if there are none.
+ * @return A CJAVal object with the results, or NULL if disabled or no pending results.
  */
 CJAVal* Cconfiguration_Manager::get_pending_results()
 {
+    // Return NULL if disabled - don't include in heartbeat
+    if(!m_enabled) return NULL;
     return m_pending_change_results;
 }
 

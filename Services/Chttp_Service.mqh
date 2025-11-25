@@ -8,6 +8,7 @@
 
 #include <Object.mqh>
 #include "Json.mqh"
+#include "../Core/CSDK_Constants.mqh"
 
 #define HTTP_TIMEOUT 5000 // 5 seconds
 
@@ -33,6 +34,8 @@ public:
 /**
  * @class Chttp_Service
  * @brief A service class to handle HTTP web requests.
+ *
+ * Uses the SDK_API_BASE_URL constant for the API endpoint.
  */
 class Chttp_Service : public CObject
 {
@@ -40,17 +43,22 @@ private:
     string m_base_url;
 
 public:
-    Chttp_Service(string base_url);
+    Chttp_Service();
     ~Chttp_Service();
 
     Chttp_Response* post(string endpoint, string jwt_token, string &data);
+    
+    string get_base_url() const { return m_base_url; }
 };
 
 //+------------------------------------------------------------------+
 //| Implementation                                                   |
 //+------------------------------------------------------------------+
-Chttp_Service::Chttp_Service(string base_url) : m_base_url(base_url)
+Chttp_Service::Chttp_Service()
 {
+    // Use SDK constant for base URL
+    m_base_url = SDK_API_BASE_URL;
+    Print("SDK Info: API Base URL = ", m_base_url);
 }
 
 Chttp_Service::~Chttp_Service()

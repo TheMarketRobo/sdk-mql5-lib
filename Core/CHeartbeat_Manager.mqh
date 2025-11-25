@@ -160,6 +160,8 @@ CJAVal* CHeartbeat_Manager::build_heartbeat_payload()
 /**
  * @brief Processes the response from a heartbeat request.
  * @param response The JSON response from the server.
+ * @note Change requests are only processed if the respective feature is enabled.
+ *       When features are disabled, the SDK gracefully ignores those fields.
  */
 void CHeartbeat_Manager::process_heartbeat_response(const CJAVal &response)
 {
@@ -168,32 +170,39 @@ void CHeartbeat_Manager::process_heartbeat_response(const CJAVal &response)
     m_last_heartbeat_time = TimeCurrent();
     m_waiting_for_confirmation = false;
     
-    // Clear the pending results that were successfully sent
-    m_context.config_manager.clear_pending_results();
-    m_context.symbol_manager.clear_pending_results();
+    // Clear the pending results that were successfully sent (if feature is enabled)
+    if(m_context.config_manager.is_enabled())
+        m_context.config_manager.clear_pending_results();
+    
+    if(m_context.symbol_manager.is_enabled())
+        m_context.symbol_manager.clear_pending_results();
+    
     if(CheckPointer(m_pending_heartbeat_data) == POINTER_DYNAMIC)
     {
         delete m_pending_heartbeat_data;
         m_pending_heartbeat_data = NULL;
     }
 
-    // Update heartbeat interval
+    // Update heartbeat interval (always processed)
     CJAVal* interval_node = response["heartbeat_interval_seconds"];
     if(CheckPointer(interval_node) != POINTER_INVALID && interval_node.get_type() == JA_NUMBER)
     {
         set_interval((uint)interval_node.get_long());
     }
     
-    // Process new change requests
+    // Process new change requests (only if feature is enabled)
+    // The managers will also check their enabled state, this is an additional guard
     CJAVal* config_change_node = response["robot_config_change_request"];
     if(CheckPointer(config_change_node) != POINTER_INVALID)
     {
+        // Manager will check its enabled state and log if disabled
         m_context.config_manager.process_change_request(config_change_node);
     }
     
     CJAVal* symbol_change_node = response["session_symbols_change_request"];
     if(CheckPointer(symbol_change_node) != POINTER_INVALID)
     {
+        // Manager will check its enabled state and log if disabled
         m_context.symbol_manager.process_change_request(symbol_change_node);
     }
 }

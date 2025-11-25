@@ -7,6 +7,8 @@
 #define CSDK_CONTEXT_MQH
 
 #include <Object.mqh>
+#include "CSDK_Options.mqh"
+#include "CSDK_Constants.mqh"
 #include "Csession_Manager.mqh"
 #include "CHeartbeat_Manager.mqh"
 #include "CToken_Manager.mqh"
@@ -20,22 +22,39 @@
  * @class CSDK_Context
  * @brief A service container for managing the lifecycle and dependencies of all SDK components.
  *
- * ## Token Refresh Configuration
- * The SDK implements proactive token refresh to ensure uninterrupted session continuity.
- * By default, tokens are refreshed 300 seconds (5 minutes) before expiration.
- * This threshold can be configured via set_token_refresh_threshold_seconds().
+ * ## Customer-Provided Parameters
+ * The following parameters are provided by the customer (end user), not the robot programmer:
+ * - **api_key**: Robot API key obtained from TheMarketRobo platform
+ * - **magic_number**: MT5 magic number to identify trades from this robot
+ *
+ * ## Programmer-Provided Parameters
+ * The following are defined by the robot programmer:
+ * - **robot_version_uuid**: Unique identifier for this robot version
+ * - **Irobot_Config**: Configuration class with schema definition
+ *
+ * ## SDK Configuration (Hardcoded)
+ * - **API Base URL**: Uses SDK_API_BASE_URL constant (staging environment)
+ *
+ * ## Feature Configuration
+ * The SDK supports optional features that can be enabled/disabled:
+ * - **Config change requests**: Server-initiated configuration changes
+ * - **Symbol change requests**: Server-initiated symbol activation changes
+ * - **Token refresh**: Proactive JWT token refresh before expiration
  *
  * ## Components
  * - session_manager: Manages session lifecycle (/start, /end, /refresh)
  * - heartbeat_manager: Manages periodic heartbeat communication
  * - token_manager: Manages JWT token storage and proactive refresh
- * - config_manager: Manages robot configuration changes
- * - symbol_manager: Manages symbol activation changes
+ * - config_manager: Manages robot configuration changes (optional)
+ * - symbol_manager: Manages symbol activation changes (optional)
  * - http_service: HTTP client for API communication
  * - data_collector: Collects static and dynamic data from MQL5
  */
 class CSDK_Context : public CObject
 {
+private:
+    CSDK_Options* m_options;  // SDK configuration options
+
 public:
     // Core Managers and Services
     Csession_Manager*       session_manager;
@@ -50,24 +69,50 @@ public:
     Irobot_Config*          robot_config;
 
 public:
-    CSDK_Context(string api_key, string robot_version_uuid, long magic_number, Irobot_Config* config, string base_url);
+    /**
+     * @brief Creates the SDK context.
+     * @param api_key Customer-provided API key from TheMarketRobo platform.
+     * @param robot_version_uuid Programmer-defined robot version UUID.
+     * @param magic_number Customer-provided MT5 magic number for trade identification.
+     * @param config Programmer-defined configuration class implementing Irobot_Config.
+     */
+    CSDK_Context(string api_key, string robot_version_uuid, long magic_number, Irobot_Config* config);
     ~CSDK_Context();
 
     bool start();
     void on_timer();
     void terminate(string reason);
     
+    // ===========================================================================
+    // FEATURE CONFIGURATION
+    // ===========================================================================
+    
     // Token Refresh Configuration
     void set_token_refresh_threshold_seconds(int seconds);
     int  get_token_refresh_threshold_seconds() const;
+    
+    // Config Change Requests (optional feature)
+    void set_enable_config_change_requests(bool enable);
+    bool is_config_change_requests_enabled() const;
+    
+    // Symbol Change Requests (optional feature)
+    void set_enable_symbol_change_requests(bool enable);
+    bool is_symbol_change_requests_enabled() const;
+    
+    // Get options object for advanced configuration
+    CSDK_Options* get_options() const { return m_options; }
+    
+    // Print current configuration
+    void print_configuration() const;
 };
 
 //+------------------------------------------------------------------+
 //| Implementation                                                   |
 //+------------------------------------------------------------------+
-CSDK_Context::CSDK_Context(string api_key, string robot_version_uuid, long magic_number, Irobot_Config* config, string base_url)
+CSDK_Context::CSDK_Context(string api_key, string robot_version_uuid, long magic_number, Irobot_Config* config)
 {
     // Initialize all pointers to NULL
+    m_options             = NULL;
     session_manager       = NULL;
     heartbeat_manager     = NULL;
     token_manager         = NULL;
@@ -77,11 +122,19 @@ CSDK_Context::CSDK_Context(string api_key, string robot_version_uuid, long magic
     data_collector        = NULL;
     robot_config          = NULL;
 
+    Print("SDK Info: TheMarketRobo SDK v", SDK_VERSION);
+    Print("SDK Info: API Base URL = ", SDK_API_BASE_URL);
+
     // Store developer interfaces
     robot_config = config;
+    
+    // Create options container first
+    m_options = new CSDK_Options();
+    if(CheckPointer(m_options) == POINTER_INVALID) { Print("SDK Error: Failed to create CSDK_Options"); return; }
 
     // Create services first (lowest level dependencies)
-    http_service = new Chttp_Service(base_url);
+    // HTTP service uses SDK_API_BASE_URL constant automatically
+    http_service = new Chttp_Service();
     if(CheckPointer(http_service) == POINTER_INVALID) { Print("SDK Error: Failed to create Chttp_Service"); return; }
 
     data_collector = new Cdata_Collector_Service();
@@ -115,6 +168,7 @@ CSDK_Context::~CSDK_Context()
     if(CheckPointer(token_manager) == POINTER_DYNAMIC) delete token_manager;
     if(CheckPointer(data_collector) == POINTER_DYNAMIC) delete data_collector;
     if(CheckPointer(http_service) == POINTER_DYNAMIC) delete http_service;
+    if(CheckPointer(m_options) == POINTER_DYNAMIC) delete m_options;
 }
 
 /**
@@ -199,6 +253,81 @@ int CSDK_Context::get_token_refresh_threshold_seconds() const
         return token_manager.get_refresh_threshold_seconds();
     }
     return 300; // Default value
+}
+
+/**
+ * @brief Enables or disables configuration change request handling.
+ * @param enable When false, SDK ignores config change requests from server
+ *               and doesn't send config_change_results in heartbeats.
+ * @note Call this BEFORE start() for the setting to take effect on session start.
+ */
+void CSDK_Context::set_enable_config_change_requests(bool enable)
+{
+    if(CheckPointer(m_options) != POINTER_INVALID)
+    {
+        m_options.set_enable_config_change_requests(enable);
+    }
+    
+    if(CheckPointer(config_manager) != POINTER_INVALID)
+    {
+        config_manager.set_enabled(enable);
+    }
+}
+
+/**
+ * @brief Checks if configuration change request handling is enabled.
+ * @return true if enabled, false otherwise.
+ */
+bool CSDK_Context::is_config_change_requests_enabled() const
+{
+    if(CheckPointer(m_options) != POINTER_INVALID)
+    {
+        return m_options.is_config_change_requests_enabled();
+    }
+    return true; // Default
+}
+
+/**
+ * @brief Enables or disables symbol change request handling.
+ * @param enable When false, SDK ignores symbol change requests from server
+ *               and doesn't send symbols_change_results in heartbeats.
+ * @note Call this BEFORE start() for the setting to take effect on session start.
+ */
+void CSDK_Context::set_enable_symbol_change_requests(bool enable)
+{
+    if(CheckPointer(m_options) != POINTER_INVALID)
+    {
+        m_options.set_enable_symbol_change_requests(enable);
+    }
+    
+    if(CheckPointer(symbol_manager) != POINTER_INVALID)
+    {
+        symbol_manager.set_enabled(enable);
+    }
+}
+
+/**
+ * @brief Checks if symbol change request handling is enabled.
+ * @return true if enabled, false otherwise.
+ */
+bool CSDK_Context::is_symbol_change_requests_enabled() const
+{
+    if(CheckPointer(m_options) != POINTER_INVALID)
+    {
+        return m_options.is_symbol_change_requests_enabled();
+    }
+    return true; // Default
+}
+
+/**
+ * @brief Prints the current SDK configuration to the terminal.
+ */
+void CSDK_Context::print_configuration() const
+{
+    if(CheckPointer(m_options) != POINTER_INVALID)
+    {
+        m_options.print_options();
+    }
 }
 
 #endif
