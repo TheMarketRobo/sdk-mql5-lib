@@ -10,6 +10,7 @@
 //| SDK Version                                                       |
 //+------------------------------------------------------------------+
 #define SDK_VERSION "1.0.0"
+#define SDK_UUID_LENGTH 36  // Standard UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 //+------------------------------------------------------------------+
 //| API Configuration                                                 |
