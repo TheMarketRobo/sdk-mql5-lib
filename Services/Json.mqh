@@ -84,10 +84,13 @@ public:
     bool        Add(const string key, CJAVal *value);
     CJAVal     *operator[](const string key);
     CJAVal     *operator[](const string key) const;
+    bool        has_key(const string key) const;
 
     bool        Add(CJAVal *value);
     CJAVal     *operator[](const int index);
     CJAVal     *operator[](const int index) const;
+    
+    string      serialize();  // Alias for to_string
 
 private:
     string      Escape(const string s);
@@ -284,6 +287,28 @@ CJAVal* CJAVal::operator[](const int index) const
 {
     if(m_type != JA_ARRAY || m_arr == NULL) return NULL;
     return m_arr.At(index);
+}
+
+//+------------------------------------------------------------------+
+//| Check if object has a key                                         |
+//+------------------------------------------------------------------+
+bool CJAVal::has_key(const string key) const
+{
+    if(m_type != JA_OBJECT || m_obj == NULL) return false;
+    for(int i = 0; i < m_obj.Total(); i++)
+    {
+        CJAObj* pair = m_obj.At(i);
+        if(pair.m_key == key) return true;
+    }
+    return false;
+}
+
+//+------------------------------------------------------------------+
+//| Serialize to JSON string (alias for to_string)                    |
+//+------------------------------------------------------------------+
+string CJAVal::serialize()
+{
+    return to_string();
 }
 
 //+------------------------------------------------------------------+
@@ -498,8 +523,8 @@ bool CJAVal::ParseString(string &json, int &pos)
                 case '"':  result += "\""; break;
                 case '\\': result += "\\"; break;
                 case '/':  result += "/"; break;
-                case 'b':  result += "\b"; break;
-                case 'f':  result += "\f"; break;
+                case 'b':  result += ShortToString(8); break;  // backspace
+                case 'f':  result += ShortToString(12); break; // form feed
                 case 'n':  result += "\n"; break;
                 case 'r':  result += "\r"; break;
                 case 't':  result += "\t"; break;
@@ -680,8 +705,8 @@ string CJAVal::Escape(const string s)
         {
             case '"':  result += "\\\""; break;
             case '\\': result += "\\\\"; break;
-            case '\b': result += "\\b"; break;
-            case '\f': result += "\\f"; break;
+            case 8:    result += "\\b"; break;  // backspace (0x08)
+            case 12:   result += "\\f"; break;  // form feed (0x0C)
             case '\n': result += "\\n"; break;
             case '\r': result += "\\r"; break;
             case '\t': result += "\\t"; break;
@@ -732,8 +757,8 @@ string CJAVal::Unescape(const string s)
                 case '"':  result += "\""; i += 2; break;
                 case '\\': result += "\\"; i += 2; break;
                 case '/':  result += "/"; i += 2; break;
-                case 'b':  result += "\b"; i += 2; break;
-                case 'f':  result += "\f"; i += 2; break;
+                case 'b':  result += ShortToString(8); i += 2; break;  // backspace
+                case 'f':  result += ShortToString(12); i += 2; break; // form feed
                 case 'n':  result += "\n"; i += 2; break;
                 case 'r':  result += "\r"; i += 2; break;
                 case 't':  result += "\t"; i += 2; break;

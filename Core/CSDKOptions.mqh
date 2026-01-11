@@ -6,6 +6,11 @@
 #ifndef CSDK_OPTIONS_MQH
 #define CSDK_OPTIONS_MQH
 
+//--- Constants for token refresh thresholds
+#define SDK_MIN_REFRESH_THRESHOLD  60
+#define SDK_MAX_REFRESH_THRESHOLD  3600
+#define SDK_DEFAULT_REFRESH_THRESHOLD 300
+
 /**
  * @class CSDKOptions
  * @brief Configuration options for SDK features and behavior.
@@ -19,10 +24,6 @@ private:
     bool m_enable_config_change_requests;
     bool m_enable_symbol_change_requests;
     int  m_token_refresh_threshold_seconds;
-    
-    static const int MIN_REFRESH_THRESHOLD = 60;
-    static const int MAX_REFRESH_THRESHOLD = 3600;
-    static const int DEFAULT_REFRESH_THRESHOLD = 300;
 
 public:
     CSDKOptions();
@@ -48,7 +49,7 @@ CSDKOptions::CSDKOptions()
 {
     m_enable_config_change_requests = true;
     m_enable_symbol_change_requests = true;
-    m_token_refresh_threshold_seconds = DEFAULT_REFRESH_THRESHOLD;
+    m_token_refresh_threshold_seconds = SDK_DEFAULT_REFRESH_THRESHOLD;
 }
 
 //+------------------------------------------------------------------+
@@ -99,17 +100,17 @@ bool CSDKOptions::is_symbol_change_requests_enabled() const
 //+------------------------------------------------------------------+
 void CSDKOptions::set_token_refresh_threshold_seconds(int seconds)
 {
-    if(seconds < MIN_REFRESH_THRESHOLD)
+    if(seconds < SDK_MIN_REFRESH_THRESHOLD)
     {
         Print("SDK Options: Token refresh threshold too low. ",
-              "Setting to minimum: ", MIN_REFRESH_THRESHOLD, " seconds.");
-        seconds = MIN_REFRESH_THRESHOLD;
+              "Setting to minimum: ", SDK_MIN_REFRESH_THRESHOLD, " seconds.");
+        seconds = SDK_MIN_REFRESH_THRESHOLD;
     }
-    else if(seconds > MAX_REFRESH_THRESHOLD)
+    else if(seconds > SDK_MAX_REFRESH_THRESHOLD)
     {
         Print("SDK Options: Token refresh threshold too high. ",
-              "Setting to maximum: ", MAX_REFRESH_THRESHOLD, " seconds.");
-        seconds = MAX_REFRESH_THRESHOLD;
+              "Setting to maximum: ", SDK_MAX_REFRESH_THRESHOLD, " seconds.");
+        seconds = SDK_MAX_REFRESH_THRESHOLD;
     }
     
     m_token_refresh_threshold_seconds = seconds;

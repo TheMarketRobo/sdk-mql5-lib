@@ -3,6 +3,9 @@
 //|                        Copyright 2024, The Market Robo Inc.      |
 //|                                        https://themarketrobo.com |
 //+------------------------------------------------------------------+
+#ifndef IROBOT_CONFIG_MQH
+#define IROBOT_CONFIG_MQH
+
 #property copyright "Copyright 2024, The Market Robo Inc."
 #property link      "https://themarketrobo.com"
 #property version   "1.00"
