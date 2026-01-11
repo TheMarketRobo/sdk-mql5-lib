@@ -243,23 +243,23 @@ string CTokenManager::base64_url_decode(const string &encoded_string)
     if(encoded_string == "")
         return "";
     
-    string input = encoded_string;
+    string str_input = encoded_string;
     
-    StringReplace(input, "-", "+");
-    StringReplace(input, "_", "/");
+    StringReplace(str_input, "-", "+");
+    StringReplace(str_input, "_", "/");
     
-    int padding = 4 - (StringLen(input) % 4);
+    int padding = 4 - (StringLen(str_input) % 4);
     if(padding != 4)
     {
         for(int p = 0; p < padding; p++)
-            input += "=";
+            str_input += "=";
     }
     
-    int input_len = StringLen(input);
+    int input_len = StringLen(str_input);
     
     int pad_count = 0;
-    if(input_len >= 1 && StringGetCharacter(input, input_len - 1) == '=') pad_count++;
-    if(input_len >= 2 && StringGetCharacter(input, input_len - 2) == '=') pad_count++;
+    if(input_len >= 1 && StringGetCharacter(str_input, input_len - 1) == '=') pad_count++;
+    if(input_len >= 2 && StringGetCharacter(str_input, input_len - 2) == '=') pad_count++;
     
     int output_len = (input_len / 4) * 3 - pad_count;
     if(output_len <= 0)
@@ -272,10 +272,10 @@ string CTokenManager::base64_url_decode(const string &encoded_string)
     
     for(int i = 0; i < input_len; i += 4)
     {
-        uchar c0 = (uchar)StringGetCharacter(input, i);
-        uchar c1 = (uchar)StringGetCharacter(input, i + 1);
-        uchar c2 = (i + 2 < input_len) ? (uchar)StringGetCharacter(input, i + 2) : '=';
-        uchar c3 = (i + 3 < input_len) ? (uchar)StringGetCharacter(input, i + 3) : '=';
+        uchar c0 = (uchar)StringGetCharacter(str_input, i);
+        uchar c1 = (uchar)StringGetCharacter(str_input, i + 1);
+        uchar c2 = (i + 2 < input_len) ? (uchar)StringGetCharacter(str_input, i + 2) : '=';
+        uchar c3 = (i + 3 < input_len) ? (uchar)StringGetCharacter(str_input, i + 3) : '=';
         
         int v0 = base64_char_to_value(c0);
         int v1 = base64_char_to_value(c1);
