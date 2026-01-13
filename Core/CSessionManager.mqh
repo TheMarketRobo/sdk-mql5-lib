@@ -110,10 +110,12 @@ bool CSessionManager::start_session()
     equity_val.set_double(NormalizeDouble(initial_equity, 2));
     payload.Add("initial_equity", equity_val);
     
+    Print("SDK Debug: Collecting static fields...");
     m_context.data_collector.initialize(initial_balance, initial_equity);
 
     payload.Add("static_fields", m_context.data_collector.get_static_fields(m_magic_number));
     
+    Print("SDK Debug: Collecting session symbols...");
     CArrayObj* symbols_list = m_context.data_collector.get_session_symbols();
     CJAVal* symbols_array = new CJAVal(JA_ARRAY);
     if(symbols_list != NULL && symbols_array != NULL)
@@ -127,7 +129,9 @@ bool CSessionManager::start_session()
         m_context.symbol_manager.set_initial_symbols(symbols_list);
     }
 
+    Print("SDK Debug: Serializing payload...");
     string payload_str = payload.to_string();
+    Print("SDK Debug: Payload size: ", StringLen(payload_str));
     Print("SDK Info: Sending start request to server...");
     CHttpResponse* response = m_context.http_service.post("/start", "", payload_str);
     delete payload;
