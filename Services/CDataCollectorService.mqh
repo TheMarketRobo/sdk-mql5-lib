@@ -199,10 +199,10 @@ CArrayObj* CDataCollectorService::get_session_symbols()
     CArrayObj* symbols_list = new CArrayObj();
     if(symbols_list == NULL) return NULL;
 
-    int total_symbols = SymbolsTotal(false);
+    int total_symbols = SymbolsTotal(true);
     for(int i = 0; i < total_symbols; i++)
     {
-        string symbol_name = SymbolName(i, false);
+        string symbol_name = SymbolName(i, true);
         CSessionSymbol* symbol = new CSessionSymbol(symbol_name);
         if(symbol != NULL)
         {
