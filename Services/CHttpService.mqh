@@ -47,13 +47,16 @@ class CHttpService : public CObject
 {
 private:
     string m_base_url;
+    bool m_enable_logging;
 
 public:
     CHttpService();
     ~CHttpService();
 
     CHttpResponse* post(string endpoint, string jwt_token, string &data);
+    CHttpResponse* post(string endpoint, string jwt_token, string &data);
     string get_base_url() const;
+    void set_logging(bool enable);
 };
 
 //+------------------------------------------------------------------+
@@ -62,6 +65,7 @@ public:
 CHttpService::CHttpService()
 {
     m_base_url = SDK_API_BASE_URL;
+    m_enable_logging = true;
     Print("SDK Info: API Base URL = ", m_base_url);
 }
 
@@ -81,6 +85,14 @@ string CHttpService::get_base_url() const
 }
 
 //+------------------------------------------------------------------+
+//| Set logging enabled/disabled                                      |
+//+------------------------------------------------------------------+
+void CHttpService::set_logging(bool enable)
+{
+    m_enable_logging = enable;
+}
+
+//+------------------------------------------------------------------+
 //| Send POST request                                                 |
 //+------------------------------------------------------------------+
 CHttpResponse* CHttpService::post(string endpoint, string jwt_token, string &data)
@@ -96,13 +108,16 @@ CHttpResponse* CHttpService::post(string endpoint, string jwt_token, string &dat
     }
 
     // Log Request
-    Print("============================================================");
-    Print("| SENDING HTTP REQUEST                                      |");
-    Print("============================================================");
-    Print("URL: ", m_base_url + endpoint);
-    Print("Headers: \n", headers);
-    Print("Body: \n", data);
-    Print("============================================================");
+    if(m_enable_logging)
+    {
+        Print("============================================================");
+        Print("| SENDING HTTP REQUEST                                      |");
+        Print("============================================================");
+        Print("URL: ", m_base_url + endpoint);
+        Print("Headers: \n", headers);
+        Print("Body: \n", data);
+        Print("============================================================");
+    }
 
     StringToCharArray(data, post_data, 0, StringLen(data), CP_UTF8);
 
@@ -115,23 +130,29 @@ CHttpResponse* CHttpService::post(string endpoint, string jwt_token, string &dat
     {
         response.code = -1;
         response.body = "WebRequest failed. Error code: " + (string)GetLastError();
-        Print("============================================================");
-        Print("| HTTP REQUEST FAILED                                       |");
-        Print("============================================================");
-        Print("Error: ", response.body);
-        Print("============================================================");
+        if(m_enable_logging)
+        {
+            Print("============================================================");
+            Print("| HTTP REQUEST FAILED                                       |");
+            Print("============================================================");
+            Print("Error: ", response.body);
+            Print("============================================================");
+        }
     }
     else
     {
         response.code = res;
         response.body = CharArrayToString(result, 0, -1, CP_UTF8);
         
-        Print("============================================================");
-        Print("| HTTP RESPONSE RECEIVED                                    |");
-        Print("============================================================");
-        Print("Status Code: ", res);
-        Print("Body: \n", response.body);
-        Print("============================================================");
+        if(m_enable_logging)
+        {
+            Print("============================================================");
+            Print("| HTTP RESPONSE RECEIVED                                    |");
+            Print("============================================================");
+            Print("Status Code: ", res);
+            Print("Body: \n", response.body);
+            Print("============================================================");
+        }
 
         CJAVal* json = new CJAVal();
         if(json != NULL)
