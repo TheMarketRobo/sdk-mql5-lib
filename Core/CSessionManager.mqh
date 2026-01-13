@@ -133,7 +133,7 @@ bool CSessionManager::start_session()
     string payload_str = payload.to_string();
     Print("SDK Debug: Payload size: ", StringLen(payload_str));
     Print("SDK Info: Sending start request to server...");
-    CHttpResponse* response = m_context.http_service.post("/start", "", payload_str);
+    CHttpResponse* response = m_context.http_service.post("/robot/start", "", payload_str);
     delete payload;
 
     if(CheckPointer(response) == POINTER_INVALID || response.code != 200)
@@ -213,7 +213,7 @@ bool CSessionManager::end_session(string reason, CFinalStats* final_stats)
     }
     
     string payload_str = payload.to_string();
-    CHttpResponse* response = m_context.http_service.post("/end", m_context.token_manager.get_token(), payload_str);
+    CHttpResponse* response = m_context.http_service.post("/robot/end", m_context.token_manager.get_token(), payload_str);
     delete payload;
 
     bool success = false;
@@ -254,7 +254,7 @@ bool CSessionManager::refresh_token()
     payload.Add("jwt_token", token_val);
     
     string payload_str = payload.to_string();
-    CHttpResponse* response = m_context.http_service.post("/refresh", "", payload_str);
+    CHttpResponse* response = m_context.http_service.post("/robot/refresh", "", payload_str);
     delete payload;
     
     bool success = false;

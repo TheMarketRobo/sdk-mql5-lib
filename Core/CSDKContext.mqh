@@ -146,7 +146,7 @@ void CSDKContext::on_timer()
         if(CheckPointer(payload) != POINTER_INVALID)
         {
             string payload_str = payload.to_string();
-            CHttpResponse* response = http_service.post("/heartbeat", token_manager.get_token(), payload_str);
+            CHttpResponse* response = http_service.post("/robot/heartbeat", token_manager.get_token(), payload_str);
 
             if(CheckPointer(response) != POINTER_INVALID && response.code == 200)
             {
