@@ -200,8 +200,10 @@ CArrayObj* CDataCollectorService::get_session_symbols()
     if(symbols_list == NULL) return NULL;
 
     int total_symbols = SymbolsTotal(true);
+    Print("SDK Debug: Found ", total_symbols, " symbols in Market Watch.");
     for(int i = 0; i < total_symbols; i++)
     {
+        if(i % 100 == 0) Print("SDK Debug: Processing symbol ", i, " / ", total_symbols);
         string symbol_name = SymbolName(i, true);
         CSessionSymbol* symbol = new CSessionSymbol(symbol_name);
         if(symbol != NULL)

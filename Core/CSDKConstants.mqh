@@ -28,7 +28,7 @@
  * be changed and the SDK recompiled. This is intentional to prevent
  * accidental connections to the wrong environment.
  */
-#define SDK_API_BASE_URL "http://api.staging.themarketrobo.com/"
+#define SDK_API_BASE_URL "https://api.staging.themarketrobo.com/"
 
 //+------------------------------------------------------------------+
 //| Default Configuration Values                                      |

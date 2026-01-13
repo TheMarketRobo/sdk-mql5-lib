@@ -103,12 +103,7 @@ void CSessionSymbol::set_active_to_trade(bool active) { m_active_to_trade = acti
 //+------------------------------------------------------------------+
 void CSessionSymbol::populate_data()
 {
-    if(!SymbolInfoInteger(m_symbol, SYMBOL_SELECT))
-    {
-        SymbolSelect(m_symbol, true);
-    }
-    
-    Sleep(50);
+    // Symbol is already selected when iterating with SymbolsTotal(true)
 
     m_active_to_trade = (bool)SymbolInfoInteger(m_symbol, SYMBOL_VISIBLE);
     m_spread = (double)SymbolInfoInteger(m_symbol, SYMBOL_SPREAD);
