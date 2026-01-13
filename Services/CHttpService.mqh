@@ -95,6 +95,15 @@ CHttpResponse* CHttpService::post(string endpoint, string jwt_token, string &dat
         headers += "Authorization: Bearer " + jwt_token + "\r\n";
     }
 
+    // Log Request
+    Print("============================================================");
+    Print("| SENDING HTTP REQUEST                                      |");
+    Print("============================================================");
+    Print("URL: ", m_base_url + endpoint);
+    Print("Headers: \n", headers);
+    Print("Body: \n", data);
+    Print("============================================================");
+
     StringToCharArray(data, post_data, 0, StringLen(data), CP_UTF8);
 
     CHttpResponse* response = new CHttpResponse();
@@ -106,12 +115,24 @@ CHttpResponse* CHttpService::post(string endpoint, string jwt_token, string &dat
     {
         response.code = -1;
         response.body = "WebRequest failed. Error code: " + (string)GetLastError();
+        Print("============================================================");
+        Print("| HTTP REQUEST FAILED                                       |");
+        Print("============================================================");
+        Print("Error: ", response.body);
+        Print("============================================================");
     }
     else
     {
         response.code = res;
         response.body = CharArrayToString(result, 0, -1, CP_UTF8);
         
+        Print("============================================================");
+        Print("| HTTP RESPONSE RECEIVED                                    |");
+        Print("============================================================");
+        Print("Status Code: ", res);
+        Print("Body: \n", response.body);
+        Print("============================================================");
+
         CJAVal* json = new CJAVal();
         if(json != NULL)
         {
