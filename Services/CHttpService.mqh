@@ -54,7 +54,6 @@ public:
     ~CHttpService();
 
     CHttpResponse* post(string endpoint, string jwt_token, string &data);
-    CHttpResponse* post(string endpoint, string jwt_token, string &data);
     string get_base_url() const;
     void set_logging(bool enable);
 };
