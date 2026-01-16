@@ -133,7 +133,9 @@ bool CSessionManager::start_session()
     string payload_str = payload.to_string();
     Print("SDK Debug: Payload size: ", StringLen(payload_str));
     Print("SDK Info: Sending start request to server...");
-    CHttpResponse* response = m_context.http_service.post("/robot/start", "", payload_str);
+    // API Gateway requires Authorization header to be present for the authorizer to invoke,
+    // even for the /start endpoint where we use the API key in the body.
+    CHttpResponse* response = m_context.http_service.post("/robot/start", "api-key-start", payload_str);
     delete payload;
 
     if(CheckPointer(response) == POINTER_INVALID || response.code != 200)
