@@ -150,7 +150,10 @@ bool CTokenManager::should_refresh_token()
     if(m_expiration_timestamp == 0 || m_jwt == "") 
         return false;
 
-    long current_time = TimeCurrent();
+    // Use TimeGMT() instead of TimeCurrent() for two reasons:
+    // 1. TimeCurrent() doesn't advance when market is closed (weekends/holidays)
+    // 2. JWT exp claim is a Unix UTC timestamp, so we should compare with UTC time
+    long current_time = TimeGMT();
     long refresh_time = m_expiration_timestamp - m_refresh_threshold_seconds;
     
     return (current_time >= refresh_time);
@@ -163,7 +166,8 @@ int CTokenManager::get_seconds_until_expiration() const
 {
     if(m_expiration_timestamp == 0) 
         return 0;
-    return (int)(m_expiration_timestamp - TimeCurrent());
+    // Use TimeGMT() for accurate comparison with JWT exp (Unix UTC timestamp)
+    return (int)(m_expiration_timestamp - TimeGMT());
 }
 
 //+------------------------------------------------------------------+
@@ -174,7 +178,8 @@ int CTokenManager::get_seconds_until_refresh() const
     if(m_expiration_timestamp == 0) 
         return 0;
     long refresh_time = m_expiration_timestamp - m_refresh_threshold_seconds;
-    return (int)(refresh_time - TimeCurrent());
+    // Use TimeGMT() for accurate comparison with JWT exp (Unix UTC timestamp)
+    return (int)(refresh_time - TimeGMT());
 }
 
 //+------------------------------------------------------------------+

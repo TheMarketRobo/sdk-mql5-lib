@@ -101,7 +101,12 @@ void CHeartbeatManager::set_interval(uint interval)
 //+------------------------------------------------------------------+
 bool CHeartbeatManager::is_time_to_send()
 {
-    datetime current_time = TimeCurrent();
+    // IMPORTANT: Use TimeLocal() instead of TimeCurrent()!
+    // TimeCurrent() returns the last known server quote time, which does NOT
+    // advance when the market is closed (weekends, holidays). This would cause
+    // heartbeats to never be sent outside market hours.
+    // TimeLocal() returns the local computer time which always advances.
+    datetime current_time = TimeLocal();
     datetime next_heartbeat_time = m_last_heartbeat_time + m_heartbeat_interval_seconds;
     bool should_send = (current_time >= next_heartbeat_time);
     
@@ -194,7 +199,9 @@ void CHeartbeatManager::process_heartbeat_response(const CJAVal &response)
     Print("SDK Debug: HeartbeatManager - Processing heartbeat response");
     
     m_sequence++;
-    m_last_heartbeat_time = TimeCurrent();
+    // Use TimeLocal() to match is_time_to_send() - this ensures consistent timing
+    // even when the market is closed and TimeCurrent() doesn't advance
+    m_last_heartbeat_time = TimeLocal();
     m_waiting_for_confirmation = false;
     
     Print("SDK Debug: HeartbeatManager - Sequence updated to ", m_sequence, 

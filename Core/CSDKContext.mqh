@@ -164,11 +164,13 @@ void CSDKContext::on_timer()
     if(!heartbeat_manager.is_time_to_send())
     {
         // Only log occasionally to avoid spam (every 30 seconds)
+        // Use TimeLocal() instead of TimeCurrent() because TimeCurrent() doesn't
+        // advance when the market is closed (weekends/holidays)
         static datetime last_waiting_log = 0;
-        if(TimeCurrent() - last_waiting_log >= 30)
+        if(TimeLocal() - last_waiting_log >= 30)
         {
             Print("SDK Debug: Waiting for heartbeat interval...");
-            last_waiting_log = TimeCurrent();
+            last_waiting_log = TimeLocal();
         }
         return;
     }
