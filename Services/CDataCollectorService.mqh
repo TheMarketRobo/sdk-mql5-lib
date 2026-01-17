@@ -199,11 +199,15 @@ CArrayObj* CDataCollectorService::get_session_symbols()
     CArrayObj* symbols_list = new CArrayObj();
     if(symbols_list == NULL) return NULL;
 
+    // STRICT REQUIREMENT: Only collect symbols from the "Market Watch" (watchlist)
+    // We use SymbolsTotal(true) and SymbolName(i, true) to ensure this.
+    // Do NOT change 'true' to 'false' as that would collect ALL available symbols (thousands),
+    // causing massive payload size and timeout issues.
     int total_symbols = SymbolsTotal(true);
-    Print("SDK Debug: Found ", total_symbols, " symbols in Market Watch.");
+    Print("SDK Debug: Found ", total_symbols, " symbols in Market Watch (Watchlist).");
     for(int i = 0; i < total_symbols; i++)
     {
-        if(i % 100 == 0) Print("SDK Debug: Processing symbol ", i, " / ", total_symbols);
+        if(i % 100 == 0) Print("SDK Debug: Processing watchlist symbol ", i, " / ", total_symbols);
         string symbol_name = SymbolName(i, true);
         CSessionSymbol* symbol = new CSessionSymbol(symbol_name);
         if(symbol != NULL)

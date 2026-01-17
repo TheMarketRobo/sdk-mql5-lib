@@ -122,7 +122,7 @@ The robot sends comprehensive static information about the trading account and t
 
 #### Session Symbols Array
 The SDK automatically generates this array by:
-1. Retrieving all available symbols using MQL5 `SymbolsTotal()` and `SymbolName()`
+1. Retrieving symbols from the **Market Watch** (Watchlist) using MQL5 `SymbolsTotal(true)` and `SymbolName(i, true)`
 2. Checking watchlist status - symbols in watchlist get `active_to_trade: true`
 3. Collecting symbol specifications using `SymbolInfoDouble()` and `SymbolInfoInteger()`
 
