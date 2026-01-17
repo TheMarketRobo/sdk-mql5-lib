@@ -92,6 +92,12 @@ bool CConfigurationManager::validate_initial_config(const CJAVal &server_config)
 //+------------------------------------------------------------------+
 //| Process configuration change request                              |
 //| Matches ConfigChangeResults from API contract                     |
+//| Expected input format:                                            |
+//| {                                                                  |
+//|   "id": "123",                                                     |
+//|   "request": [{ "field_name": "xxx", "new_value": yyy }, ...],    |
+//|   "created_at": "2026-01-17T00:00:00.000Z"                        |
+//| }                                                                  |
 //+------------------------------------------------------------------+
 void CConfigurationManager::process_change_request(const CJAVal &change_request)
 {
@@ -107,19 +113,42 @@ void CConfigurationManager::process_change_request(const CJAVal &change_request)
     m_pending_change_results = new CJAVal(JA_OBJECT);
     if(m_pending_change_results == NULL) return;
 
+    // Extract request_id from the change request wrapper
+    CJAVal* id_node = change_request["id"];
+    if(CheckPointer(id_node) != POINTER_INVALID)
+    {
+        string request_id = id_node.get_string();
+        CJAVal* request_id_val = new CJAVal();
+        request_id_val.set_string(request_id);
+        m_pending_change_results.Add("request_id", request_id_val);
+        Print("SDK Debug: Config change request ID: ", request_id);
+    }
+    else
+    {
+        Print("SDK Warning: Config change request missing 'id' field");
+    }
+
     CJAVal* results_array = new CJAVal(JA_ARRAY);
     int accepted_count = 0;
     int rejected_count = 0;
     int total_count = 0;
 
-    // Process change_request as array of ConfigChangeRequestItem
-    // Expected format: [{ "field_name": "xxx", "new_value": yyy }, ...]
-    if(change_request.get_type() == JA_ARRAY)
+    // Get the actual request array from the "request" field
+    CJAVal* request_array = change_request["request"];
+    if(CheckPointer(request_array) == POINTER_INVALID)
     {
-        int count = change_request.count();
+        // Fallback: maybe the change_request itself is the array (old format)
+        request_array = GetPointer(change_request);
+    }
+
+    // Process request as array of ConfigChangeRequestItem
+    // Expected format: [{ "field_name": "xxx", "new_value": yyy }, ...]
+    if(request_array.get_type() == JA_ARRAY)
+    {
+        int count = request_array.count();
         for(int i = 0; i < count; i++)
         {
-            CJAVal* item = change_request[i];
+            CJAVal* item = request_array[i];
             if(CheckPointer(item) == POINTER_INVALID) continue;
             
             CJAVal* field_node = item["field_name"];
