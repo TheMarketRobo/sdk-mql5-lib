@@ -200,10 +200,40 @@ void CSDKContext::on_timer()
         Print("SDK Info: Heartbeat sent successfully (HTTP 200)");
         heartbeat_manager.process_heartbeat_response(response.json_body);
     }
+    else if(response.code == 409)
+    {
+        // Sequence error - sync with server and retry
+        Print("SDK Warning: Heartbeat sequence mismatch (HTTP 409), syncing...");
+        if(CheckPointer(response.json_body) != POINTER_INVALID)
+        {
+            if(heartbeat_manager.handle_sequence_error(response.json_body))
+            {
+                Print("SDK Info: Sequence synced successfully, will retry next interval");
+            }
+            else
+            {
+                Print("SDK Warning: Could not sync sequence from server response");
+                // Reset state anyway to try again
+                heartbeat_manager.reset_confirmation_state();
+            }
+        }
+        else
+        {
+            Print("SDK Warning: No JSON body in 409 response, resetting state");
+            heartbeat_manager.reset_confirmation_state();
+        }
+    }
     else
     {
         Print("SDK Error: Heartbeat failed with HTTP code: ", response.code);
         Print("SDK Error: Response body: ", response.body);
+        
+        // For transient errors (5xx, network issues), reset state to allow retry
+        if(response.code >= 500 || response.code == 0)
+        {
+            Print("SDK Info: Transient error, will retry heartbeat");
+            heartbeat_manager.reset_confirmation_state();
+        }
     }
     
     delete response;

@@ -45,6 +45,8 @@ public:
     bool is_time_to_send();
     CJAVal* build_heartbeat_payload();
     void process_heartbeat_response(const CJAVal &response);
+    bool handle_sequence_error(const CJAVal &error_response);
+    void reset_confirmation_state();
 };
 
 #include "CSDKContext.mqh"
@@ -242,6 +244,69 @@ void CHeartbeatManager::process_heartbeat_response(const CJAVal &response)
     }
     
     Print("SDK Debug: HeartbeatManager - Response processed successfully");
+}
+
+//+------------------------------------------------------------------+
+//| Handle sequence error (409 response) - sync with server           |
+//+------------------------------------------------------------------+
+bool CHeartbeatManager::handle_sequence_error(const CJAVal &error_response)
+{
+    // Extract expected sequence from error context
+    // Server returns: { "context": { "expected_sequence": N } }
+    CJAVal* context_node = error_response["context"];
+    if(CheckPointer(context_node) == POINTER_INVALID)
+    {
+        Print("SDK Warning: HeartbeatManager - No context in sequence error response");
+        return false;
+    }
+    
+    CJAVal* expected_node = context_node["expected_sequence"];
+    if(CheckPointer(expected_node) == POINTER_INVALID)
+    {
+        // Try current_sequence as fallback
+        CJAVal* current_node = context_node["current_sequence"];
+        if(CheckPointer(current_node) == POINTER_INVALID)
+        {
+            Print("SDK Warning: HeartbeatManager - No sequence info in error response");
+            return false;
+        }
+        
+        // Server has current_sequence, we need to send current_sequence + 1
+        // So our m_sequence should be set to current_sequence (we send m_sequence + 1)
+        uint server_current = (uint)current_node.get_long();
+        m_sequence = server_current;
+        Print("SDK Info: HeartbeatManager - Synced sequence from current_sequence. Server has: ", 
+              server_current, ", next will send: ", m_sequence + 1);
+    }
+    else
+    {
+        // expected_sequence is what server wants, so m_sequence = expected - 1
+        uint expected = (uint)expected_node.get_long();
+        m_sequence = expected - 1;
+        Print("SDK Info: HeartbeatManager - Synced sequence from expected_sequence. Expected: ", 
+              expected, ", m_sequence set to: ", m_sequence);
+    }
+    
+    // Clear pending state so next heartbeat builds fresh payload with correct sequence
+    reset_confirmation_state();
+    
+    return true;
+}
+
+//+------------------------------------------------------------------+
+//| Reset confirmation state to allow new heartbeat                   |
+//+------------------------------------------------------------------+
+void CHeartbeatManager::reset_confirmation_state()
+{
+    m_waiting_for_confirmation = false;
+    
+    if(CheckPointer(m_pending_heartbeat_data) == POINTER_DYNAMIC)
+    {
+        delete m_pending_heartbeat_data;
+        m_pending_heartbeat_data = NULL;
+    }
+    
+    Print("SDK Debug: HeartbeatManager - Confirmation state reset");
 }
 
 #endif
