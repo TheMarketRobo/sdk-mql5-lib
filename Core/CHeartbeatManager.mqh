@@ -221,6 +221,41 @@ void CHeartbeatManager::process_heartbeat_response(const CJAVal &response)
         m_pending_heartbeat_data = NULL;
     }
 
+    // Check for termination request from server
+    // Server sends: { "status": "termination_requested", "termination_reason": "..." }
+    CJAVal* status_node = response["status"];
+    if(CheckPointer(status_node) != POINTER_INVALID)
+    {
+        string status = status_node.get_string();
+        if(status == "termination_requested")
+        {
+            string reason = "Server requested termination";
+            CJAVal* reason_node = response["termination_reason"];
+            if(CheckPointer(reason_node) != POINTER_INVALID)
+            {
+                reason = reason_node.get_string();
+            }
+            
+            Print("SDK Warning: Server requested session termination. Reason: ", reason);
+            
+            // Fire termination event - the robot should handle this and call ExpertRemove()
+            // Build JSON for the callback
+            CJAVal event_json(JA_OBJECT);
+            CJAVal* reason_val = new CJAVal();
+            reason_val.set_string(reason);
+            event_json.Add("reason", reason_val);
+            
+            string event_str = event_json.to_string();
+            Fire_Termination_Requested_Event(0, event_str);
+            
+            // Also terminate the SDK session
+            Print("SDK Info: Initiating session termination...");
+            m_context.terminate(reason);
+            
+            return; // Don't process other fields if terminating
+        }
+    }
+
     CJAVal* interval_node = response["heartbeat_interval_seconds"];
     if(CheckPointer(interval_node) != POINTER_INVALID && interval_node.get_type() == JA_NUMBER)
     {

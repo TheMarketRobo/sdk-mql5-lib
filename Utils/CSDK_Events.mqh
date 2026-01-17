@@ -13,11 +13,12 @@
 //+------------------------------------------------------------------+
 //| SDK Event Constants                                              |
 //+------------------------------------------------------------------+
-#define SDK_EVENT_CONFIG_CHANGED     (CHARTEVENT_CUSTOM + 1000)
-#define SDK_EVENT_SYMBOL_CHANGED     (CHARTEVENT_CUSTOM + 1001)
-#define SDK_EVENT_TERMINATION_START  (CHARTEVENT_CUSTOM + 1002)
-#define SDK_EVENT_TERMINATION_END    (CHARTEVENT_CUSTOM + 1003)
-#define SDK_EVENT_TOKEN_REFRESH      (CHARTEVENT_CUSTOM + 1004)
+#define SDK_EVENT_CONFIG_CHANGED          (CHARTEVENT_CUSTOM + 1000)
+#define SDK_EVENT_SYMBOL_CHANGED          (CHARTEVENT_CUSTOM + 1001)
+#define SDK_EVENT_TERMINATION_START       (CHARTEVENT_CUSTOM + 1002)
+#define SDK_EVENT_TERMINATION_END         (CHARTEVENT_CUSTOM + 1003)
+#define SDK_EVENT_TOKEN_REFRESH           (CHARTEVENT_CUSTOM + 1004)
+#define SDK_EVENT_TERMINATION_REQUESTED   (CHARTEVENT_CUSTOM + 1005)  // Server requested termination
 
 //+------------------------------------------------------------------+
 //| Event Data Structures                                            |
@@ -171,6 +172,16 @@ void Fire_Token_Refresh_Event(long chart_id, const SToken_Refresh_Event &event_d
     temp_event.success = event_data.success;
     temp_event.message = event_data.message;
     EventChartCustom(chart_id, SDK_EVENT_TOKEN_REFRESH - CHARTEVENT_CUSTOM, 0, 0, temp_event.to_json());
+}
+
+/**
+ * @brief Fires a termination requested event (server requested termination)
+ * @param chart_id Chart ID (0 for current chart)
+ * @param event_json JSON string with termination details ({"reason": "..."})
+ */
+void Fire_Termination_Requested_Event(long chart_id, string event_json)
+{
+    EventChartCustom(chart_id, SDK_EVENT_TERMINATION_REQUESTED - CHARTEVENT_CUSTOM, 0, 0, event_json);
 }
 
 #endif // CSDK_EVENTS_MQH

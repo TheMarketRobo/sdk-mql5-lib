@@ -81,6 +81,16 @@ ulong CSessionManager::get_session_id() const
 //+------------------------------------------------------------------+
 bool CSessionManager::start_session()
 {
+    // IMPORTANT: Wait for account data to be available before starting
+    // AccountInfoDouble returns 0 when called in OnInit before the terminal
+    // receives any ticks from the server
+    Print("SDK Info: Checking account data availability...");
+    
+    if(!m_context.data_collector.wait_for_account_data(10)) // Wait up to 10 seconds
+    {
+        Print("SDK Warning: Starting session without full account data - values may be 0");
+    }
+    
     CJAVal* payload = new CJAVal(JA_OBJECT);
     if(payload == NULL) return false;
 
@@ -100,12 +110,16 @@ bool CSessionManager::start_session()
     currency_val.set_string(AccountInfoString(ACCOUNT_CURRENCY));
     payload.Add("account_currency", currency_val);
     
+    // Get initial balance/equity (should now have real values after waiting)
     double initial_balance = AccountInfoDouble(ACCOUNT_BALANCE);
+    double initial_equity = AccountInfoDouble(ACCOUNT_EQUITY);
+    
+    Print("SDK Debug: Initial Balance: ", initial_balance, ", Initial Equity: ", initial_equity);
+    
     CJAVal* balance_val = new CJAVal();
     balance_val.set_double(NormalizeDouble(initial_balance, 2));
     payload.Add("initial_balance", balance_val);
     
-    double initial_equity = AccountInfoDouble(ACCOUNT_EQUITY);
     CJAVal* equity_val = new CJAVal();
     equity_val.set_double(NormalizeDouble(initial_equity, 2));
     payload.Add("initial_equity", equity_val);

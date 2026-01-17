@@ -41,6 +41,7 @@ public:
     virtual void    on_tick() = 0;
     virtual void    on_config_changed(string event_json) = 0;
     virtual void    on_symbol_changed(string event_json) = 0;
+    virtual void    on_termination_requested(string event_json);  // Can be overridden
     
     void            set_token_refresh_threshold(int seconds);
     int             get_token_refresh_threshold() const;
@@ -56,6 +57,7 @@ public:
 
 protected:
     void            handle_termination_event(string event_json);
+    void            handle_termination_requested_event(string event_json);
     void            handle_token_refresh_event(string event_json);
 };
 
@@ -250,6 +252,10 @@ void CTheMarketRobo_Bot_Base::on_chart_event(const int id, const long &lparam, c
         case SDK_EVENT_TERMINATION_END:
             handle_termination_event(sparam);
             break;
+        case SDK_EVENT_TERMINATION_REQUESTED:
+            // Server requested termination via heartbeat response
+            handle_termination_requested_event(sparam);
+            break;
         case SDK_EVENT_TOKEN_REFRESH:
             handle_token_refresh_event(sparam);
             break;
@@ -268,6 +274,48 @@ void CTheMarketRobo_Bot_Base::handle_termination_event(string event_json)
     string message = "Session terminated by server. Reason: " + reason + ". Expert will be removed.";
     
     Print(message);
+    Alert(message);
+    ExpertRemove();
+}
+
+//+------------------------------------------------------------------+
+//| Handle termination requested event (from server via heartbeat)    |
+//+------------------------------------------------------------------+
+void CTheMarketRobo_Bot_Base::handle_termination_requested_event(string event_json)
+{
+    CJAVal event_data;
+    if(!event_data.parse(event_json)) return;
+
+    string reason = event_data["reason"].get_string();
+    
+    Print("============================================================");
+    Print("| SERVER REQUESTED SESSION TERMINATION                     |");
+    Print("============================================================");
+    Print("Reason: ", reason);
+    Print("The Expert Advisor will now terminate...");
+    Print("============================================================");
+    
+    // Call the virtual callback (robot can override this)
+    on_termination_requested(event_json);
+}
+
+//+------------------------------------------------------------------+
+//| Default handler for termination requested - removes EA            |
+//+------------------------------------------------------------------+
+void CTheMarketRobo_Bot_Base::on_termination_requested(string event_json)
+{
+    // Default behavior: show alert and remove the Expert Advisor
+    CJAVal event_data;
+    if(!event_data.parse(event_json)) 
+    {
+        Alert("Server requested session termination. Expert will be removed.");
+        ExpertRemove();
+        return;
+    }
+    
+    string reason = event_data["reason"].get_string();
+    string message = "Server requested termination: " + reason;
+    
     Alert(message);
     ExpertRemove();
 }

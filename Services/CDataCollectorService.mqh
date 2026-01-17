@@ -48,6 +48,8 @@ public:
     ~CDataCollectorService();
 
     void initialize(double initial_balance, double initial_equity);
+    bool is_account_data_available();
+    bool wait_for_account_data(int timeout_seconds = 10);
     
     CJAVal* get_static_fields(long expert_magic_number);
     CArrayObj* get_session_symbols();
@@ -55,6 +57,8 @@ public:
     
     double get_initial_balance() const;
     double get_initial_equity() const;
+    double get_current_balance() const;
+    double get_current_equity() const;
 };
 
 //+------------------------------------------------------------------+
@@ -79,6 +83,45 @@ CDataCollectorService::~CDataCollectorService() {}
 //+------------------------------------------------------------------+
 double CDataCollectorService::get_initial_balance() const { return m_initial_balance; }
 double CDataCollectorService::get_initial_equity() const { return m_initial_equity; }
+double CDataCollectorService::get_current_balance() const { return AccountInfoDouble(ACCOUNT_BALANCE); }
+double CDataCollectorService::get_current_equity() const { return AccountInfoDouble(ACCOUNT_EQUITY); }
+
+//+------------------------------------------------------------------+
+//| Wait for account data to be available (with timeout)              |
+//| This is useful when starting during OnInit                        |
+//+------------------------------------------------------------------+
+bool CDataCollectorService::wait_for_account_data(int timeout_seconds)
+{
+    Print("SDK Info: Waiting for account data to be available...");
+    
+    datetime start_time = TimeLocal();
+    int wait_count = 0;
+    
+    while(!is_account_data_available())
+    {
+        if(TimeLocal() - start_time >= timeout_seconds)
+        {
+            Print("SDK Warning: Timeout waiting for account data after ", timeout_seconds, " seconds");
+            return false;
+        }
+        
+        // Sleep for 100ms and check again
+        Sleep(100);
+        wait_count++;
+        
+        if(wait_count % 10 == 0) // Every second
+        {
+            Print("SDK Debug: Still waiting for account data... (", wait_count / 10, "s)");
+        }
+    }
+    
+    // Account data is now available
+    double balance = AccountInfoDouble(ACCOUNT_BALANCE);
+    double equity = AccountInfoDouble(ACCOUNT_EQUITY);
+    Print("SDK Info: Account data available. Balance: ", balance, ", Equity: ", equity);
+    
+    return true;
+}
 
 //+------------------------------------------------------------------+
 //| Initialize with starting values                                   |
@@ -220,6 +263,26 @@ CArrayObj* CDataCollectorService::get_session_symbols()
 }
 
 //+------------------------------------------------------------------+
+//| Check if account data is available (terminal connected)           |
+//+------------------------------------------------------------------+
+bool CDataCollectorService::is_account_data_available()
+{
+    // Check if terminal is connected to the trade server
+    if(!TerminalInfoInteger(TERMINAL_CONNECTED))
+    {
+        return false;
+    }
+    
+    // Check if account info is valid (login != 0 means we have account data)
+    if(AccountInfoInteger(ACCOUNT_LOGIN) == 0)
+    {
+        return false;
+    }
+    
+    return true;
+}
+
+//+------------------------------------------------------------------+
 //| Get dynamic data matching RobotDynamicData schema                 |
 //+------------------------------------------------------------------+
 CJAVal* CDataCollectorService::get_dynamic_data()
@@ -227,11 +290,33 @@ CJAVal* CDataCollectorService::get_dynamic_data()
     CJAVal* dynamic_data = new CJAVal(JA_OBJECT);
     if(dynamic_data == NULL) return NULL;
 
+    // Check if account data is available
+    bool data_available = is_account_data_available();
+    
     double current_balance = AccountInfoDouble(ACCOUNT_BALANCE);
     double current_equity = AccountInfoDouble(ACCOUNT_EQUITY);
     double current_margin = AccountInfoDouble(ACCOUNT_MARGIN);
     double current_margin_free = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
     double current_margin_level = AccountInfoDouble(ACCOUNT_MARGIN_LEVEL);
+
+    // Debug: Log the raw values being read
+    static datetime last_debug_log = 0;
+    if(TimeLocal() - last_debug_log >= 60) // Log every 60 seconds
+    {
+        Print("SDK Debug: Dynamic data - Connected: ", data_available,
+              ", Balance: ", current_balance,
+              ", Equity: ", current_equity,
+              ", Margin: ", current_margin,
+              ", MarginFree: ", current_margin_free,
+              ", MarginLevel: ", current_margin_level);
+        last_debug_log = TimeLocal();
+    }
+    
+    // If not connected and values are 0, try to wait or warn
+    if(!data_available && current_balance == 0)
+    {
+        Print("SDK Warning: Terminal not connected or account data not available yet. Values may be 0.");
+    }
 
     add_json_double(dynamic_data, "account_balance", NormalizeDouble(current_balance, 2));
     add_json_double(dynamic_data, "account_equity", NormalizeDouble(current_equity, 2));
