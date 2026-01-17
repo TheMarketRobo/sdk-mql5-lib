@@ -95,7 +95,15 @@ bool CSymbolManager::is_enabled() const
 void CSymbolManager::set_initial_symbols(CArrayObj* symbols)
 {
     if(CheckPointer(symbols) != POINTER_INVALID)
+    {
+        // Delete the old array if it exists and is different from the new one
+        if(CheckPointer(m_session_symbols) == POINTER_DYNAMIC && m_session_symbols != symbols)
+        {
+            m_session_symbols.FreeMode(true);
+            delete m_session_symbols;
+        }
         m_session_symbols = symbols;
+    }
 }
 
 //+------------------------------------------------------------------+
