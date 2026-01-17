@@ -82,6 +82,10 @@ CTheMarketRobo_Bot_Base::~CTheMarketRobo_Bot_Base()
 {
     if(CheckPointer(m_sdk_context) == POINTER_DYNAMIC)
         delete m_sdk_context;
+    
+    // Clean up robot configuration (owned by this class)
+    if(CheckPointer(m_robot_config) == POINTER_DYNAMIC)
+        delete m_robot_config;
 }
 
 //+------------------------------------------------------------------+
