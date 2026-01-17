@@ -132,29 +132,79 @@ bool CSDKContext::start()
 //+------------------------------------------------------------------+
 void CSDKContext::on_timer()
 {
-    if(CheckPointer(session_manager) == POINTER_INVALID || !session_manager.is_session_active())
+    // Check if session manager is valid
+    if(CheckPointer(session_manager) == POINTER_INVALID)
+    {
+        Print("SDK Debug: on_timer() - Session manager is INVALID, skipping");
         return;
-        
+    }
+    
+    // Check if session is active
+    if(!session_manager.is_session_active())
+    {
+        Print("SDK Debug: on_timer() - Session is NOT ACTIVE, skipping heartbeat");
+        return;
+    }
+    
+    // Check if token needs refresh
     if(token_manager.should_refresh_token())
     {
+        Print("SDK Debug: Token refresh required, refreshing...");
         session_manager.refresh_token();
     }
     
-    if(CheckPointer(heartbeat_manager) != POINTER_INVALID && heartbeat_manager.is_time_to_send())
+    // Check heartbeat manager validity
+    if(CheckPointer(heartbeat_manager) == POINTER_INVALID)
     {
-        CJAVal* payload = heartbeat_manager.build_heartbeat_payload();
-        if(CheckPointer(payload) != POINTER_INVALID)
-        {
-            string payload_str = payload.to_string();
-            CHttpResponse* response = http_service.post("/robot/heartbeat", token_manager.get_token(), payload_str);
-
-            if(CheckPointer(response) != POINTER_INVALID && response.code == 200)
-            {
-                heartbeat_manager.process_heartbeat_response(response.json_body);
-            }
-            if(response != NULL) delete response;
-        }
+        Print("SDK Debug: on_timer() - Heartbeat manager is INVALID");
+        return;
     }
+    
+    // Check if it's time to send heartbeat
+    if(!heartbeat_manager.is_time_to_send())
+    {
+        // Only log occasionally to avoid spam (every 30 seconds)
+        static datetime last_waiting_log = 0;
+        if(TimeCurrent() - last_waiting_log >= 30)
+        {
+            Print("SDK Debug: Waiting for heartbeat interval...");
+            last_waiting_log = TimeCurrent();
+        }
+        return;
+    }
+    
+    // Build heartbeat payload
+    Print("SDK Debug: Building heartbeat payload...");
+    CJAVal* payload = heartbeat_manager.build_heartbeat_payload();
+    if(CheckPointer(payload) == POINTER_INVALID)
+    {
+        Print("SDK Error: Failed to build heartbeat payload");
+        return;
+    }
+    
+    // Send heartbeat
+    string payload_str = payload.to_string();
+    Print("SDK Debug: Sending heartbeat request...");
+    CHttpResponse* response = http_service.post("/robot/heartbeat", token_manager.get_token(), payload_str);
+
+    if(CheckPointer(response) == POINTER_INVALID)
+    {
+        Print("SDK Error: Heartbeat request failed - NULL response");
+        return;
+    }
+    
+    if(response.code == 200)
+    {
+        Print("SDK Info: Heartbeat sent successfully (HTTP 200)");
+        heartbeat_manager.process_heartbeat_response(response.json_body);
+    }
+    else
+    {
+        Print("SDK Error: Heartbeat failed with HTTP code: ", response.code);
+        Print("SDK Error: Response body: ", response.body);
+    }
+    
+    delete response;
 }
 
 //+------------------------------------------------------------------+

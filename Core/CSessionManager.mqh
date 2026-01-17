@@ -150,6 +150,9 @@ bool CSessionManager::start_session()
     m_session_id = (ulong)body["session_id"].get_long();
     Print("SDK Info: Session started. Session ID: ", m_session_id);
     
+    // Pass session ID to heartbeat manager
+    m_context.heartbeat_manager.set_session_id(m_session_id);
+    
     m_context.token_manager.set_token(body["jwt"].get_string());
     
     CJAVal* expires_in_node = body["expires_in"];
@@ -159,13 +162,19 @@ bool CSessionManager::start_session()
     }
     
     CJAVal* server_config = body["robot_config"];
-    if(CheckPointer(server_config) != POINTER_INVALID && m_context.config_manager.validate_initial_config(server_config))
+    if(CheckPointer(server_config) == POINTER_INVALID)
     {
-         m_is_active = true;
+        Print("SDK Warning: No robot_config received from server, session will be marked as active");
+        m_is_active = true;
+    }
+    else if(m_context.config_manager.validate_initial_config(server_config))
+    {
+        Print("SDK Info: Initial configuration validated successfully, session is ACTIVE");
+        m_is_active = true;
     }
     else
     {
-        Print("SDK Error: Initial configuration from server failed validation.");
+        Print("SDK Error: Initial configuration from server failed validation. Session NOT active - heartbeats will NOT be sent!");
         m_is_active = false;
     }
     
