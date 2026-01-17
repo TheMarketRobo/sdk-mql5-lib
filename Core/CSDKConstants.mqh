@@ -38,8 +38,11 @@
  * Default token refresh threshold in seconds.
  * Tokens will be refreshed this many seconds before expiration.
  * Minimum: 60 seconds, Maximum: 3600 seconds
+ * 
+ * Note: This MUST be less than the JWT expiration time (default 300 seconds).
+ * If set equal to or greater than expiration, refresh will trigger immediately!
  */
-#define SDK_DEFAULT_TOKEN_REFRESH_THRESHOLD 300
+#define SDK_DEFAULT_TOKEN_REFRESH_THRESHOLD 60
 
 /**
  * Default heartbeat interval in seconds.

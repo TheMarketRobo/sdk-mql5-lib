@@ -62,7 +62,8 @@ CTokenManager::CTokenManager()
     m_expiration_timestamp = 0;
     m_issued_at_timestamp = 0;
     m_expires_in = 0;
-    m_refresh_threshold_seconds = 300;
+    // Default to 60 seconds - must be less than JWT expiration (default 300s)
+    m_refresh_threshold_seconds = 60;
 }
 
 //+------------------------------------------------------------------+

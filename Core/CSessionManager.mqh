@@ -147,7 +147,21 @@ bool CSessionManager::start_session()
     
     CJAVal* body = response.json_body;
     
-    m_session_id = (ulong)body["session_id"].get_long();
+    // Server returns session_id as string, need to parse it
+    CJAVal* session_id_node = body["session_id"];
+    if(CheckPointer(session_id_node) != POINTER_INVALID)
+    {
+        // Try string first (server returns it as string), then fall back to long
+        string session_id_str = session_id_node.get_string();
+        if(session_id_str != "" && session_id_str != "0")
+        {
+            m_session_id = (ulong)StringToInteger(session_id_str);
+        }
+        else
+        {
+            m_session_id = (ulong)session_id_node.get_long();
+        }
+    }
     Print("SDK Info: Session started. Session ID: ", m_session_id);
     
     // Pass session ID to heartbeat manager
@@ -259,13 +273,16 @@ bool CSessionManager::end_session(string reason, CFinalStats* final_stats)
 //+------------------------------------------------------------------+
 bool CSessionManager::refresh_token()
 {
+    string current_token = m_context.token_manager.get_token();
+    
     CJAVal* payload = new CJAVal(JA_OBJECT);
     CJAVal* token_val = new CJAVal();
-    token_val.set_string(m_context.token_manager.get_token());
+    token_val.set_string(current_token);
     payload.Add("jwt_token", token_val);
     
     string payload_str = payload.to_string();
-    CHttpResponse* response = m_context.http_service.post("/robot/refresh", "", payload_str);
+    // Pass current token for Authorization header - required by the authorizer
+    CHttpResponse* response = m_context.http_service.post("/robot/refresh", current_token, payload_str);
     delete payload;
     
     bool success = false;
