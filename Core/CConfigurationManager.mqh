@@ -135,20 +135,24 @@ void CConfigurationManager::process_change_request(const CJAVal &change_request)
 
     // Get the actual request array from the "request" field
     CJAVal* request_array = change_request["request"];
+    bool use_direct = false;
+    
     if(CheckPointer(request_array) == POINTER_INVALID)
     {
         // Fallback: maybe the change_request itself is the array (old format)
-        request_array = GetPointer(change_request);
+        use_direct = true;
     }
 
     // Process request as array of ConfigChangeRequestItem
     // Expected format: [{ "field_name": "xxx", "new_value": yyy }, ...]
-    if(request_array.get_type() == JA_ARRAY)
+    int count = use_direct ? change_request.count() : request_array.count();
+    bool is_array = use_direct ? (change_request.get_type() == JA_ARRAY) : (request_array.get_type() == JA_ARRAY);
+    
+    if(is_array)
     {
-        int count = request_array.count();
         for(int i = 0; i < count; i++)
         {
-            CJAVal* item = request_array[i];
+            CJAVal* item = use_direct ? change_request[i] : request_array[i];
             if(CheckPointer(item) == POINTER_INVALID) continue;
             
             CJAVal* field_node = item["field_name"];
