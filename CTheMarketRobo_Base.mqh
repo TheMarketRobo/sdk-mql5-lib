@@ -81,7 +81,7 @@ public:
     CTheMarketRobo_Base(string robot_version_uuid, IRobotConfig* robot_config);
     
     // Indicator constructor — no config needed
-    explicit CTheMarketRobo_Base(string robot_version_uuid);
+    CTheMarketRobo_Base(string robot_version_uuid);
     
     ~CTheMarketRobo_Base();
 
