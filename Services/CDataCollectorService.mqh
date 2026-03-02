@@ -51,7 +51,7 @@ public:
     bool is_account_data_available();
     bool wait_for_account_data(int timeout_seconds = 10);
     
-    CJAVal* get_static_fields(long expert_magic_number);
+    CJAVal* get_static_fields(long expert_magic_number = 0);
     CArrayObj* get_session_symbols();
     CJAVal* get_dynamic_data();
     
@@ -137,6 +137,8 @@ void CDataCollectorService::initialize(double initial_balance, double initial_eq
 
 //+------------------------------------------------------------------+
 //| Get static fields matching static_data/v1.json                    |
+//| expert_magic_number: pass the EA magic number for robots,         |
+//|                      or 0 for indicators (no order tracking).     |
 //+------------------------------------------------------------------+
 CJAVal* CDataCollectorService::get_static_fields(long expert_magic_number)
 {

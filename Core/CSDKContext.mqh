@@ -21,6 +21,12 @@
 /**
  * @class CSDKContext
  * @brief A service container for managing the lifecycle and dependencies of all SDK components.
+ *
+ * When product_type is PRODUCT_TYPE_INDICATOR:
+ * - magic_number is ignored (pass 0)
+ * - config may be NULL; config_manager and symbol_manager are disabled
+ * - Session start payload omits magic_number, robot_config, and session_symbols
+ * - Heartbeat payload omits config/symbol change results
  */
 class CSDKContext : public CObject
 {
@@ -38,7 +44,8 @@ public:
     IRobotConfig*          robot_config;
 
 public:
-    CSDKContext(string api_key, string robot_version_uuid, long magic_number, IRobotConfig* config);
+    CSDKContext(string api_key, string robot_version_uuid, long magic_number, IRobotConfig* config,
+                ENUM_SDK_PRODUCT_TYPE product_type = PRODUCT_TYPE_ROBOT);
     ~CSDKContext();
 
     bool start();
@@ -56,12 +63,17 @@ public:
     
     CSDKOptions* get_options() const;
     void print_configuration() const;
+    
+    bool is_indicator() const;
+    bool is_robot() const;
+    ENUM_SDK_PRODUCT_TYPE get_product_type() const;
 };
 
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CSDKContext::CSDKContext(string api_key, string robot_version_uuid, long magic_number, IRobotConfig* config)
+CSDKContext::CSDKContext(string api_key, string robot_version_uuid, long magic_number, IRobotConfig* config,
+                         ENUM_SDK_PRODUCT_TYPE product_type)
 {
     m_options             = NULL;
     session_manager       = NULL;
@@ -75,11 +87,15 @@ CSDKContext::CSDKContext(string api_key, string robot_version_uuid, long magic_n
 
     Print("SDK Info: TheMarketRobo SDK v", SDK_VERSION);
     Print("SDK Info: API Base URL = ", SDK_API_BASE_URL);
+    Print("SDK Info: Product type = ", (product_type == PRODUCT_TYPE_INDICATOR) ? "INDICATOR" : "ROBOT");
 
     robot_config = config;
     
     m_options = new CSDKOptions();
     if(CheckPointer(m_options) == POINTER_INVALID) { Print("SDK Error: Failed to create CSDKOptions"); return; }
+    
+    // Apply product type — this also enforces indicator restrictions on config/symbol toggles
+    m_options.set_product_type(product_type);
 
     http_service = new CHttpService();
     if(CheckPointer(http_service) == POINTER_INVALID) { Print("SDK Error: Failed to create CHttpService"); return; }
@@ -90,11 +106,16 @@ CSDKContext::CSDKContext(string api_key, string robot_version_uuid, long magic_n
     token_manager = new CTokenManager();
     if(CheckPointer(token_manager) == POINTER_INVALID) { Print("SDK Error: Failed to create CTokenManager"); return; }
 
+    // For indicators, robot_config is NULL — config_manager is created but permanently disabled.
     config_manager = new CConfigurationManager(robot_config);
     if(CheckPointer(config_manager) == POINTER_INVALID) { Print("SDK Error: Failed to create CConfigurationManager"); return; }
+    if(product_type == PRODUCT_TYPE_INDICATOR)
+        config_manager.set_enabled(false);
 
     symbol_manager = new CSymbolManager();
     if(CheckPointer(symbol_manager) == POINTER_INVALID) { Print("SDK Error: Failed to create CSymbolManager"); return; }
+    if(product_type == PRODUCT_TYPE_INDICATOR)
+        symbol_manager.set_enabled(false);
     
     session_manager = new CSessionManager(api_key, robot_version_uuid, magic_number, GetPointer(this));
     if(CheckPointer(session_manager) == POINTER_INVALID) { Print("SDK Error: Failed to create CSessionManager"); return; }
@@ -319,6 +340,30 @@ void CSDKContext::print_configuration() const
 {
     if(CheckPointer(m_options) != POINTER_INVALID)
         m_options.print_options();
+}
+
+//+------------------------------------------------------------------+
+//| Product type helpers                                              |
+//+------------------------------------------------------------------+
+bool CSDKContext::is_indicator() const
+{
+    if(CheckPointer(m_options) != POINTER_INVALID)
+        return m_options.is_indicator();
+    return false;
+}
+
+bool CSDKContext::is_robot() const
+{
+    if(CheckPointer(m_options) != POINTER_INVALID)
+        return m_options.is_robot();
+    return true;
+}
+
+ENUM_SDK_PRODUCT_TYPE CSDKContext::get_product_type() const
+{
+    if(CheckPointer(m_options) != POINTER_INVALID)
+        return m_options.get_product_type();
+    return PRODUCT_TYPE_ROBOT;
 }
 
 #endif

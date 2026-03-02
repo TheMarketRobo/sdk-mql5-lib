@@ -6,6 +6,8 @@
 #ifndef CSDK_OPTIONS_MQH
 #define CSDK_OPTIONS_MQH
 
+#include "CSDKConstants.mqh"
+
 //--- Constants for token refresh thresholds
 #define SDK_MIN_REFRESH_THRESHOLD  60
 #define SDK_MAX_REFRESH_THRESHOLD  3600
@@ -15,12 +17,16 @@
  * @class CSDKOptions
  * @brief Configuration options for SDK features and behavior.
  *
- * This class follows the Single Responsibility Principle by encapsulating
- * all SDK configuration options in a single, cohesive structure.
+ * Encapsulates all SDK configuration including product type, feature toggles,
+ * and token management settings.
+ *
+ * Key rule: config and symbol change requests are always disabled for
+ * PRODUCT_TYPE_INDICATOR and cannot be re-enabled.
  */
 class CSDKOptions
 {
 private:
+    ENUM_SDK_PRODUCT_TYPE m_product_type;
     bool m_enable_config_change_requests;
     bool m_enable_symbol_change_requests;
     int  m_token_refresh_threshold_seconds;
@@ -28,6 +34,11 @@ private:
 public:
     CSDKOptions();
     ~CSDKOptions();
+    
+    void set_product_type(ENUM_SDK_PRODUCT_TYPE type);
+    ENUM_SDK_PRODUCT_TYPE get_product_type() const;
+    bool is_indicator() const;
+    bool is_robot() const;
     
     void set_enable_config_change_requests(bool enable);
     bool is_config_change_requests_enabled() const;
@@ -47,6 +58,7 @@ public:
 //+------------------------------------------------------------------+
 CSDKOptions::CSDKOptions()
 {
+    m_product_type = PRODUCT_TYPE_ROBOT;
     m_enable_config_change_requests = true;
     m_enable_symbol_change_requests = true;
     m_token_refresh_threshold_seconds = SDK_DEFAULT_REFRESH_THRESHOLD;
@@ -60,10 +72,46 @@ CSDKOptions::~CSDKOptions()
 }
 
 //+------------------------------------------------------------------+
+//| Product type                                                      |
+//+------------------------------------------------------------------+
+void CSDKOptions::set_product_type(ENUM_SDK_PRODUCT_TYPE type)
+{
+    m_product_type = type;
+    if(type == PRODUCT_TYPE_INDICATOR)
+    {
+        // Indicators never support remote config or symbol changes — enforce immediately.
+        m_enable_config_change_requests = false;
+        m_enable_symbol_change_requests = false;
+        Print("SDK Options: Product type set to INDICATOR. ",
+              "Config and symbol change requests are permanently disabled.");
+    }
+}
+
+ENUM_SDK_PRODUCT_TYPE CSDKOptions::get_product_type() const
+{
+    return m_product_type;
+}
+
+bool CSDKOptions::is_indicator() const
+{
+    return m_product_type == PRODUCT_TYPE_INDICATOR;
+}
+
+bool CSDKOptions::is_robot() const
+{
+    return m_product_type == PRODUCT_TYPE_ROBOT;
+}
+
+//+------------------------------------------------------------------+
 //| Config change requests toggle                                     |
 //+------------------------------------------------------------------+
 void CSDKOptions::set_enable_config_change_requests(bool enable)
 {
+    if(m_product_type == PRODUCT_TYPE_INDICATOR)
+    {
+        Print("SDK Warning: Config change requests cannot be enabled for INDICATOR product type. Ignored.");
+        return;
+    }
     m_enable_config_change_requests = enable;
     if(!enable)
     {
@@ -82,6 +130,11 @@ bool CSDKOptions::is_config_change_requests_enabled() const
 //+------------------------------------------------------------------+
 void CSDKOptions::set_enable_symbol_change_requests(bool enable)
 {
+    if(m_product_type == PRODUCT_TYPE_INDICATOR)
+    {
+        Print("SDK Warning: Symbol change requests cannot be enabled for INDICATOR product type. Ignored.");
+        return;
+    }
     m_enable_symbol_change_requests = enable;
     if(!enable)
     {
@@ -129,6 +182,7 @@ CSDKOptions* CSDKOptions::clone() const
     CSDKOptions* copy = new CSDKOptions();
     if(copy != NULL)
     {
+        copy.m_product_type = m_product_type;
         copy.m_enable_config_change_requests = m_enable_config_change_requests;
         copy.m_enable_symbol_change_requests = m_enable_symbol_change_requests;
         copy.m_token_refresh_threshold_seconds = m_token_refresh_threshold_seconds;
@@ -142,6 +196,7 @@ CSDKOptions* CSDKOptions::clone() const
 void CSDKOptions::print_options() const
 {
     Print("=== SDK Options ===");
+    Print("  Product type: ", (m_product_type == PRODUCT_TYPE_INDICATOR) ? "INDICATOR" : "ROBOT");
     Print("  Config change requests: ", m_enable_config_change_requests ? "ENABLED" : "DISABLED");
     Print("  Symbol change requests: ", m_enable_symbol_change_requests ? "ENABLED" : "DISABLED");
     Print("  Token refresh threshold: ", m_token_refresh_threshold_seconds, " seconds");

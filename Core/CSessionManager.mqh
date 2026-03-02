@@ -81,6 +81,8 @@ ulong CSessionManager::get_session_id() const
 //+------------------------------------------------------------------+
 bool CSessionManager::start_session()
 {
+    bool is_indicator = m_context.is_indicator();
+    
     // IMPORTANT: Wait for account data to be available before starting
     // AccountInfoDouble returns 0 when called in OnInit before the terminal
     // receives any ticks from the server
@@ -102,17 +104,21 @@ bool CSessionManager::start_session()
     version_val.set_string(m_robot_version_uuid);
     payload.Add("robot_version_uuid", version_val);
     
-    CJAVal* magic_val = new CJAVal();
-    magic_val.set_long(m_magic_number);
-    payload.Add("magic_number", magic_val);
+    // Robots send magic_number; indicators omit it (no order tracking)
+    if(!is_indicator)
+    {
+        CJAVal* magic_val = new CJAVal();
+        magic_val.set_long(m_magic_number);
+        payload.Add("magic_number", magic_val);
+    }
     
     CJAVal* currency_val = new CJAVal();
     currency_val.set_string(AccountInfoString(ACCOUNT_CURRENCY));
     payload.Add("account_currency", currency_val);
     
-    // Get initial balance/equity (should now have real values after waiting)
+    // Get initial balance/equity (real values after waiting above)
     double initial_balance = AccountInfoDouble(ACCOUNT_BALANCE);
-    double initial_equity = AccountInfoDouble(ACCOUNT_EQUITY);
+    double initial_equity  = AccountInfoDouble(ACCOUNT_EQUITY);
     
     Print("SDK Debug: Initial Balance: ", initial_balance, ", Initial Equity: ", initial_equity);
     
@@ -127,20 +133,26 @@ bool CSessionManager::start_session()
     Print("SDK Debug: Collecting static fields...");
     m_context.data_collector.initialize(initial_balance, initial_equity);
 
-    payload.Add("static_fields", m_context.data_collector.get_static_fields(m_magic_number));
+    // Indicators pass 0 for magic_number in static_fields; robots pass the real value
+    long magic_for_static = is_indicator ? 0 : m_magic_number;
+    payload.Add("static_fields", m_context.data_collector.get_static_fields(magic_for_static));
     
-    Print("SDK Debug: Collecting session symbols...");
-    CArrayObj* symbols_list = m_context.data_collector.get_session_symbols();
-    CJAVal* symbols_array = new CJAVal(JA_ARRAY);
-    if(symbols_list != NULL && symbols_array != NULL)
+    // Robots collect and send session symbols; indicators skip this entirely
+    if(!is_indicator)
     {
-        for(int i = 0; i < symbols_list.Total(); i++)
+        Print("SDK Debug: Collecting session symbols...");
+        CArrayObj* symbols_list = m_context.data_collector.get_session_symbols();
+        CJAVal* symbols_array = new CJAVal(JA_ARRAY);
+        if(symbols_list != NULL && symbols_array != NULL)
         {
-            CSessionSymbol* symbol = symbols_list.At(i);
-            symbols_array.Add(symbol.to_json());
+            for(int i = 0; i < symbols_list.Total(); i++)
+            {
+                CSessionSymbol* symbol = symbols_list.At(i);
+                symbols_array.Add(symbol.to_json());
+            }
+            payload.Add("session_symbols", symbols_array);
+            m_context.symbol_manager.set_initial_symbols(symbols_list);
         }
-        payload.Add("session_symbols", symbols_array);
-        m_context.symbol_manager.set_initial_symbols(symbols_list);
     }
 
     Print("SDK Debug: Serializing payload...");
@@ -189,33 +201,44 @@ bool CSessionManager::start_session()
         m_context.token_manager.set_expires_in((int)expires_in_node.get_long());
     }
     
-    CJAVal* server_config = body["robot_config"];
-    if(CheckPointer(server_config) == POINTER_INVALID)
+    // Indicators never receive robot_config from server — session is active immediately.
+    // Robots validate the initial config from the server.
+    if(is_indicator)
     {
-        Print("SDK Warning: No robot_config received from server, session will be marked as active");
-        m_is_active = true;
-    }
-    else if(m_context.config_manager.validate_initial_config(server_config))
-    {
-        Print("SDK Info: Initial configuration validated successfully, session is ACTIVE");
+        Print("SDK Info: Indicator session started — no robot_config expected. Session is ACTIVE.");
         m_is_active = true;
     }
     else
     {
-        Print("SDK Error: Initial configuration from server failed validation. Session NOT active - heartbeats will NOT be sent!");
-        m_is_active = false;
-    }
-    
-    CJAVal* config_change_node = body["robot_config_change_request"];
-    if(CheckPointer(config_change_node) != POINTER_INVALID)
-    {
-        m_context.config_manager.process_change_request(config_change_node);
-    }
-    
-    CJAVal* symbol_change_node = body["session_symbols_change_request"];
-    if(CheckPointer(symbol_change_node) != POINTER_INVALID)
-    {
-        m_context.symbol_manager.process_change_request(symbol_change_node);
+        CJAVal* server_config = body["robot_config"];
+        if(CheckPointer(server_config) == POINTER_INVALID)
+        {
+            Print("SDK Warning: No robot_config received from server, session will be marked as active");
+            m_is_active = true;
+        }
+        else if(m_context.config_manager.validate_initial_config(server_config))
+        {
+            Print("SDK Info: Initial configuration validated successfully, session is ACTIVE");
+            m_is_active = true;
+        }
+        else
+        {
+            Print("SDK Error: Initial configuration from server failed validation. Session NOT active - heartbeats will NOT be sent!");
+            m_is_active = false;
+        }
+        
+        // Process any initial change requests (robots only)
+        CJAVal* config_change_node = body["robot_config_change_request"];
+        if(CheckPointer(config_change_node) != POINTER_INVALID)
+        {
+            m_context.config_manager.process_change_request(config_change_node);
+        }
+        
+        CJAVal* symbol_change_node = body["session_symbols_change_request"];
+        if(CheckPointer(symbol_change_node) != POINTER_INVALID)
+        {
+            m_context.symbol_manager.process_change_request(symbol_change_node);
+        }
     }
 
     delete response;

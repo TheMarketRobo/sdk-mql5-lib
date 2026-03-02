@@ -172,18 +172,23 @@ CJAVal* CHeartbeatManager::build_heartbeat_payload()
     }
     payload.Add("dynamic_data", dynamic_data);
     
-    CJAVal* config_results = m_context.config_manager.get_pending_results();
-    if(CheckPointer(config_results) != POINTER_INVALID)
+    // Config and symbol change results are only relevant for robots.
+    // Indicators never receive or acknowledge change requests.
+    if(m_context.is_robot())
     {
-        Print("SDK Debug: HeartbeatManager - Including config change results");
-        payload.Add("config_change_results", config_results);
-    }
+        CJAVal* config_results = m_context.config_manager.get_pending_results();
+        if(CheckPointer(config_results) != POINTER_INVALID)
+        {
+            Print("SDK Debug: HeartbeatManager - Including config change results");
+            payload.Add("config_change_results", config_results);
+        }
 
-    CJAVal* symbol_results = m_context.symbol_manager.get_pending_results();
-    if(CheckPointer(symbol_results) != POINTER_INVALID)
-    {
-        Print("SDK Debug: HeartbeatManager - Including symbol change results");
-        payload.Add("symbols_change_results", symbol_results);
+        CJAVal* symbol_results = m_context.symbol_manager.get_pending_results();
+        if(CheckPointer(symbol_results) != POINTER_INVALID)
+        {
+            Print("SDK Debug: HeartbeatManager - Including symbol change results");
+            payload.Add("symbols_change_results", symbol_results);
+        }
     }
         
     m_pending_heartbeat_data = payload;
@@ -209,11 +214,15 @@ void CHeartbeatManager::process_heartbeat_response(const CJAVal &response)
     Print("SDK Debug: HeartbeatManager - Sequence updated to ", m_sequence, 
           ", last heartbeat time: ", TimeToString(m_last_heartbeat_time, TIME_DATE|TIME_SECONDS));
     
-    if(m_context.config_manager.is_enabled())
-        m_context.config_manager.clear_pending_results();
-    
-    if(m_context.symbol_manager.is_enabled())
-        m_context.symbol_manager.clear_pending_results();
+    // Clear pending change results only for robots (indicators never have them)
+    if(m_context.is_robot())
+    {
+        if(m_context.config_manager.is_enabled())
+            m_context.config_manager.clear_pending_results();
+        
+        if(m_context.symbol_manager.is_enabled())
+            m_context.symbol_manager.clear_pending_results();
+    }
     
     if(CheckPointer(m_pending_heartbeat_data) == POINTER_DYNAMIC)
     {
@@ -221,7 +230,7 @@ void CHeartbeatManager::process_heartbeat_response(const CJAVal &response)
         m_pending_heartbeat_data = NULL;
     }
 
-    // Check for termination request from server
+    // Termination request check applies to both robots and indicators
     // Server sends: { "status": "termination_requested", "termination_reason": "..." }
     CJAVal* status_node = response["status"];
     if(CheckPointer(status_node) != POINTER_INVALID)
@@ -236,10 +245,10 @@ void CHeartbeatManager::process_heartbeat_response(const CJAVal &response)
                 reason = reason_node.get_string();
             }
             
-            Print("SDK Warning: Server requested session termination. Reason: ", reason);
+            string product_label = m_context.is_indicator() ? "Indicator" : "Expert Advisor";
+            Print("SDK Warning: Server requested ", product_label, " session termination. Reason: ", reason);
             
-            // Fire termination event - the robot should handle this and call ExpertRemove()
-            // Build JSON for the callback
+            // Fire termination event — the program should handle this
             CJAVal event_json(JA_OBJECT);
             CJAVal* reason_val = new CJAVal();
             reason_val.set_string(reason);
@@ -264,18 +273,22 @@ void CHeartbeatManager::process_heartbeat_response(const CJAVal &response)
         set_interval(new_interval);
     }
     
-    CJAVal* config_change_node = response["robot_config_change_request"];
-    if(CheckPointer(config_change_node) != POINTER_INVALID)
+    // Config and symbol change requests from server are only processed for robots
+    if(m_context.is_robot())
     {
-        Print("SDK Debug: HeartbeatManager - Processing config change request from server");
-        m_context.config_manager.process_change_request(config_change_node);
-    }
-    
-    CJAVal* symbol_change_node = response["session_symbols_change_request"];
-    if(CheckPointer(symbol_change_node) != POINTER_INVALID)
-    {
-        Print("SDK Debug: HeartbeatManager - Processing symbol change request from server");
-        m_context.symbol_manager.process_change_request(symbol_change_node);
+        CJAVal* config_change_node = response["robot_config_change_request"];
+        if(CheckPointer(config_change_node) != POINTER_INVALID)
+        {
+            Print("SDK Debug: HeartbeatManager - Processing config change request from server");
+            m_context.config_manager.process_change_request(config_change_node);
+        }
+        
+        CJAVal* symbol_change_node = response["session_symbols_change_request"];
+        if(CheckPointer(symbol_change_node) != POINTER_INVALID)
+        {
+            Print("SDK Debug: HeartbeatManager - Processing symbol change request from server");
+            m_context.symbol_manager.process_change_request(symbol_change_node);
+        }
     }
     
     Print("SDK Debug: HeartbeatManager - Response processed successfully");
