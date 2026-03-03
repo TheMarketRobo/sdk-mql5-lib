@@ -1,0 +1,313 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://themarketrobo.com/schemas/robot_config_component_schema/v1",
+  "title": "Robot Config Component Schema v1",
+  "description": "Meta-schema defining valid components for robot configuration schemas",
+  "type": "object",
+  "required": ["fields"],
+  "properties": {
+    "fields": {
+      "type": "array",
+      "description": "Array of configuration field definitions",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/field"
+      }
+    }
+  },
+  "definitions": {
+    "field": {
+      "type": "object",
+      "required": ["type", "key", "label", "required", "default"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["integer", "decimal", "boolean", "radio", "multiple"],
+          "description": "Component type identifier"
+        },
+        "key": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "minLength": 1,
+          "maxLength": 50,
+          "description": "Unique field identifier (lowercase, alphanumeric, underscores)"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Display label for the field"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether this field must be provided"
+        },
+        "default": {
+          "description": "Default value for this field (type validated separately based on field type)"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Help text explaining the field"
+        },
+        "placeholder": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Placeholder text for input fields"
+        },
+        "tooltip": {
+          "type": "string",
+          "maxLength": 300,
+          "description": "Additional tooltip information"
+        },
+        "group": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Group name for organizing fields"
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Display order within group"
+        },
+        "disabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether field is disabled"
+        },
+        "hidden": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether field is initially hidden"
+        },
+        "dependsOn": {
+          "$ref": "#/definitions/dependency",
+          "description": "Conditional display rule"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "integer"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/definitions/integerField"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "decimal"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/definitions/decimalField"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "boolean"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/definitions/booleanField"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "radio"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/definitions/radioField"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "multiple"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/definitions/multipleField"
+          }
+        }
+      ]
+    },
+    "integerField": {
+      "type": "object",
+      "properties": {
+        "default": {
+          "type": "integer",
+          "description": "Default integer value"
+        },
+        "minimum": {
+          "type": "integer",
+          "description": "Minimum allowed value"
+        },
+        "maximum": {
+          "type": "integer",
+          "description": "Maximum allowed value"
+        },
+        "step": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "Increment step"
+        }
+      }
+    },
+    "decimalField": {
+      "type": "object",
+      "properties": {
+        "default": {
+          "type": "number",
+          "description": "Default decimal value"
+        },
+        "minimum": {
+          "type": "number",
+          "description": "Minimum allowed value"
+        },
+        "maximum": {
+          "type": "number",
+          "description": "Maximum allowed value"
+        },
+        "step": {
+          "type": "number",
+          "minimum": 0.0001,
+          "default": 0.01,
+          "description": "Increment step"
+        },
+        "precision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "default": 2,
+          "description": "Number of decimal places"
+        }
+      }
+    },
+    "booleanField": {
+      "type": "object",
+      "properties": {
+        "default": {
+          "type": "boolean",
+          "description": "Default boolean value"
+        }
+      }
+    },
+    "radioField": {
+      "type": "object",
+      "required": ["options"],
+      "properties": {
+        "default": {
+          "description": "Default option value (must be in options list)"
+        },
+        "options": {
+          "type": "array",
+          "minItems": 2,
+          "description": "Array of option objects",
+          "items": {
+            "$ref": "#/definitions/option"
+          }
+        }
+      }
+    },
+    "multipleField": {
+      "type": "object",
+      "required": ["options"],
+      "properties": {
+        "default": {
+          "type": "array",
+          "description": "Default selected values (all must be in options list)",
+          "items": {
+            "description": "Option value"
+          }
+        },
+        "options": {
+          "type": "array",
+          "minItems": 2,
+          "description": "Array of option objects",
+          "items": {
+            "$ref": "#/definitions/option"
+          }
+        },
+        "minSelections": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Minimum number of selections required"
+        },
+        "maxSelections": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of selections allowed"
+        }
+      }
+    },
+    "option": {
+      "type": "object",
+      "required": ["value", "label"],
+      "properties": {
+        "value": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "description": "Option value (used in config)"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Display label for option"
+        }
+      }
+    },
+    "dependency": {
+      "type": "object",
+      "required": ["field", "condition", "value"],
+      "properties": {
+        "field": {
+          "type": "string",
+          "description": "Key of field this depends on"
+        },
+        "condition": {
+          "type": "string",
+          "enum": [
+            "equals",
+            "notEquals",
+            "greaterThan",
+            "lessThan",
+            "greaterThanOrEqual",
+            "lessThanOrEqual",
+            "contains",
+            "notContains"
+          ],
+          "description": "Comparison condition"
+        },
+        "value": {
+          "description": "Value to compare against"
+        }
+      }
+    }
+  }
+}

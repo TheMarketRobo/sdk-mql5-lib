@@ -13,6 +13,8 @@ This guide will help you create your first trading robot using TheMarketRobo SDK
 
 **For local testing:** Generate a new **test license** from your Vendor Portal and use its API key with the staging API (`https://api.staging.themarketrobo.com`). Do not use production licenses for development.
 
+**Robot config schema:** The configuration you define for your robot **MUST** follow the [Robot Config Component Schema](schemas/robot_config_component_schema/README.md). The Vendor Portal validates it before you can submit. **Config change and symbol change support are optional** — you can disable them with `set_enable_config_change_requests(false)` and `set_enable_symbol_change_requests(false)` if you do not need remote updates.
+
 ### Step 1: Create Your Robot Configuration
 
 Create a new file `MyBotConfig.mqh`:
@@ -183,6 +185,7 @@ public:
         }
     }
 
+    // Optional: react after SDK has applied config changes (config already updated in m_robot_config)
     virtual void on_config_changed(string event_json) override
     {
         CJAVal event;
@@ -194,6 +197,7 @@ public:
         }
     }
 
+    // Optional: react after SDK has applied symbol changes (e.g. close positions when symbol disabled)
     virtual void on_symbol_changed(string event_json) override
     {
         CJAVal event;
@@ -223,8 +227,9 @@ int OnInit()
     if(CheckPointer(robot) == POINTER_INVALID)
         return INIT_FAILED;
     
-    // Optional: Configure SDK features
-    robot.set_enable_config_change_requests(true);
+    // Optional: Configure SDK features (config/symbol change support are optional)
+    robot.set_enable_config_change_requests(true);   // set false to ignore remote config changes
+    robot.set_enable_symbol_change_requests(true);  // set false to ignore remote symbol changes
     robot.set_token_refresh_threshold(300);
     
     // Initialize with customer inputs

@@ -41,8 +41,9 @@ Welcome to TheMarketRobo SDK integration guide! This booklet will teach you, ste
 
 **What you will learn:**
 - How to install the SDK files
-- How to define a configuration schema (EAs only) so customers can adjust your robot's settings from the web dashboard
-- How to handle real-time configuration and symbol changes from the server (EAs only)
+- How to define a configuration schema (EAs only) so customers can adjust your robot's settings from the web dashboard — your schema **MUST** follow the [Robot Config Component Schema](schemas/robot_config_component_schema/README.md) (validated at submission on the Vendor Portal)
+- That **config change and symbol change support are optional** — you can disable them or leave callbacks empty if you don't need remote updates
+- How the SDK delivers config/symbol change requests and how you implement the robot side (request → SDK applies / your `update_field()` → response in next heartbeat; optional `on_config_changed` / `on_symbol_changed` to react)
 - How to properly initialize, run, and shut down the SDK alongside your EA or Indicator
 - How **Custom Indicators** use the same base class with a simpler flow (no config, no magic number)
 
@@ -459,7 +460,7 @@ That's it for Indicators! Compile and attach to a chart with a valid API key.
 
 ## 7. Step-by-Step: Building Your Configuration Class
 
-The **configuration class** is the most important part of your integration. It tells TheMarketRobo what settings your robot has, so customers can adjust them from the web dashboard.
+The **configuration class** is the most important part of your integration. It tells TheMarketRobo what settings your robot has, so customers can adjust them from the web dashboard. **Your schema MUST conform to the [Robot Config Component Schema](schemas/robot_config_component_schema/README.md)**; the Vendor Portal validates it before you can submit a robot version.
 
 ### 7.1 — Create the Class
 
@@ -893,7 +894,25 @@ virtual void on_symbol_changed(string event_json) override
 }
 ```
 
-### 8.6 — on_termination_requested() — Optional Override
+### 8.6 — Config and symbol change: request/response and what you implement
+
+The SDK **delivers** config and symbol change requests from the server and **builds the response**; you implement the config side and optionally react in callbacks.
+
+**Config change flow:**
+1. Server sends `robot_config_change_request` in a heartbeat (or start) response: `{ "id": "...", "request": [ { "field_name": "key", "new_value": value }, ... ] }`.
+2. SDK, for each item: calls your `validate_field(field_name, new_value_str, reason)`. If validation passes, calls your `update_field(field_name, new_value_str)` to apply the change. Builds a result (per-item `accepted`/`applied_value` or `error_code`/`error_message`; overall `status`: `all_accepted`/`all_rejected`/`partially_accepted`).
+3. On the **next** heartbeat the SDK sends this result in `config_change_results`.
+
+**What you must implement for config changes to work:** `update_field()`, `get_field_as_string()`, `to_json()`, `update_from_json()`, and `define_schema()`/`apply_defaults()` that match the [Robot Config Component Schema](schemas/robot_config_component_schema/README.md). Optionally override `validate_field()` for custom validation (or use the schema-based default). **Optional:** Override `on_config_changed(string event_json)` to react (e.g. recalculate, log); the config object already holds the new values when this is called (or by the next `on_tick()`).
+
+**Symbol change flow:**
+1. Server sends `session_symbols_change_request`: `{ "id": "...", "request": [ { "symbol": "EURUSD", "active_to_trade": true/false }, ... ] }`.
+2. SDK, for each item: calls `SymbolSelect(symbol_name, requested_active)`, updates its internal symbol list, builds the result, and fires an event so your `on_symbol_changed` is called.
+3. On the **next** heartbeat the SDK sends the result in `symbols_change_results`.
+
+**What you implement:** Optionally override `on_symbol_changed(string event_json)` to react (e.g. close positions when a symbol is disabled). You can disable symbol change requests entirely with `set_enable_symbol_change_requests(false)`.
+
+### 8.7 — on_termination_requested() — Optional Override
 
 By default, when the server requests the EA to stop, the SDK shows an alert and calls `ExpertRemove()`. For **Custom Indicators**, the default is to stop the timer (`EventKillTimer()`) and print a message asking the user to remove the indicator (indicators have no self-removal API). You can override this for custom cleanup:
 
@@ -1052,7 +1071,11 @@ void OnChartEvent(const int id,
 
 ## 11. Advanced Features
 
-### 11.1 — Disabling Config Change Requests
+### 11.1 — Config and symbol change support are optional
+
+**Config change and symbol change support are not mandatory.** If your robot does not need remote config or symbol updates, you can disable them. The SDK will ignore incoming change requests and will not send change results in heartbeats.
+
+### 11.2 — Disabling Config Change Requests
 
 If you don't want the server to be able to change your config remotely:
 
@@ -1064,13 +1087,13 @@ CMyBot::CMyBot()
 }
 ```
 
-### 11.2 — Disabling Symbol Change Requests
+### 11.3 — Disabling Symbol Change Requests
 
 ```mql5
 set_enable_symbol_change_requests(false);
 ```
 
-### 11.3 — Adjusting Token Refresh Threshold
+### 11.4 — Adjusting Token Refresh Threshold
 
 By default, the JWT token is refreshed **60 seconds** before expiration (`SDK_DEFAULT_TOKEN_REFRESH_THRESHOLD` in the SDK). You can change this:
 
@@ -1080,7 +1103,7 @@ set_token_refresh_threshold(120);  // Refresh 120 seconds before expiration
 
 Valid range: **60–3600** seconds. Call **before** `on_init()`. If you set the threshold greater than or equal to the JWT expiration time (e.g. 300 seconds), the SDK will trigger refresh immediately.
 
-### 11.4 — Printing SDK Configuration
+### 11.5 — Printing SDK Configuration
 
 For debugging, you can print the current SDK configuration:
 

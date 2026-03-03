@@ -52,7 +52,7 @@ virtual int on_init(string api_key)
 
 **Description:** Initializes the SDK, establishes session with server, and starts the timer. Indicators automatically have `PRODUCT_TYPE_INDICATOR` set, bypass magic numbers, and disable config/symbol change requests.
 
-**Note:** The API base URL is now hardcoded in the SDK (`SDK_API_BASE_URL` constant).
+**Note:** The API base URL is now hardcoded in the SDK (`SDK_API_BASE_URL` constant). Robot configuration must follow the [Robot Config Component Schema](schemas/robot_config_component_schema/README.md); the Vendor Portal validates it at submission.
 
 ---
 
@@ -126,6 +126,8 @@ void set_enable_config_change_requests(bool enable)
 
 **Default:** `true` (enabled)
 
+**Note:** Config change support is **not mandatory**. Disable it if your robot does not need remote config updates. Call before `on_init()`.
+
 ---
 
 #### set_enable_symbol_change_requests
@@ -138,6 +140,8 @@ void set_enable_symbol_change_requests(bool enable)
 - `enable`: When `false`, SDK ignores symbol change requests from server
 
 **Default:** `true` (enabled)
+
+**Note:** Symbol change support is **not mandatory**. Disable it if you do not need to react to remote symbol enable/disable. Call before `on_init()`.
 
 ---
 
@@ -185,9 +189,9 @@ virtual int on_calculate(const int rates_total, const int prev_calculated,
 virtual void on_config_changed(string event_json) {}  // Override in Robot.
 ```
 
-**Parameters:** `event_json` — JSON string with configuration change details (e.g. field, old_value, new_value).
+**Parameters:** `event_json` — JSON string with configuration change details (e.g. field, old_value, new_value, or request_id/summary).
 
-**Description:** Called when the server has sent a configuration change request and the SDK has applied it. **Robots only**; Indicators do not receive this event.
+**Description:** Called when the server has sent a configuration change request and the SDK has applied it (via your `update_field()`). **Robots only**; Indicators do not receive this event. **Optional:** Override only if you need to react (e.g. recalculate, log); the config object already holds the new values. To support config changes at all, you must implement `IRobotConfig::update_field()` and `validate_field()`; see the section *Config change and symbol change — request/response* below.
 
 ---
 
@@ -197,9 +201,9 @@ virtual void on_config_changed(string event_json) {}  // Override in Robot.
 virtual void on_symbol_changed(string event_json) {}  // Override in Robot.
 ```
 
-**Parameters:** `event_json` — JSON string with symbol change details (e.g. symbol, active_to_trade).
+**Parameters:** `event_json` — JSON string with symbol change details (e.g. `symbol`, `active_to_trade`).
 
-**Description:** Called when the server has sent a symbol change request and the SDK has applied it. **Robots only**; Indicators do not receive this event.
+**Description:** Called when the server has sent a symbol change request and the SDK has applied it (SymbolSelect). **Robots only**; Indicators do not receive this event. **Optional:** Override only if you need to react (e.g. close positions when a symbol is disabled). You can disable symbol change requests with `set_enable_symbol_change_requests(false)`.
 
 ---
 
@@ -532,6 +536,26 @@ The numeric offset (1000–1005) is used when calling `EventChartCustom()`. The 
   "message": "Token refreshed successfully"
 }
 ```
+
+---
+
+## Config change and symbol change — request/response
+
+Config change and symbol change support are **optional**. Disable with `set_enable_config_change_requests(false)` and `set_enable_symbol_change_requests(false)`.
+
+### Config change
+
+1. **Request:** Server sends `robot_config_change_request` in heartbeat (or start) response: `{ "id": "...", "request": [ { "field_name": "key", "new_value": value }, ... ] }`.
+2. **SDK:** For each item calls your `validate_field(field_name, new_value_str, reason)`; if valid, calls `update_field(field_name, new_value_str)`. Builds result: per-item `accepted`, `applied_value` or `error_code`/`error_message`; overall `status` (`all_accepted`/`all_rejected`/`partially_accepted`).
+3. **Response:** SDK sends result in `config_change_results` on the **next** heartbeat.
+4. **Vendor must implement:** `update_field()`, `get_field_as_string()`, `to_json()`, `update_from_json()`, and `define_schema()`/`apply_defaults()` matching the [Robot Config Component Schema](schemas/robot_config_component_schema/README.md). Optionally `validate_field()` (or use schema); optionally override `on_config_changed()` to react.
+
+### Symbol change
+
+1. **Request:** Server sends `session_symbols_change_request`: `{ "id": "...", "request": [ { "symbol": "EURUSD", "active_to_trade": true/false }, ... ] }`.
+2. **SDK:** For each item calls `SymbolSelect(symbol_name, requested_active)`, updates internal list, builds result, fires `on_symbol_changed` event.
+3. **Response:** SDK sends result in `symbols_change_results` on the **next** heartbeat.
+4. **Vendor:** Optionally override `on_symbol_changed()` to react (e.g. close positions when a symbol is disabled).
 
 ---
 

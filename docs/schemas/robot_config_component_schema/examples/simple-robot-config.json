@@ -1,0 +1,80 @@
+{
+  "$schema": "../v1.json",
+  "fields": [
+    {
+      "type": "integer",
+      "key": "max_trades",
+      "label": "Maximum Concurrent Trades",
+      "required": true,
+      "default": 5,
+      "minimum": 1,
+      "maximum": 20,
+      "step": 1,
+      "description": "Maximum number of trades to open simultaneously",
+      "tooltip": "Higher values increase potential profit but also risk",
+      "group": "Risk Management",
+      "order": 1
+    },
+    {
+      "type": "decimal",
+      "key": "stop_loss_percent",
+      "label": "Stop Loss Percentage",
+      "required": true,
+      "default": 2.0,
+      "minimum": 0.5,
+      "maximum": 10.0,
+      "step": 0.5,
+      "precision": 1,
+      "description": "Stop loss as percentage of account balance",
+      "tooltip": "Lower values provide tighter risk control",
+      "group": "Risk Management",
+      "order": 2
+    },
+    {
+      "type": "boolean",
+      "key": "use_trailing_stop",
+      "label": "Use Trailing Stop Loss",
+      "required": true,
+      "default": false,
+      "description": "Enable trailing stop loss to lock in profits as price moves favorably",
+      "tooltip": "Recommended for trending markets",
+      "group": "Features",
+      "order": 1
+    },
+    {
+      "type": "radio",
+      "key": "trading_mode",
+      "label": "Trading Mode",
+      "required": true,
+      "default": "moderate",
+      "options": [
+        { "value": "conservative", "label": "Conservative" },
+        { "value": "moderate", "label": "Moderate" },
+        { "value": "aggressive", "label": "Aggressive" }
+      ],
+      "description": "Select your risk tolerance level",
+      "tooltip": "Conservative: Lower risk, lower returns. Aggressive: Higher risk, higher potential returns.",
+      "group": "Strategy",
+      "order": 1
+    },
+    {
+      "type": "multiple",
+      "key": "trading_sessions",
+      "label": "Active Trading Sessions",
+      "required": true,
+      "default": ["london", "newyork"],
+      "options": [
+        { "value": "tokyo", "label": "Tokyo (Asian Session)" },
+        { "value": "london", "label": "London (European Session)" },
+        { "value": "newyork", "label": "New York (American Session)" },
+        { "value": "sydney", "label": "Sydney (Pacific Session)" }
+      ],
+      "minSelections": 1,
+      "maxSelections": 4,
+      "description": "Select which trading sessions to be active during",
+      "tooltip": "London and New York overlap provides highest liquidity",
+      "group": "Trading Hours",
+      "order": 1
+    }
+  ]
+}

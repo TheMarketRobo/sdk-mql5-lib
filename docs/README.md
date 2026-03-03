@@ -2,7 +2,9 @@
 
 ## Overview
 
-TheMarketRobo SDK is a comprehensive framework for building MQL5 **Expert Advisors (EAs)** and **Custom Indicators** with built-in authentication, session management, and real-time configuration updates. The SDK supports both product types through a single base class (`CTheMarketRobo_Base`). Indicator support is included alongside EA support; indicators use the same session and heartbeat flow but do not use remote configuration or symbol change requests. The SDK simplifies development by handling authentication flows, session lifecycle, and event management behind the scenes.
+TheMarketRobo SDK is a comprehensive framework for building MQL5 **Expert Advisors (EAs)** and **Custom Indicators** with built-in authentication, session management, and real-time configuration updates. The SDK supports both product types through a single base class (`CTheMarketRobo_Base`). Indicator support is included alongside EA support; indicators use the same session and heartbeat flow but do not use remote configuration or symbol change requests. **Config change support and symbol change support are not mandatory** — vendors can enable them only when needed; if disabled (or left unimplemented), the SDK simply ignores incoming change requests. The SDK simplifies development by handling authentication flows, session lifecycle, and event management behind the scenes.
+
+**Robot configuration schema:** The configuration options you define for your robot **MUST** follow the [Robot Config Component Schema](schemas/robot_config_component_schema/README.md). The Vendor Portal validates your schema (and `default_config`) before allowing submission. See that document and its [examples](schemas/robot_config_component_schema/examples/) for the full contract.
 
 ## Architecture
 
@@ -306,7 +308,7 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
 
 ## Feature Configuration
 
-The SDK supports optional features that can be enabled/disabled:
+The SDK supports optional features that can be enabled/disabled. **Config change and symbol change support are not mandatory** — implement them only if your robot needs to react to remote config or symbol updates from the dashboard.
 
 ```cpp
 // Call BEFORE on_init()
@@ -387,6 +389,8 @@ CTheMarketRobo_Base(string indicator_version_uuid)   // One argument only; no co
 
 ### IRobotConfig Interface
 
+Your config class defines the **schema** (field types, keys, ranges, defaults) and implements how the SDK reads/writes config. The schema you define **MUST** conform to the [Robot Config Component Schema](schemas/robot_config_component_schema/README.md); the Vendor Portal validates it at submission.
+
 #### Schema Definition (Override)
 - `define_schema()` - Define configuration fields using CConfigSchema
 - `apply_defaults()` - Set member variables from schema defaults
@@ -394,11 +398,11 @@ CTheMarketRobo_Base(string indicator_version_uuid)   // One argument only; no co
 #### Required Methods (Override)
 - `to_json()` - Serialize to JSON
 - `update_from_json(const CJAVal &config_json)` - Update from server JSON
-- `update_field(string field_name, string new_value)` - Update specific field
+- `update_field(string field_name, string new_value)` - Update specific field (used by SDK when applying config change requests)
 - `get_field_as_string(string field_name)` - Get field as string
 
 #### Provided Methods (Use Schema)
-- `validate_field(...)` - Uses schema for validation
+- `validate_field(...)` - Uses schema for validation (SDK calls this before applying each config change)
 - `get_field_names(...)` - Gets keys from schema
 
 ### CConfigField Factory Methods
@@ -421,6 +425,33 @@ CConfigField::create_multiple(key, label, required)
 .with_option(string value, string label)
 .with_group(string group_name, int order)
 ```
+
+## Config Change and Symbol Change — Request/Response and Vendor Implementation
+
+**Config change and symbol change support are not mandatory.** Vendors can disable them with `set_enable_config_change_requests(false)` and `set_enable_symbol_change_requests(false)`. If enabled, the SDK delivers the server’s requests and builds the response; the vendor implements the config side (and optionally reacts in callbacks).
+
+### Config change: request → SDK → your config → response
+
+1. **Request:** The server sends a config change request in the heartbeat response (or start response): `robot_config_change_request` with `id` and `request` array of `{ "field_name": "key", "new_value": value }`.
+2. **SDK:** For each item the SDK calls your `validate_field(field_name, new_value_str, reason)`. If valid, it calls `update_field(field_name, new_value_str)` to apply the change. It builds a result (per-item `accepted`/`applied_value` or `error_code`/`error_message`, and overall `status`: `all_accepted`/`all_rejected`/`partially_accepted`).
+3. **Response:** On the **next** heartbeat the SDK sends this result in `config_change_results`.
+4. **What you must implement:** `define_schema()`, `apply_defaults()`, `update_field()`, `get_field_as_string()`, `to_json()`, `update_from_json()`, and optionally `validate_field()` (or use schema-based validation). Your schema must follow the [Robot Config Component Schema](schemas/robot_config_component_schema/README.md).
+5. **Optional:** Override `on_config_changed(string event_json)` to react after changes (e.g. recalculate, log). The config object already holds the new values when this is called (or by the next `on_tick()`).
+
+### Symbol change: request → SDK → response
+
+1. **Request:** The server sends a symbol change request: `session_symbols_change_request` with `id` and `request` array of `{ "symbol": "EURUSD", "active_to_trade": true/false }`.
+2. **SDK:** For each item the SDK calls `SymbolSelect(symbol_name, requested_active)`, updates its internal symbol list, and builds a result. It fires a symbol change event so your `on_symbol_changed` is called.
+3. **Response:** On the **next** heartbeat the SDK sends the result in `symbols_change_results`.
+4. **Optional:** Override `on_symbol_changed(string event_json)` to react (e.g. close positions when a symbol is disabled). Event JSON contains `symbol` and `active_to_trade`.
+
+### Summary
+
+| Who | Responsibility |
+|-----|----------------|
+| SDK | Receive change request, validate (config) or apply (symbol), build results, send in next heartbeat |
+| You (config) | Implement `update_field()` and `validate_field()` so the SDK can apply config changes |
+| You (optional) | Override `on_config_changed` / `on_symbol_changed` to react |
 
 ## Security Considerations
 

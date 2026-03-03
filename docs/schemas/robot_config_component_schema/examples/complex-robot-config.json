@@ -1,0 +1,325 @@
+{
+  "$schema": "../v1.json",
+  "fields": [
+    {
+      "type": "radio",
+      "key": "trading_strategy",
+      "label": "Trading Strategy",
+      "required": true,
+      "default": "scalping",
+      "options": [
+        {"value": "scalping", "label": "Scalping"},
+        {"value": "day_trading", "label": "Day Trading"},
+        {"value": "swing_trading", "label": "Swing Trading"},
+        {"value": "position_trading", "label": "Position Trading"}
+      ],
+      "description": "Select the primary trading strategy for this robot",
+      "group": "Strategy",
+      "order": 1
+    },
+    {
+      "type": "integer",
+      "key": "scalping_timeframe_minutes",
+      "label": "Scalping Timeframe (minutes)",
+      "required": true,
+      "default": 5,
+      "minimum": 1,
+      "maximum": 15,
+      "step": 1,
+      "description": "Timeframe in minutes for scalping strategy",
+      "group": "Strategy",
+      "order": 2,
+      "dependsOn": {
+        "field": "trading_strategy",
+        "condition": "equals",
+        "value": "scalping"
+      }
+    },
+    {
+      "type": "integer",
+      "key": "max_trades",
+      "label": "Maximum Concurrent Trades",
+      "required": true,
+      "default": 5,
+      "minimum": 1,
+      "maximum": 50,
+      "step": 1,
+      "description": "Maximum number of trades to open simultaneously",
+      "tooltip": "Recommended: 3-10 for beginners, 10-25 for experienced, 25+ for experts",
+      "group": "Risk Management",
+      "order": 1
+    },
+    {
+      "type": "decimal",
+      "key": "lot_size",
+      "label": "Lot Size",
+      "required": true,
+      "default": 0.01,
+      "minimum": 0.01,
+      "maximum": 10.0,
+      "step": 0.01,
+      "precision": 2,
+      "description": "Trade size in lots",
+      "tooltip": "0.01 = micro lot, 0.1 = mini lot, 1.0 = standard lot",
+      "group": "Risk Management",
+      "order": 2
+    },
+    {
+      "type": "boolean",
+      "key": "use_dynamic_lot_sizing",
+      "label": "Use Dynamic Lot Sizing",
+      "required": true,
+      "default": false,
+      "description": "Automatically adjust lot size based on account balance",
+      "group": "Risk Management",
+      "order": 3
+    },
+    {
+      "type": "decimal",
+      "key": "risk_per_trade_percent",
+      "label": "Risk Per Trade (%)",
+      "required": true,
+      "default": 1.0,
+      "minimum": 0.1,
+      "maximum": 5.0,
+      "step": 0.1,
+      "precision": 1,
+      "description": "Percentage of account balance to risk per trade",
+      "group": "Risk Management",
+      "order": 4,
+      "dependsOn": {
+        "field": "use_dynamic_lot_sizing",
+        "condition": "equals",
+        "value": true
+      }
+    },
+    {
+      "type": "decimal",
+      "key": "stop_loss_pips",
+      "label": "Stop Loss (pips)",
+      "required": true,
+      "default": 20.0,
+      "minimum": 5.0,
+      "maximum": 500.0,
+      "step": 5.0,
+      "precision": 1,
+      "description": "Stop loss distance in pips",
+      "group": "Risk Management",
+      "order": 5
+    },
+    {
+      "type": "decimal",
+      "key": "take_profit_pips",
+      "label": "Take Profit (pips)",
+      "required": true,
+      "default": 40.0,
+      "minimum": 5.0,
+      "maximum": 1000.0,
+      "step": 5.0,
+      "precision": 1,
+      "description": "Take profit distance in pips",
+      "group": "Risk Management",
+      "order": 6
+    },
+    {
+      "type": "boolean",
+      "key": "use_trailing_stop",
+      "label": "Use Trailing Stop Loss",
+      "required": true,
+      "default": false,
+      "description": "Enable trailing stop loss to lock in profits",
+      "group": "Advanced Features",
+      "order": 1
+    },
+    {
+      "type": "decimal",
+      "key": "trailing_stop_distance",
+      "label": "Trailing Stop Distance (pips)",
+      "required": true,
+      "default": 15.0,
+      "minimum": 5.0,
+      "maximum": 100.0,
+      "step": 5.0,
+      "precision": 1,
+      "description": "Distance in pips for trailing stop",
+      "group": "Advanced Features",
+      "order": 2,
+      "dependsOn": {
+        "field": "use_trailing_stop",
+        "condition": "equals",
+        "value": true
+      }
+    },
+    {
+      "type": "boolean",
+      "key": "use_breakeven",
+      "label": "Move Stop to Breakeven",
+      "required": true,
+      "default": true,
+      "description": "Automatically move stop loss to breakeven when in profit",
+      "group": "Advanced Features",
+      "order": 3
+    },
+    {
+      "type": "decimal",
+      "key": "breakeven_trigger_pips",
+      "label": "Breakeven Trigger (pips)",
+      "required": true,
+      "default": 20.0,
+      "minimum": 5.0,
+      "maximum": 100.0,
+      "step": 5.0,
+      "precision": 1,
+      "description": "Profit in pips required to trigger breakeven",
+      "group": "Advanced Features",
+      "order": 4,
+      "dependsOn": {
+        "field": "use_breakeven",
+        "condition": "equals",
+        "value": true
+      }
+    },
+    {
+      "type": "multiple",
+      "key": "trading_sessions",
+      "label": "Active Trading Sessions",
+      "required": true,
+      "default": ["london", "newyork"],
+      "options": [
+        {"value": "tokyo", "label": "Tokyo (00:00 - 09:00 UTC)"},
+        {"value": "london", "label": "London (08:00 - 17:00 UTC)"},
+        {"value": "newyork", "label": "New York (13:00 - 22:00 UTC)"},
+        {"value": "sydney", "label": "Sydney (22:00 - 07:00 UTC)"}
+      ],
+      "minSelections": 1,
+      "maxSelections": 4,
+      "description": "Select which trading sessions to be active during",
+      "tooltip": "London and New York overlap (13:00-17:00 UTC) provides highest liquidity",
+      "group": "Trading Hours",
+      "order": 1
+    },
+    {
+      "type": "boolean",
+      "key": "avoid_news_events",
+      "label": "Avoid High-Impact News Events",
+      "required": true,
+      "default": true,
+      "description": "Pause trading during major economic news releases",
+      "group": "Trading Hours",
+      "order": 2
+    },
+    {
+      "type": "integer",
+      "key": "news_buffer_minutes",
+      "label": "News Buffer (minutes)",
+      "required": true,
+      "default": 30,
+      "minimum": 5,
+      "maximum": 120,
+      "step": 5,
+      "description": "Minutes before and after news to avoid trading",
+      "group": "Trading Hours",
+      "order": 3,
+      "dependsOn": {
+        "field": "avoid_news_events",
+        "condition": "equals",
+        "value": true
+      }
+    },
+    {
+      "type": "decimal",
+      "key": "max_spread_pips",
+      "label": "Maximum Spread (pips)",
+      "required": true,
+      "default": 2.0,
+      "minimum": 0.5,
+      "maximum": 10.0,
+      "step": 0.5,
+      "precision": 1,
+      "description": "Maximum allowed spread to open trades",
+      "tooltip": "Trades won't open if spread exceeds this value",
+      "group": "Entry Conditions",
+      "order": 1
+    },
+    {
+      "type": "integer",
+      "key": "min_candle_body_pips",
+      "label": "Minimum Candle Body (pips)",
+      "required": true,
+      "default": 10,
+      "minimum": 1,
+      "maximum": 100,
+      "step": 1,
+      "description": "Minimum candle body size required for signal",
+      "group": "Entry Conditions",
+      "order": 2
+    },
+    {
+      "type": "radio",
+      "key": "order_execution_mode",
+      "label": "Order Execution Mode",
+      "required": true,
+      "default": "instant",
+      "options": [
+        {"value": "instant", "label": "Instant Execution"},
+        {"value": "market", "label": "Market Execution"},
+        {"value": "pending", "label": "Pending Orders"}
+      ],
+      "description": "How orders should be executed",
+      "group": "Entry Conditions",
+      "order": 3
+    },
+    {
+      "type": "integer",
+      "key": "max_slippage_pips",
+      "label": "Maximum Slippage (pips)",
+      "required": true,
+      "default": 3,
+      "minimum": 0,
+      "maximum": 20,
+      "step": 1,
+      "description": "Maximum allowed slippage in pips",
+      "group": "Entry Conditions",
+      "order": 4,
+      "dependsOn": {
+        "field": "order_execution_mode",
+        "condition": "equals",
+        "value": "instant"
+      }
+    },
+    {
+      "type": "boolean",
+      "key": "enable_email_alerts",
+      "label": "Enable Email Alerts",
+      "required": true,
+      "default": false,
+      "description": "Send email notifications for trades and events",
+      "group": "Notifications",
+      "order": 1
+    },
+    {
+      "type": "multiple",
+      "key": "alert_events",
+      "label": "Alert Events",
+      "required": true,
+      "default": ["trade_open", "trade_close"],
+      "options": [
+        {"value": "trade_open", "label": "Trade Opened"},
+        {"value": "trade_close", "label": "Trade Closed"},
+        {"value": "stop_loss_hit", "label": "Stop Loss Hit"},
+        {"value": "take_profit_hit", "label": "Take Profit Hit"},
+        {"value": "error", "label": "Error Occurred"}
+      ],
+      "minSelections": 1,
+      "maxSelections": 5,
+      "description": "Select which events trigger email alerts",
+      "group": "Notifications",
+      "order": 2,
+      "dependsOn": {
+        "field": "enable_email_alerts",
+        "condition": "equals",
+        "value": true
+      }
+    }
+  ]
+}
