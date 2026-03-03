@@ -11,6 +11,8 @@ This guide will help you create your first trading robot using TheMarketRobo SDK
 - Robot version UUID from TheMarketRobo platform
 - Basic MQL5 knowledge
 
+**For local testing:** Generate a new **test license** from your Vendor Portal and use its API key with the staging API (`https://api.staging.themarketrobo.com`). Do not use production licenses for development.
+
 ### Step 1: Create Your Robot Configuration
 
 Create a new file `MyBotConfig.mqh`:
@@ -277,7 +279,7 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
 1. **Attach to a chart:**
    - Open a chart (EURUSD recommended for testing)
    - Drag your compiled EA onto the chart
-   - Enter your API key in the input parameters
+   - Enter your API key in the input parameters (use a **test license** API key from your Vendor Portal for local testing)
    - Set your preferred magic number
    - Click "OK"
 
@@ -319,6 +321,7 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
 
 **"Failed to start SDK session"**
 - Check your API key is correct
+- **For local testing:** Use an API key from a **test license** generated in your Vendor Portal, and ensure the staging URL (`https://api.staging.themarketrobo.com`) is in MT5's Allow WebRequest list
 - Verify internet connection
 
 **"Schema not initialized"**

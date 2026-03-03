@@ -628,7 +628,7 @@ enum ENUM_SDK_HEARTBEAT_STATE
 - `"Invalid robot_version_uuid"` - UUID must be exactly 36 characters
 - `"API Key is required"` - Customer must provide API key
 - `"Robot configuration is not valid"` - Config object is NULL
-- `"Failed to start SDK session"` - Network or auth error
+- `"Failed to start SDK session"` - Network or auth error. **For local testing**, use an API key from a **test license** generated in your Vendor Portal and ensure the staging URL is in MT5's Allow WebRequest list.
 
 ### Runtime Errors
 
@@ -641,8 +641,9 @@ enum ENUM_SDK_HEARTBEAT_STATE
 
 1. Always validate robot_version_uuid format before using
 2. Use input parameters for customer-provided values (api_key, magic_number)
-3. Handle `on_config_changed` and `on_symbol_changed` callbacks
-4. Monitor Expert Advisor logs for SDK messages
+3. For local testing, generate a new **test license** from your Vendor Portal and use its API key with the staging API
+4. Handle `on_config_changed` and `on_symbol_changed` callbacks
+5. Monitor Expert Advisor logs for SDK messages
 
 ---
 

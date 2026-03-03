@@ -102,6 +102,8 @@ Before starting, make sure you have:
 > Go to: **Tools → Options → Expert Advisors → Allow WebRequest for listed URL:**
 > Add: `https://api.staging.themarketrobo.com` (staging) or `https://api.themarketrobo.com` (production)
 
+> **Local testing:** Generate a new **test license** from your Vendor Portal and use its API key for development. Use the staging URL above; do not use production licenses for testing.
+
 **Documentation scope — data covered here vs elsewhere**
 - **This booklet:** Integration steps, config schema (EAs), callbacks, lifecycle, token/heartbeat defaults, Indicator vs EA differences, troubleshooting, template. All code samples and constants (e.g. token refresh 60s, heartbeat 60s max 300s) match the SDK source.
 - **Not covered in detail here (see API_REFERENCE.md and docs/api/important-notes.md):** Exact request/response JSON for `/robot/start`, `/robot/heartbeat`, `/robot/refresh`, `/robot/end`; full list of HTTP/API error codes and retry behavior; `SDK_API_BASE_URL` and staging/production URL handling inside the SDK; heartbeat payload field names and types; `CFinalStats` and shutdown reason values.
@@ -1184,7 +1186,7 @@ Understanding the SDK lifecycle helps with debugging. The flow below is for **Ex
 | `WebRequest failed. Error code: 4060` | URL not in allowed list | Add the API URL to Tools → Options → Expert Advisors |
 | `API Key is required!` | Empty API key | Set the `InpApiKey` input parameter |
 | `Invalid robot_version_uuid` | Wrong UUID length | Ensure UUID is exactly 36 characters (e.g., `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`) |
-| `Start session failed` | Server rejected the request | Check API key validity and internet connection |
+| `Start session failed` | Server rejected the request | Check API key validity and internet connection; for local testing use a **test license** API key from your Vendor Portal with the staging URL |
 | `Token refresh failed` | Session may have expired | The SDK will remove the EA or stop the Indicator timer if it can't refresh; restart the program |
 | `Heartbeat sequence mismatch (409)` | Out-of-sync heartbeats | SDK auto-corrects this; no action needed |
 
@@ -1198,7 +1200,7 @@ Understanding the SDK lifecycle helps with debugging. The flow below is for **Ex
    // Look for "SENDING HTTP REQUEST" and "HTTP RESPONSE RECEIVED" blocks
    ```
 
-3. **Test with the staging environment** before going to production.
+3. **Test with the staging environment** before going to production. For local testing, generate a new **test license** from your Vendor Portal and use its API key with the staging URL.
 
 4. **Use `Alert()`** in your `on_config_changed()` and `on_symbol_changed()` methods during development to visually see when changes arrive.
 

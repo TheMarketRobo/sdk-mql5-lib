@@ -298,7 +298,7 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
 - **IRobotConfig implementation**: Configuration schema and handling logic (Expert Advisors only; indicators do not use config)
 
 ### Customer-Provided (Input Parameters)
-- **api_key**: API key from TheMarketRobo platform
+- **api_key**: API key from TheMarketRobo platform. **For local testing**, generate a new **test license** from your Vendor Portal and use its API key with the staging API.
 - **magic_number**: MT5 magic number for trade identification (Expert Advisors only; indicators omit this)
 
 ### SDK Constants (Hardcoded in SDK)
