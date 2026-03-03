@@ -842,7 +842,7 @@ virtual void on_tick() override
 
 ### 8.4 — on_config_changed() — React to Config Changes
 
-This method is called when a customer changes settings from the web dashboard. **The SDK has already applied the new values** to your config object before calling this method.
+This method is called when the SDK has applied one or more config changes from the server. **The new values are already in your config object** when this runs. Override it only if you need to react (e.g. recalculate, log, alert). For the full request/response flow and what you must implement (`update_field`, `validate_field`), see **section 8.6**.
 
 ```mql5
 virtual void on_config_changed(string event_json) override
@@ -871,7 +871,7 @@ virtual void on_config_changed(string event_json) override
 
 ### 8.5 — on_symbol_changed() — React to Symbol Changes
 
-This method is called when a customer enables or disables a trading symbol from the dashboard.
+This method is called when the SDK has applied a symbol change (it called `SymbolSelect()` and updated its list). Override it only if you need to react (e.g. close positions when a symbol is disabled). For the full request/response flow and a complete example, see **section 8.6**.
 
 ```mql5
 virtual void on_symbol_changed(string event_json) override
@@ -894,23 +894,249 @@ virtual void on_symbol_changed(string event_json) override
 }
 ```
 
-### 8.6 — Config and symbol change: request/response and what you implement
+### 8.6 — Config and symbol change: full flow and how to handle them
 
-The SDK **delivers** config and symbol change requests from the server and **builds the response**; you implement the config side and optionally react in callbacks.
+The server can send **config change** and **symbol change** requests inside the heartbeat response (or in the start response). The SDK **delivers** these to your robot, **applies** them using your config class (config) or `SymbolSelect()` (symbols), and **sends the result** back in the **next** heartbeat. You implement the config application and optionally react in callbacks.
 
-**Config change flow:**
-1. Server sends `robot_config_change_request` in a heartbeat (or start) response: `{ "id": "...", "request": [ { "field_name": "key", "new_value": value }, ... ] }`.
-2. SDK, for each item: calls your `validate_field(field_name, new_value_str, reason)`. If validation passes, calls your `update_field(field_name, new_value_str)` to apply the change. Builds a result (per-item `accepted`/`applied_value` or `error_code`/`error_message`; overall `status`: `all_accepted`/`all_rejected`/`partially_accepted`).
-3. On the **next** heartbeat the SDK sends this result in `config_change_results`.
+---
 
-**What you must implement for config changes to work:** `update_field()`, `get_field_as_string()`, `to_json()`, `update_from_json()`, and `define_schema()`/`apply_defaults()` that match the [Robot Config Component Schema](schemas/robot_config_component_schema/README.md). Optionally override `validate_field()` for custom validation (or use the schema-based default). **Optional:** Override `on_config_changed(string event_json)` to react (e.g. recalculate, log); the config object already holds the new values when this is called (or by the next `on_tick()`).
+#### When do change requests arrive?
 
-**Symbol change flow:**
-1. Server sends `session_symbols_change_request`: `{ "id": "...", "request": [ { "symbol": "EURUSD", "active_to_trade": true/false }, ... ] }`.
-2. SDK, for each item: calls `SymbolSelect(symbol_name, requested_active)`, updates its internal symbol list, builds the result, and fires an event so your `on_symbol_changed` is called.
-3. On the **next** heartbeat the SDK sends the result in `symbols_change_results`.
+- In the **start response**: the server may include `robot_config_change_request` and/or `session_symbols_change_request` so the robot starts with the latest settings.
+- In **heartbeat responses**: when a customer changes config or symbols on the dashboard, the server includes the change request in the next heartbeat reply. The SDK processes it immediately and sends the result in the **following** heartbeat (not the same one).
 
-**What you implement:** Optionally override `on_symbol_changed(string event_json)` to react (e.g. close positions when a symbol is disabled). You can disable symbol change requests entirely with `set_enable_symbol_change_requests(false)`.
+---
+
+#### Config change: request format (from server)
+
+The server sends an object with an `id` (request identifier) and a `request` array. Each item has `field_name` (your schema key) and `new_value` (the new value; the SDK passes it to you as a string).
+
+```json
+{
+  "id": "req-config-abc-123",
+  "request": [
+    { "field_name": "lot_size", "new_value": 0.05 },
+    { "field_name": "max_trades", "new_value": 10 }
+  ]
+}
+```
+
+---
+
+#### Config change: what the SDK does (step by step)
+
+1. For each item in `request`, the SDK gets `field_name` and converts `new_value` to a string (e.g. `"0.05"`, `"10"`).
+2. It calls your **`validate_field(field_name, new_value_str, reason)`**. If this returns `false`, the SDK does **not** call `update_field()` and records a rejected result with `error_code` and `error_message` (your `reason`).
+3. If validation passes, the SDK calls your **`update_field(field_name, new_value_str)`**. You must update your member variable (e.g. `m_lot_size = StringToDouble(new_value_str)`) and return `true`.
+4. The SDK builds a result object: per-item `accepted`, `applied_value` (on success) or `error_code`/`error_message` (on failure), and overall `status`: `all_accepted`, `all_rejected`, or `partially_accepted`.
+5. On the **next** heartbeat the SDK sends this in `config_change_results`.
+
+---
+
+#### Config change: response format (SDK sends in next heartbeat)
+
+```json
+"config_change_results": {
+  "request_id": "req-config-abc-123",
+  "status": "all_accepted",
+  "results": [
+    { "field_name": "lot_size", "requested_value": "0.05", "accepted": true, "applied_value": "0.05" },
+    { "field_name": "max_trades", "requested_value": "10", "accepted": true, "applied_value": "10" }
+  ]
+}
+```
+
+If a field is rejected:
+
+```json
+{ "field_name": "lot_size", "requested_value": "100", "accepted": false, "error_code": "INVALID_VALUE", "error_message": "Lot size must be between 0.01 and 10" }
+```
+
+---
+
+#### Config change: what you must implement
+
+For config changes to work, you must implement:
+
+- **`update_field(string field_name, string new_value)`** — Update the corresponding member variable and return `true`. Parse the string (e.g. `StringToDouble`, `StringToInteger`, compare to `"true"`/`"false"` for bool). Return `false` for unknown fields.
+- **`get_field_as_string(string field_name)`** — Return the current value as a string (used by the SDK for validation and reporting).
+- **`validate_field(string field_name, string new_value, string &reason)`** — Return `true` if the value is valid, `false` otherwise and set `reason` to an error message. You can use the base implementation (schema-based) or override for custom rules (e.g. business logic).
+- **`to_json()`**, **`update_from_json()`**, **`define_schema()`**, **`apply_defaults()`** — Required for session start and schema; see section 7.
+
+Example **update_field** and **validate_field**:
+
+```mql5
+virtual bool update_field(string field_name, string new_value) override
+{
+    if(field_name == "lot_size")
+    {
+        m_lot_size = StringToDouble(new_value);
+        return true;
+    }
+    if(field_name == "max_trades")
+    {
+        m_max_trades = (int)StringToInteger(new_value);
+        return true;
+    }
+    if(field_name == "use_trailing")
+    {
+        m_use_trailing_stop = (new_value == "true" || new_value == "1");
+        return true;
+    }
+    if(field_name == "strategy")
+    {
+        m_strategy = new_value;
+        return true;
+    }
+    return false;
+}
+
+virtual bool validate_field(string field_name, string new_value, string &reason) override
+{
+    if(field_name == "lot_size")
+    {
+        double v = StringToDouble(new_value);
+        if(v < 0.01 || v > 10.0)
+        {
+            reason = "Lot size must be between 0.01 and 10";
+            return false;
+        }
+        return true;
+    }
+    if(field_name == "max_trades")
+    {
+        long v = StringToInteger(new_value);
+        if(v < 1 || v > 50)
+        {
+            reason = "Max trades must be between 1 and 50";
+            return false;
+        }
+        return true;
+    }
+    // Use base implementation for other fields (schema-based)
+    return IRobotConfig::validate_field(field_name, new_value, reason);
+}
+```
+
+---
+
+#### Config change: optional — on_config_changed()
+
+After the SDK has applied one or more config changes, it may notify your robot by calling **`on_config_changed(string event_json)`**. At that point your config object **already holds the new values**; you can also read them in the next `on_tick()`. Override this only if you need to **react** (e.g. recalculate indicators, log, alert the user).
+
+Example — parse event and react:
+
+```mql5
+virtual void on_config_changed(string event_json) override
+{
+    Print("Config change received: ", event_json);
+
+    CJAVal event;
+    if(event.parse(event_json))
+    {
+        if(event.has_key("field"))
+        {
+            string field = event["field"].get_string();
+            string new_val = event["new_value"].get_string();
+            Print("Field ", field, " set to ", new_val);
+        }
+        if(event.has_key("request_id"))
+            Print("Request ID: ", event["request_id"].get_string());
+    }
+
+    CMyConfig* config = (CMyConfig*)m_robot_config;
+    double lot = config.get_lot_size();
+    int max = config.get_max_trades();
+    // React: e.g. recalculate position size, Alert("Settings updated from dashboard")
+}
+```
+
+---
+
+#### Symbol change: request format (from server)
+
+```json
+{
+  "id": "req-sym-456",
+  "request": [
+    { "symbol": "EURUSD", "active_to_trade": true },
+    { "symbol": "GBPUSD", "active_to_trade": false }
+  ]
+}
+```
+
+---
+
+#### Symbol change: what the SDK does
+
+1. For each item the SDK calls **`SymbolSelect(symbol_name, active_to_trade)`** to show/hide the symbol in Market Watch and enable/disable trading.
+2. It updates its internal session symbol list.
+3. It builds a result (per-symbol `accepted`, `applied_active_to_trade` or `error_code`/`error_message`; overall `status`).
+4. For each **applied** symbol change it fires an event so your **`on_symbol_changed(string event_json)`** is called with JSON like `{ "type": "symbol_change", "symbol": "GBPUSD", "active_to_trade": false }`.
+5. On the **next** heartbeat the SDK sends the result in `symbols_change_results`.
+
+---
+
+#### Symbol change: response format (SDK sends in next heartbeat)
+
+```json
+"symbols_change_results": {
+  "request_id": "req-sym-456",
+  "status": "all_accepted",
+  "results": [
+    { "symbol": "EURUSD", "requested_active_to_trade": true, "accepted": true, "applied_active_to_trade": true },
+    { "symbol": "GBPUSD", "requested_active_to_trade": false, "accepted": true, "applied_active_to_trade": false }
+  ]
+}
+```
+
+---
+
+#### Symbol change: optional — on_symbol_changed()
+
+You do **not** have to implement anything for symbol changes to apply (the SDK does `SymbolSelect()`). Override **`on_symbol_changed(string event_json)`** only if you want to **react** — for example close all positions when a symbol is disabled.
+
+Example — close positions when symbol is disabled:
+
+```mql5
+virtual void on_symbol_changed(string event_json) override
+{
+    CJAVal event;
+    if(!event.parse(event_json)) return;
+
+    string symbol = event["symbol"].get_string();
+    bool active = event["active_to_trade"].get_bool();
+
+    if(!active)
+    {
+        Print("Symbol ", symbol, " disabled — closing all positions for this symbol");
+        for(int i = PositionsTotal() - 1; i >= 0; i--)
+        {
+            if(PositionGetSymbol(i) == symbol)
+            {
+                ulong ticket = PositionGetInteger(POSITION_TICKET);
+                if(!trade.PositionClose(ticket))
+                    Print("Failed to close position ", ticket, " for ", symbol);
+            }
+        }
+    }
+}
+```
+
+---
+
+#### Disabling config or symbol change support
+
+If your robot does not need remote config or symbol updates, disable them so the SDK ignores incoming change requests:
+
+```mql5
+g_robot = new CMyBot();
+g_robot.set_enable_config_change_requests(false);  // Ignore config change requests
+g_robot.set_enable_symbol_change_requests(false);  // Ignore symbol change requests
+int result = g_robot.on_init(InpApiKey, magic_number);
+```
+
+Call these **before** `on_init()`.
 
 ### 8.7 — on_termination_requested() — Optional Override
 
