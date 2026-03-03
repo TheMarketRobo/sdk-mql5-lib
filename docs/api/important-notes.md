@@ -2,15 +2,15 @@
 
 ## Three-Layer Architecture
 
-The SDK acts as middleware between Server and Robot:
+The SDK acts as middleware between Server and Robot/Indicator:
 
 ```
-Server ↔ SDK ↔ Robot (Developer's EA Code)
+Server ↔ SDK ↔ Robot (Developer's EA/Indicator Code)
 ```
 
 - **Server ↔ SDK**: HTTP/JSON communication with JWT authentication
 - **SDK ↔ Robot**: Internal MQL5 callbacks and method calls
-- **Robot**: Developer's EA code with configuration objects
+- **Robot**: Developer's EA/Indicator code with configuration objects
 
 ---
 
@@ -21,9 +21,9 @@ Server ↔ SDK ↔ Robot (Developer's EA Code)
 | Parameter | Provider | Location |
 |-----------|----------|----------|
 | `robot_version_uuid` | Programmer | Constructor (hardcoded) |
-| `IRobotConfig` schema | Programmer | `define_schema()` method |
+| `IRobotConfig` schema | Programmer | `define_schema()` method (Robots only) |
 | `api_key` | Customer | Input parameter |
-| `magic_number` | Customer | Input parameter |
+| `magic_number` | Customer | Input parameter (Robots only) |
 | `base_url` | SDK | `SDK_API_BASE_URL` constant |
 
 ### 2. Configuration Management
@@ -118,7 +118,7 @@ When disabled:
 ## Naming Conventions
 
 The SDK follows MQL5 standard library naming:
-- Classes: `CClassName` (e.g., `CTokenManager`, `CSDKContext`)
+- Classes: `CClassName` (e.g., `CTheMarketRobo_Base`, `CSDKContext`)
 - Interfaces: `IInterfaceName` (e.g., `IRobotConfig`)
 - Methods: `snake_case` (e.g., `on_init`, `get_token`)
 - Constants: `UPPER_CASE` (e.g., `SDK_API_BASE_URL`)

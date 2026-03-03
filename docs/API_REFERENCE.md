@@ -1,32 +1,32 @@
 # SDK API Reference
 
-## CTheMarketRobo_Bot_Base
+## CTheMarketRobo_Bot_Base / CTheMarketRobo_Base
 
-The main abstract base class for creating trading robots.
+The main abstract base class for creating trading robots (Expert Advisors) and Custom Indicators.
+Note: While `CTheMarketRobo_Bot_Base` acts as an alias, `CTheMarketRobo_Base` is the unified parent class.
 
-### Constructor
+### Constructor — Expert Advisor (Robot)
 
 ```cpp
-CTheMarketRobo_Bot_Base(string robot_version_uuid, IRobotConfig* robot_config)
+CTheMarketRobo_Base(string robot_version_uuid, IRobotConfig* robot_config)
 ```
 
 **Parameters:**
 - `robot_version_uuid`: Programmer-defined UUID assigned by TheMarketRobo platform (36 characters)
 - `robot_config`: Pointer to your robot's configuration class implementing `IRobotConfig`
 
-**Description:** Creates the SDK base class with programmer-defined robot version and configuration.
+**Description:** Creates the SDK base class for a Robot with programmer-defined robot version and configuration.
 
-**Example:**
+### Constructor — Custom Indicator
+
 ```cpp
-class CMyRobot : public CTheMarketRobo_Bot_Base
-{
-public:
-    CMyRobot() : CTheMarketRobo_Bot_Base(
-        "550e8400-e29b-41d4-a716-446655440000",  // UUID from platform
-        new CMyRobotConfig()                      // Config with schema
-    ) {}
-};
+CTheMarketRobo_Base(string robot_version_uuid)
 ```
+
+**Parameters:**
+- `robot_version_uuid`: Programmer-defined UUID assigned by TheMarketRobo platform (36 characters)
+
+**Description:** Creates the SDK base class for an Indicator. Indicators do not use remote configurations.
 
 ---
 
@@ -35,16 +35,20 @@ public:
 #### on_init
 
 ```cpp
+// For Robots (Expert Advisors):
 virtual int on_init(string api_key, long magic_number)
+
+// For Custom Indicators:
+virtual int on_init(string api_key)
 ```
 
 **Parameters:**
 - `api_key`: Customer-provided API key from TheMarketRobo platform (input parameter)
-- `magic_number`: Customer-provided MT5 magic number for trade identification (input parameter)
+- `magic_number`: (Robots only) Customer-provided MT5 magic number for trade identification (input parameter)
 
 **Returns:** `INIT_SUCCEEDED` or `INIT_FAILED`
 
-**Description:** Initializes the SDK, establishes session with server, and starts the timer.
+**Description:** Initializes the SDK, establishes session with server, and starts the timer. Indicators automatically have `PRODUCT_TYPE_INDICATOR` set, bypass magic numbers, and disable config/symbol change requests.
 
 **Note:** The API base URL is now hardcoded in the SDK (`SDK_API_BASE_URL` constant).
 
@@ -148,23 +152,37 @@ void print_sdk_configuration() const
 #### on_tick
 
 ```cpp
-virtual void on_tick() = 0
+virtual void on_tick() = 0 // Required for Robots
 ```
 
-**Description:** Your main trading logic. Only called when session is active.
+**Description:** Your main trading logic. Only called when session is active. Unused by Indicators.
+
+---
+
+#### on_calculate
+
+```cpp
+virtual int on_calculate(const int rates_total, const int prev_calculated,
+                         const datetime &time[], const double &open[],
+                         const double &high[], const double &low[],
+                         const double &close[], const long &tick_volume[],
+                         const long &volume[], const int &spread[]) // Override in Indicator
+```
+
+**Description:** Your main indicator logic. Override this when building a Custom Indicator. Return `rates_total`.
 
 ---
 
 #### on_config_changed
 
 ```cpp
-virtual void on_config_changed(string event_json) = 0
+virtual void on_config_changed(string event_json) = 0 // Required for Robots
 ```
 
 **Parameters:**
 - `event_json`: JSON string containing configuration change details
 
-**Description:** Called when server changes a configuration parameter.
+**Description:** Called when server changes a configuration parameter. Indicators do not receive this event.
 
 ---
 

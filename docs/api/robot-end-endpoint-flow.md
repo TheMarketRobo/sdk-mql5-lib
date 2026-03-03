@@ -342,8 +342,8 @@ The SDK must resolve all pending configuration/symbol changes before termination
 
 1. **Termination Triggers**
    - **Manual**: Developer calls termination method
-   - **Automatic**: Critical errors, license expiration, or EA shutdown
-   - **Graceful**: Normal EA shutdown
+   - **Automatic**: Critical errors, license expiration, or EA/Indicator shutdown
+   - **Graceful**: Normal EA/Indicator shutdown
    - **Emergency**: System errors or unrecoverable failures
 
 2. **Pre-Termination Data Resolution**
@@ -456,7 +456,7 @@ If termination process is interrupted:
 - Log the recovery process for analysis
 
 **Crash Recovery:**
-If EA crashes during termination:
+If EA/Indicator crashes during termination:
 - Next startup should check for incomplete sessions
 - Send "crash_recovery" termination notification to server
 - Perform cleanup of any remaining resources

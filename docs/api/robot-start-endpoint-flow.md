@@ -95,7 +95,7 @@ This document provides a comprehensive explanation of the `/start` endpoint flow
 #### Required Fields
 - **`api_key`**: License key obtained from customer purchase (customer input parameter)
 - **`robot_version_uuid`**: Robot version identifier (programmer-defined, hardcoded in robot)
-- **`magic_number`**: MT5 magic number for trade identification (customer input parameter)
+- **`magic_number`**: MT5 magic number for trade identification (customer input parameter; defaults to `0` for Custom Indicators)
 - **`account_currency`**: Account currency code in ISO 4217 format (e.g., "USD", "EUR")
 - **`initial_balance`**: Initial account balance at session start
 - **`initial_equity`**: Initial account equity at session start
@@ -510,7 +510,7 @@ The SDK acts as middleware between Server and Robot:
 
 **SDK Internal Process:**
 
-1. **Configuration Object Processing**
+1. **Configuration Object Processing (Expert Advisors only)**
    - Receive developer's configuration object with parameters and validation methods
    - Store reference to configuration object for future updates
    - Convert configuration object to complete JSON format

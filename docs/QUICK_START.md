@@ -329,10 +329,108 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
 **"Schema not initialized"**
 - Ensure `define_schema()` is called in constructor
 
-## Full Example
+## Full Example (Expert Advisor)
 
-See the complete example in:
+See the complete EA example in:
 - `docs/README.md` - Full documentation
 - Source files in sdk-mql5-lib/
+
+## Quick Start — Custom Indicator
+
+If you are building a Custom Indicator instead of an Expert Advisor, the process is significantly simpler because indicators do not support remote configuration or symbol change requests.
+
+### Step 1: Create Your Indicator
+
+Create a new file `MyIndicator.mq5`:
+
+```cpp
+#include <TheMarketRobo/TheMarketRobo_SDK.mqh>
+
+//--- Customer-provided input parameters
+input string InpApiKey = "";           // API Key (from TheMarketRobo)
+
+//--- Programmer-defined indicator version UUID
+#define ROBOT_VERSION_UUID "550e8400-e29b-41d4-a716-446655440000"
+
+//--- Global variables
+CMyIndicator* indicator = NULL;
+
+//+------------------------------------------------------------------+
+//| Custom Indicator Class                                           |
+//+------------------------------------------------------------------+
+class CMyIndicator : public CTheMarketRobo_Base
+{
+public:
+    // Pass only the UUID to the constructor
+    CMyIndicator() : CTheMarketRobo_Base(ROBOT_VERSION_UUID) {}
+
+    // Override on_calculate instead of on_tick
+    virtual int on_calculate(const int rates_total,
+                             const int prev_calculated,
+                             const datetime &time[],
+                             const double   &open[],
+                             const double   &high[],
+                             const double   &low[],
+                             const double   &close[],
+                             const long     &tick_volume[],
+                             const long     &volume[],
+                             const int      &spread[]) override
+    {
+        // Your custom indicator logic here
+        
+        return rates_total;
+    }
+};
+
+//+------------------------------------------------------------------+
+//| MQL5 Entry Points                                                |
+//+------------------------------------------------------------------+
+int OnInit()
+{
+    indicator = new CMyIndicator();
+    if(CheckPointer(indicator) == POINTER_INVALID)
+        return INIT_FAILED;
+    
+    // Initialize with customer inputs (Indicators do not use magic numbers)
+    return indicator.on_init(InpApiKey);
+}
+
+void OnDeinit(const int reason)
+{
+    if(CheckPointer(indicator) != POINTER_INVALID)
+    {
+        indicator.on_deinit(reason);
+        delete indicator;
+    }
+}
+
+void OnTimer()
+{
+    if(CheckPointer(indicator) != POINTER_INVALID)
+        indicator.on_timer();
+}
+
+int OnCalculate(const int rates_total,
+                const int prev_calculated,
+                const datetime &time[],
+                const double   &open[],
+                const double   &high[],
+                const double   &low[],
+                const double   &close[],
+                const long     &tick_volume[],
+                const long     &volume[],
+                const int      &spread[])
+{
+    if(CheckPointer(indicator) != POINTER_INVALID)
+        return indicator.on_calculate(rates_total, prev_calculated, time, open, high, low, close, tick_volume, volume, spread);
+    return rates_total;
+}
+
+void OnChartEvent(const int id, const long &lparam, const double &dparam, const string &sparam)
+{
+    if(CheckPointer(indicator) != POINTER_INVALID)
+        indicator.on_chart_event(id, lparam, dparam, sparam);
+}
+```
 
 **You're ready to build with TheMarketRobo SDK!**

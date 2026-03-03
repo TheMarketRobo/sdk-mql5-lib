@@ -143,10 +143,9 @@ The SDK has a clean, layered architecture. Here's what each piece does:
 ┌──────────────────────────────────────────────────────────┐
 │                    YOUR EXPERT ADVISOR                    │
 │  ┌─────────────────────┐  ┌─────────────────────────┐   │
-│  │  YourRobotConfig    │  │  YourBot                │   │
+│  │  YourRobotConfig    │  │  YourBot / YourIndicator│   │
 │  │  (extends           │  │  (extends               │   │
-│  │   IRobotConfig)     │  │   CTheMarketRobo_       │   │
-│  │                     │  │   Bot_Base)              │   │
+│  │   IRobotConfig)     │  │   CTheMarketRobo_Base)   │   │
 │  └──────────┬──────────┘  └──────────┬──────────────┘   │
 └─────────────┼───────────────────────┼───────────────────┘
               │ YOUR CODE ABOVE       │
@@ -173,8 +172,8 @@ The SDK has a clean, layered architecture. Here's what each piece does:
 ```
 
 **As a developer, you only interact with two classes:**
-1. **`IRobotConfig`** — Define your robot's configurable settings
-2. **`CTheMarketRobo_Bot_Base`** — Your robot class that extends this base
+1. **`IRobotConfig`** — Define your robot's configurable settings (Expert Advisors only)
+2. **`CTheMarketRobo_Base`** — Your EA or Custom Indicator class extends this base
 
 Everything else (HTTP calls, heartbeats, tokens, JSON) is handled automatically.
 
@@ -353,7 +352,94 @@ void OnChartEvent(const int id,
 }
 ```
 
-That's it! Compile and attach to a chart with a valid API key.
+That's it for Expert Advisors! Compile and attach to a chart with a valid API key.
+
+---
+
+## 6.5 Quick Start — Your First Indicator in 15 Minutes
+
+The process is even simpler if you are integrating a Custom Indicator. This bypasses the config requirements and uses the empty constructor hook.
+
+```mql5
+//+------------------------------------------------------------------+
+//| MyIndicator.mq5 — Minimal SDK Integration                        |
+//+------------------------------------------------------------------+
+#include <themarketrobo/TheMarketRobo_SDK.mqh>
+
+// ===== INPUT PARAMETERS =====
+input string InpApiKey = "";  // API Key (from TheMarketRobo dashboard)
+
+// ===== CONSTANTS =====
+const string ROBOT_VERSION_UUID = "your-uuid-here";
+
+// ===== STEP 1: Indicator Class =====
+class CMyIndicator : public CTheMarketRobo_Base
+{
+public:
+    CMyIndicator() : CTheMarketRobo_Base(ROBOT_VERSION_UUID) {}
+    ~CMyIndicator() {}
+
+    virtual int on_calculate(const int rates_total, const int prev_calculated,
+                             const datetime &time[], const double &open[],
+                             const double &high[], const double &low[],
+                             const double &close[], const long &tick_volume[],
+                             const long &volume[], const int &spread[]) override
+    {
+        // *** YOUR CUSTOM INDICATOR LOGIC GOES HERE ***
+        return rates_total;
+    }
+};
+
+// ===== STEP 2: Global Variable =====
+CMyIndicator* g_indicator = NULL;
+
+// ===== STEP 3: MQL5 Event Handlers =====
+int OnInit()
+{
+    if(InpApiKey == "")
+    {
+        Alert("API Key is required!");
+        return INIT_PARAMETERS_INCORRECT;
+    }
+
+    g_indicator = new CMyIndicator();
+    if(CheckPointer(g_indicator) == POINTER_INVALID) return INIT_FAILED;
+
+    // No magic number required for custom indicators
+    return g_indicator.on_init(InpApiKey);
+}
+
+void OnDeinit(const int reason)
+{
+    if(CheckPointer(g_indicator) != POINTER_INVALID)
+    {
+        g_indicator.on_deinit(reason);
+        delete g_indicator;
+        g_indicator = NULL;
+    }
+}
+
+void OnTimer()
+{
+    if(CheckPointer(g_indicator) != POINTER_INVALID) g_indicator.on_timer();
+}
+
+int OnCalculate(const int rates_total, const int prev_calculated, const datetime &time[],
+                const double &open[], const double &high[], const double &low[],
+                const double &close[], const long &tick_volume[], const long &volume[], const int &spread[])
+{
+    if(CheckPointer(g_indicator) != POINTER_INVALID)
+        return g_indicator.on_calculate(rates_total, prev_calculated, time, open, high, low, close, tick_volume, volume, spread);
+    return rates_total;
+}
+
+void OnChartEvent(const int id, const long &lparam, const double &dparam, const string &sparam)
+{
+    if(CheckPointer(g_indicator) != POINTER_INVALID) g_indicator.on_chart_event(id, lparam, dparam, sparam);
+}
+```
+
+That's it for Indicators! Compile and attach to a chart with a valid API key.
 
 ---
 
@@ -1450,6 +1536,9 @@ void OnChartEvent(const int id,
 
 ### Q: Does the SDK collect my trading data?
 **A:** The SDK collects and reports **account-level** data (balance, equity, margin, drawdown) during heartbeats. It does **not** access individual trade history, order details, or trading strategies.
+
+### Q: Why do Indicators not require a magic number or config class?
+**A:** Indicators are designed for chart analysis rather than executing trades directly, so they do not require magic numbers for trade tracking. Additionally, TheMarketRobo platform currently supports remote configuration and symbol tracking primarily for Expert Advisors; Indicators simply provide a secure licensing and session heartbeat layer.
 
 ---
 

@@ -424,9 +424,9 @@ Response Construction
 Robot Response
 ```
 
-### Configuration Change Flow
+### Configuration Change Flow (EAs only)
 ```
-Server Config Request → Robot Receives
+Server Config Request → Robot Receives (Ignored by Indicators)
     ↓
 Robot Applies Changes
     ↓
@@ -439,9 +439,9 @@ Server Logs Acceptance/Rejection
 Server Clears/Updates Requests
 ```
 
-### Symbol Change Flow
+### Symbol Change Flow (EAs only)
 ```
-Server Symbol Request → Robot Receives
+Server Symbol Request → Robot Receives (Ignored by Indicators)
     ↓
 Robot Validates Symbols
     ↓

@@ -10,7 +10,7 @@ The SDK follows a clean architecture pattern with the following key components:
 
 ### Core Components
 
-1. **CTheMarketRobo_Bot_Base** - Abstract base class for all trading robots
+1. **CTheMarketRobo_Base** - Abstract base class for all trading robots (Expert Advisors) and Custom Indicators
 2. **CSDKContext** - Service container managing all SDK components
 3. **Session Management** - Handles authentication and session lifecycle
 4. **Configuration Management** - Real-time config updates from server with schema validation
@@ -46,7 +46,7 @@ sdk-mql5-lib/
 └── TheMarketRobo_SDK.mqh    # Main include file
 ```
 
-## Getting Started
+## Getting Started — Expert Advisor
 
 ### 1. Include the SDK
 
@@ -192,6 +192,70 @@ void OnTick() { robot.on_tick(); }
 void OnChartEvent(const int id, const long &lparam, const double &dparam, const string &sparam)
 {
     robot.on_chart_event(id, lparam, dparam, sparam);
+}
+```
+
+## Getting Started — Custom Indicator
+
+Building a Custom Indicator uses the same SDK but requires less setup. Indicators do not use `IRobotConfig` classes and initialize without a magic number.
+
+### 1. Include the SDK and Define Inputs
+
+```cpp
+#include <TheMarketRobo/TheMarketRobo_SDK.mqh>
+
+input string InpApiKey = "";           // API Key from TheMarketRobo
+```
+
+### 2. Create Your Indicator Class
+
+```cpp
+class CMyIndicator : public CTheMarketRobo_Base
+{
+public:
+    CMyIndicator() : CTheMarketRobo_Base("550e8400-e29b-41d4-a716-446655440000") {}
+
+    virtual int on_calculate(const int rates_total, const int prev_calculated,
+                             const datetime &time[], const double &open[],
+                             const double &high[], const double &low[],
+                             const double &close[], const long &tick_volume[],
+                             const long &volume[], const int &spread[]) override
+    {
+        // Your custom indicator logic here
+        return rates_total;
+    }
+};
+```
+
+### 3. Setup MQL5 Entry Points
+
+```cpp
+CMyIndicator* indicator = NULL;
+
+int OnInit()
+{
+    indicator = new CMyIndicator();
+    return indicator.on_init(InpApiKey);
+}
+
+void OnDeinit(const int reason)
+{
+    indicator.on_deinit(reason);
+    delete indicator;
+}
+
+void OnTimer() { indicator.on_timer(); }
+
+int OnCalculate(const int rates_total, const int prev_calculated, const datetime &time[],
+                const double &open[], const double &high[], const double &low[],
+                const double &close[], const long &tick_volume[], const long &volume[], const int &spread[])
+{
+    return indicator.on_calculate(rates_total, prev_calculated, time, open, high, low, close, tick_volume, volume, spread);
+}
+
+void OnChartEvent(const int id, const long &lparam, const double &dparam, const string &sparam)
+{
+    indicator.on_chart_event(id, lparam, dparam, sparam);
 }
 ```
 
