@@ -19,14 +19,18 @@ This document provides a comprehensive explanation of the `/end` endpoint flow f
 
 ### HTTP Request Format
 
-**Endpoint:** `POST /end`  
+**Endpoint:** `POST {SDK_API_BASE_URL}/robot/end`  
+(e.g. `POST https://api.staging.themarketrobo.com/robot/end`)  
 **Authorization:** `Bearer <jwt_token>`  
 **Content-Type:** `application/json`
 
 ### Request Body Structure
 
+The SDK builds the payload with **session_id** (required for the server to identify the session), **reason**, and optionally **final_stats**. The SDK obtains session_id from the stored value after `/robot/start`.
+
 ```json
 {
+  "session_id": 12345,
   "reason": "string (optional)",
   "final_stats": {
     "total_trades": 25,
@@ -41,25 +45,9 @@ This document provides a comprehensive explanation of the `/end` endpoint flow f
 }
 ```
 
-### Key Request Fields
+The **CFinalStats** class in the SDK (Models/CFinalStats.mqh) produces this structure via `to_json()`; field names match the above. When the SDK calls `terminate(reason)`, it creates a default CFinalStats instance (zeros and empty strings) and sends it with the end request; the programmer can extend the flow to populate final_stats if needed.
 
-#### Required Fields
-- **Authorization Header**: Valid JWT token (`Bearer <token>`)
-
-#### Optional Fields
-- **`reason`**: Human-readable reason for termination
-  - `"normal_shutdown"`: Regular session end
-  - `"error_shutdown"`: Error condition caused shutdown
-  - `"maintenance_shutdown"`: System maintenance
-  - `"user_request"`: User manually stopped session
-  - `"license_expired"`: License validity ended
-  - `"system_error"`: System-level error
-
-- **`final_stats`**: Final trading statistics object
-  - Trading performance metrics
-  - Session duration information
-  - Error conditions and shutdown reasons
-  - Final account state
+**Optional reason values** (examples): `normal_shutdown`, `error_shutdown`, `user_request`, `license_expired`, `system_error`, etc.
 
 ## Server Processing Flow
 
@@ -341,39 +329,20 @@ The SDK must resolve all pending configuration/symbol changes before termination
 **SDK Internal Process:**
 
 1. **Termination Triggers**
-   - **Manual**: Developer calls termination method
-   - **Automatic**: Critical errors, license expiration, or EA/Indicator shutdown
-   - **Graceful**: Normal EA/Indicator shutdown
-   - **Emergency**: System errors or unrecoverable failures
+   - **Manual**: Developer or user stops EA/Indicator (OnDeinit)
+   - **Automatic**: Server sends `termination_requested` in heartbeat response; SDK fires termination event then calls `terminate(reason)` and sends `/robot/end`
+   - **Graceful**: Normal shutdown; SDK calls `end_session(reason, final_stats)` from `CSessionManager`
 
-2. **Pre-Termination Data Resolution**
-   - Check for pending configuration changes
-   - Check for pending symbol changes
-   - Send final heartbeat with pending changes if needed
-   - Ensure all change results are reported to server
+2. **Pre-Termination**
+   - SDK fires **termination start event** (`Fire_Termination_Start_Event`) before sending the request
 
-3. **Final Data Collection**
-   - Collect final trading statistics
-   - Calculate session duration
-   - Gather error information
-   - Include final configuration state
-   - Include final symbol count
+3. **End Request**
+   - Build payload: **session_id** (from stored value), **reason**, optional **final_stats** (CFinalStats: total_trades, winning_trades, losing_trades, total_pnl, max_drawdown, session_duration_minutes, last_error, shutdown_reason)
+   - POST to **`/robot/end`** (relative to `SDK_API_BASE_URL`) with Bearer token
 
-4. **Graceful Shutdown Sequence**
-   - Step 1: Resolve pending configuration/symbol changes
-   - Step 2: Stop all trading operations (disable auto-trading)
-   - Step 3: Cancel pending orders (if configured to do so)
-   - Step 4: Close open positions (if configured and safe to do so)
-   - Step 5: Collect final trading statistics
-   - Step 6: Send termination request to server with complete data
-   - Step 7: Clean up internal resources
-
-5. **Token Handling for Termination**
-   - Check if JWT token is expired using local decoding
-   - Allow termination even with expired token (server has 5-minute grace period)
-   - Handle authentication errors gracefully during termination
-   - Include final configuration/symbol results even with expired token
-   - Log termination attempt regardless of authentication status
+4. **Post-Response**
+   - On success: mark session inactive; fire **termination end event** (`Fire_Termination_End_Event`); clear SDK state
+   - On failure: log error; still mark session inactive locally
 
 ### Error Handling During Termination
 
@@ -408,13 +377,8 @@ The SDK automatically terminates in these scenarios:
 - Unrecoverable network errors
 - MetaTrader terminal shutdown
 
-**Termination Status Feedback:**
-The SDK provides callbacks for termination progress:
-- Termination started
-- Pending data resolution
-- Final data collection
-- Termination completed
-- Termination error
+**Termination Status Feedback:**  
+The SDK fires chart events for termination progress: **SDK_EVENT_TERMINATION_START** (before sending end request) and **SDK_EVENT_TERMINATION_END** (after response). For server-requested termination it fires **SDK_EVENT_TERMINATION_REQUESTED** with reason in sparam (JSON); the base class then calls `on_termination_requested()` and for EAs calls `ExpertRemove()`, for Indicators stops the timer and alerts the user.
 
 ### Final Statistics Collection
 

@@ -18,50 +18,28 @@ This document provides a comprehensive explanation of the `/refresh` endpoint fl
 
 ### HTTP Request Format
 
-**Endpoint:** `POST /refresh`  
-**Content-Type:** `application/json`
+**Endpoint:** `POST {SDK_API_BASE_URL}/robot/refresh`  
+(e.g. `POST https://api.staging.themarketrobo.com/robot/refresh`)  
+**Content-Type:** `application/json`  
+**Authorization:** `Bearer <current_jwt_token>` (SDK sends the current token in the header and in the body)
 
 ### Request Body Structure
 
-**Method 1: Using JWT Token (Primary)**
+**Method used by SDK: JWT Token**
 ```json
 {
   "jwt_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
 }
 ```
 
-**Method 2: Using API Key + Session ID (Fallback)**
-```json
-{
-  "api_key": "abc123def456ghi789jkl012mno345pqr678stu901vwx234yz",
-  "session_id": 12345
-}
-```
+The **current SDK implementation** uses only this method. The SDK sends the existing (possibly expired) JWT in both the `Authorization: Bearer` header and as `jwt_token` in the body. The server returns a new JWT in the response; the SDK stores it and continues heartbeats with the new token.
 
-### Authentication Methods
-
-#### Method 1: Using JWT Token (Primary Method)
-**Advantages:**
-- No need to store API key in memory
-- Maintains session context automatically
-- Single parameter required
-
-#### Method 2: Using API Key + Session ID (Fallback Method)
-**Use Cases:**
-- JWT token completely lost or corrupted
-- Robot restart scenarios
-- Backup authentication method
+**Optional server-supported fallback (not implemented in SDK): API Key + Session ID**
+Some server implementations may support a fallback for recovery when the JWT is lost; the SDK does not currently implement this.
 
 ### Key Request Fields
 
-#### Primary Authentication (JWT Token)
-- **`jwt_token`**: Current or expired JWT token from previous authentication
-- Contains embedded session context and claims
-- Robot doesn't modify the token, just sends it to server
-
-#### Fallback Authentication (API Key + Session ID)
-- **`api_key`**: License key obtained from customer purchase
-- **`session_id`**: Numeric session identifier from /start response
+- **`jwt_token`**: Current or expired JWT token. The SDK sends it in the body and in the Authorization header. The robot/indicator does not modify the token.
 
 ## Server Processing Flow
 
@@ -374,34 +352,19 @@ The SDK must handle token refresh while maintaining heartbeat data:
 **SDK Internal Process:**
 
 1. **Automatic Refresh Trigger with Data Preservation**
-   - Monitor JWT expiration by decoding token payload locally
-   - Trigger refresh when token expires within threshold (default 300 seconds)
+   - Monitor JWT expiration by decoding token payload locally (check `exp` claim)
+   - Trigger refresh when token expires within threshold — **default in SDK is 60 seconds** (`SDK_DEFAULT_TOKEN_REFRESH_THRESHOLD` in CSDKConstants.mqh); configurable via `set_token_refresh_threshold(seconds)` (range 60–3600)
    - Before refresh, preserve any pending heartbeat data
-   - Handle concurrent refresh requests (prevent multiple simultaneous refreshes)
+   - Prevent multiple simultaneous refresh requests
 
-2. **Pre-Request Token Check with Data Caching**
-   - Check if token should be refreshed
-   - If yes, preserve pending data before refresh
-   - Perform token refresh synchronously
-   - Restore pending data after successful refresh
+2. **Refresh Request**
+   - Send POST to **`/robot/refresh`** (relative to `SDK_API_BASE_URL`)
+   - Body: `{ "jwt_token": "<current_token>" }`
+   - Authorization: `Bearer <current_token>`
 
-3. **Refresh Request Processing**
-   - **Primary Method**: Send existing JWT token to `/refresh` endpoint
-   - **Fallback Method**: Use stored API key + session ID if JWT refresh fails
-   - **Data Safety**: Maintain all cached data throughout refresh process
-   - Handle different authentication scenarios gracefully
-
-4. **Response Processing with Data Restoration**
-   - Extract new JWT token from server response
-   - Update internal token storage and expiration time
-   - Restore cached heartbeat data for next transmission
-   - Restore pending configuration/symbol change results
-   - Resume normal operations with new token and preserved data
-
-5. **Post-Refresh Data Transmission**
-   - Schedule immediate heartbeat with cached data if available
-   - Restore pending change results for next heartbeat
-   - Resume normal heartbeat cycle
+3. **Response Processing**
+   - On 200: extract new JWT from response `jwt` field; update internal token storage; fire token refresh event; resume heartbeats with new token (and any cached data)
+   - On failure: fire token refresh event with success=false; SDK may remove EA or stop indicator timer depending on product type
 
 ### Error Handling Strategy
 
@@ -435,24 +398,13 @@ The SDK automatically handles:
 
 ### Retry and Fallback Logic
 
-**Multi-Method Refresh Strategy:**
-1. **Primary**: Use existing JWT token (preferred method)
-2. **Secondary**: Use API key + session ID (fallback method)
-3. **Tertiary**: Full session restart (last resort)
-
-**Implementation:**
-- Try JWT token refresh first
-- If fails, try API key + session ID method
-- If both fail with "restart_required", initiate full session restart
-- Maintain all cached data throughout the process
+The SDK uses **JWT-only** refresh. If refresh fails (e.g. session not found, license expired), the SDK does not fall back to api_key + session_id in the current implementation; it handles the error (e.g. triggers termination or removes EA / stops indicator timer).
 
 ### Performance Optimization
 
 **Proactive Refresh Strategy:**
-- Refresh tokens before expiration (default 300 seconds threshold)
-- Cache refresh responses to avoid unnecessary server calls
-- Batch multiple operations after successful refresh
-- Monitor refresh success rates and adjust timing if needed
+- Refresh tokens before expiration; default threshold **60 seconds** in SDK (`SDK_DEFAULT_TOKEN_REFRESH_THRESHOLD`)
+- After successful refresh, resume heartbeat with new token (and any cached payload)
 
 **Memory Management:**
 - Clear old JWT tokens after successful refresh

@@ -17,9 +17,10 @@ This document provides a comprehensive explanation of the `/start` endpoint flow
 
 ### HTTP Request Format
 
-**Endpoint:** `POST /start`  
+**Endpoint:** `POST {SDK_API_BASE_URL}/robot/start`  
+(e.g. `POST https://api.staging.themarketrobo.com/robot/start`)  
 **Content-Type:** `application/json`  
-**X-API-Key:** `<license_key>` (optional, can also be in body)
+**Authorization:** The SDK sends a special value (e.g. `api-key-start`) so the gateway accepts the request; the API key is sent in the request body.
 
 ### Request Body Structure
 
@@ -94,36 +95,25 @@ This document provides a comprehensive explanation of the `/start` endpoint flow
 
 #### Required Fields
 - **`api_key`**: License key obtained from customer purchase (customer input parameter)
-- **`robot_version_uuid`**: Robot version identifier (programmer-defined, hardcoded in robot)
-- **`magic_number`**: MT5 magic number for trade identification (customer input parameter; defaults to `0` for Custom Indicators)
+- **`robot_version_uuid`**: Robot or indicator version identifier (programmer-defined, hardcoded)
+- **`magic_number`**: MT5 magic number for trade identification — **sent only for Expert Advisors**; Custom Indicators omit this field (SDK does not send it for indicators)
 - **`account_currency`**: Account currency code in ISO 4217 format (e.g., "USD", "EUR")
 - **`initial_balance`**: Initial account balance at session start
 - **`initial_equity`**: Initial account equity at session start
-- **`static_fields`**: Complete account and terminal information object
-- **`session_symbols`**: Array of trading symbols with their specifications
+- **`static_fields`**: Complete account and terminal information object (for indicators, `expert_magic` in static_fields is 0)
+- **`session_symbols`**: Array of trading symbols — **sent only for Expert Advisors**; Custom Indicators omit this field entirely (SDK does not send it for indicators)
 
 #### Static Fields (Account/Terminal Information)
-The robot sends comprehensive static information about the trading account and terminal environment:
+The SDK sends comprehensive static information about the trading account and terminal (see request body example for full key list): account login, name, server, company, trade mode, leverage, margin settings, terminal paths, build, language, MQL program name/type/path, etc.
 
-**Account Information:**
-- Account login, name, server, company
-- Trading permissions and modes
-- Leverage, margin settings
-- Currency and FIFO settings
+**SDK behavior before sending start:**
+- The SDK may **wait for account data** to be available (e.g. up to 10 seconds) so `initial_balance` and `initial_equity` are non-zero when the terminal has received data; if timeout occurs, it proceeds with 0 values and logs a warning.
+- Static data is collected via `CDataCollectorService` (AccountInfo, TerminalInfo, MQLInfo); for Indicators, `expert_magic` in static_fields is set to 0.
 
-**MQL Program Information:**
-- Expert advisor details
-- Program path and optimization settings
-
-**Terminal Information:**
-- MetaTrader terminal paths and settings
-- Build version and language
-- System resources (CPU, memory)
-
-#### Session Symbols Array
-The SDK automatically generates this array by:
+#### Session Symbols Array (Robots only)
+The SDK generates this array **only for Expert Advisors**. For Custom Indicators, the SDK omits `session_symbols` from the start payload. For EAs:
 1. Retrieving symbols from the **Market Watch** (Watchlist) using MQL5 `SymbolsTotal(true)` and `SymbolName(i, true)`
-2. Checking watchlist status - symbols in watchlist get `active_to_trade: true`
+2. Checking watchlist status — symbols in watchlist get `active_to_trade: true`
 3. Collecting symbol specifications using `SymbolInfoDouble()` and `SymbolInfoInteger()`
 
 Each symbol object contains:
@@ -252,12 +242,12 @@ The JWT token contains all necessary authorization context in readable format:
 #### Authentication Fields
 - **`jwt`**: JWT token for subsequent requests (contains all session context in readable payload)
 - **`expires_in`**: Token validity duration in seconds (typically 300 seconds)
-- **`session_id`**: Unique session identifier for this robot instance
+- **`session_id`**: Unique session identifier — server may return as string or number; SDK parses both. Stored in SDK for heartbeats and end.
 
 #### Configuration Fields
-- **`robot_config`**: Canonical robot configuration to be applied
-- **`robot_config_change_request`**: Pending configuration changes (if any, null otherwise)
-- **`session_symbols_change_request`**: Pending symbol changes (if any, null otherwise)
+- **`robot_config`**: Canonical robot configuration — **validated by SDK only for Expert Advisors**; for Custom Indicators the SDK does not expect or validate `robot_config` and marks the session active immediately
+- **`robot_config_change_request`**: Pending configuration changes (if any; processed by SDK for Robots only)
+- **`session_symbols_change_request`**: Pending symbol changes (if any; processed by SDK for Robots only)
 
 #### JWT Payload Structure (Readable by Robot)
 The JWT token contains the following claims that robots can decode locally:
@@ -510,41 +500,29 @@ The SDK acts as middleware between Server and Robot:
 
 **SDK Internal Process:**
 
-1. **Configuration Object Processing (Expert Advisors only)**
-   - Receive developer's configuration object with parameters and validation methods
-   - Store reference to configuration object for future updates
-   - Convert configuration object to complete JSON format
-   - Validate that all required methods are implemented
+1. **Account data wait (optional)**  
+   SDK waits for account data to be available (e.g. up to 10 seconds) so balance/equity are non-zero when possible; if timeout, proceeds with 0 and logs a warning.
 
-2. **Static Data Collection**
-   - Use MQL5 AccountInfo functions for account data
-   - Use MQL5 MQLInfo functions for program information
-   - Use MQL5 TerminalInfo functions for terminal data
-   - Store all collected data in internal structures
+2. **Configuration Object Processing (Expert Advisors only)**  
+   For EAs: receive developer's configuration object, store reference, convert to JSON for validation; validate that all required methods are implemented. For Indicators: no config object; config manager is disabled.
 
-3. **Session Symbols Array Generation**
-   - Iterate through all available symbols using MQL5 functions
-   - For each symbol, check if it's in watchlist
-   - Collect symbol specifications
-   - Set `active_to_trade: true` for watchlist symbols, `false` for others
+3. **Static Data Collection**  
+   Use MQL5 AccountInfo, MQLInfo, TerminalInfo; store in internal structures. For Indicators, `expert_magic` in static_fields is 0.
 
-4. **Server Communication**
-   - Build JSON payload with: API key, robot version UUID, magic number, account currency, initial balance/equity, static fields, symbols, complete configuration
-   - Send POST request to `/start` endpoint
-   - Handle authentication and store received JWT token
-   - Parse and store `session_id` for future requests
+4. **Session Symbols Array Generation (Expert Advisors only)**  
+   For EAs: iterate Market Watch symbols, collect specifications, set `active_to_trade` by watchlist. For Indicators: omit `session_symbols` entirely.
+
+5. **Server Communication**  
+   Build JSON payload (api_key, robot_version_uuid, [magic_number and session_symbols for EAs only], account_currency, initial_balance, initial_equity, static_fields). Send POST to **`/robot/start`** (relative to `SDK_API_BASE_URL`). Store JWT, session_id (parsed as string or number), expires_in.
 
 ### Success Handling
 
-**Configuration Validation Against Server Response:**
-1. **Extract Server Configuration**: Parse `robot_config` from `/start` response
-2. **Field Completeness Check**: Verify that ALL fields in developer's config object exist in server response
-   - Compare developer's config object fields with server's `robot_config`
-   - If any field missing from server config → throw initialization error
-   - Error message must specify which fields are missing
-3. **Value Validation**: Use developer's validation methods to validate server values
-4. **Update SDK Memory**: Store server configuration as current active config
-5. **Initialize Internal State**: Set up configuration change tracking
+**Configuration Validation Against Server Response (Robots only):**  
+For Custom Indicators the SDK does not validate `robot_config`; session is marked active immediately. For Expert Advisors:
+1. Parse `robot_config` from response; if missing, SDK marks session active with a warning.
+2. If present, call `validate_initial_config(server_config)` (schema completeness check).
+3. If validation fails, session is not marked active (no heartbeats sent).
+4. If validation passes or config absent, mark session active and process any `robot_config_change_request` and `session_symbols_change_request`.
 
 **Authentication and Session Management:**
 - Store JWT token and session ID in memory

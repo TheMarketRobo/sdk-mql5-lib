@@ -2,7 +2,7 @@
 
 ## Overview
 
-TheMarketRobo SDK is a comprehensive framework for building MQL5 Expert Advisors (EAs) with built-in authentication, session management, and real-time configuration updates. The SDK simplifies the development process by handling complex authentication flows, session lifecycle, and event management behind the scenes.
+TheMarketRobo SDK is a comprehensive framework for building MQL5 **Expert Advisors (EAs)** and **Custom Indicators** with built-in authentication, session management, and real-time configuration updates. The SDK supports both product types through a single base class (`CTheMarketRobo_Base`). Indicator support is included alongside EA support; indicators use the same session and heartbeat flow but do not use remote configuration or symbol change requests. The SDK simplifies development by handling authentication flows, session lifecycle, and event management behind the scenes.
 
 ## Architecture
 
@@ -19,39 +19,42 @@ The SDK follows a clean architecture pattern with the following key components:
 ### Directory Structure
 
 ```
-sdk-mql5-lib/
-├── docs/                    # Documentation
-├── Interfaces/              # Abstract interfaces (IRobotConfig)
-├── Core/                    # Core SDK components
-│   ├── CSDKConstants.mqh    # SDK constants and configuration
-│   ├── CSDKOptions.mqh      # Feature toggles
-│   ├── CSDKContext.mqh      # Main service container
-│   ├── CSessionManager.mqh  # Session lifecycle
-│   ├── CHeartbeatManager.mqh# Heartbeat communication
-│   ├── CTokenManager.mqh    # JWT token management
-│   ├── CConfigurationManager.mqh  # Config change handling
-│   └── CSymbolManager.mqh   # Symbol change handling
-├── Services/                # External service integrations
-│   ├── Json.mqh             # JSON parser
-│   ├── CHttpService.mqh     # HTTP client
-│   └── CDataCollectorService.mqh  # Data collection
-├── Models/                  # Data models
-│   ├── CConfigField.mqh     # Config field definition
-│   ├── CConfigSchema.mqh    # Config schema container
-│   ├── CSessionSymbol.mqh   # Symbol data
-│   └── CFinalStats.mqh      # Session statistics
-├── Utils/                   # Utility classes
-│   └── CSDK_Events.mqh      # Event definitions
-├── CTheMarketRobo_Bot_Base.mqh  # Base class for robots
-└── TheMarketRobo_SDK.mqh    # Main include file
+themarketrobo/                    # SDK root (e.g. MQL5/Include/themarketrobo/)
+├── docs/                         # Documentation
+├── Interfaces/                   # Abstract interfaces (IRobotConfig)
+├── Core/                         # Core SDK components
+│   ├── CSDKConstants.mqh         # SDK constants and configuration
+│   ├── CSDKOptions.mqh           # Feature toggles
+│   ├── CSDKContext.mqh           # Main service container
+│   ├── CSessionManager.mqh        # Session lifecycle
+│   ├── CHeartbeatManager.mqh     # Heartbeat communication
+│   ├── CTokenManager.mqh         # JWT token management
+│   ├── CConfigurationManager.mqh # Config change handling
+│   └── CSymbolManager.mqh        # Symbol change handling
+├── Services/                     # External service integrations
+│   ├── Json.mqh                  # JSON parser
+│   ├── CHttpService.mqh          # HTTP client
+│   └── CDataCollectorService.mqh # Data collection
+├── Models/                       # Data models
+│   ├── CConfigField.mqh         # Config field definition
+│   ├── CConfigSchema.mqh        # Config schema container
+│   ├── CSessionSymbol.mqh        # Symbol data
+│   └── CFinalStats.mqh          # Session statistics
+├── Utils/                        # Utility classes
+│   └── CSDK_Events.mqh          # Event definitions
+├── CTheMarketRobo_Base.mqh       # Unified base class (EAs and Indicators)
+├── CTheMarketRobo_Bot_Base.mqh  # Backwards-compat alias for CTheMarketRobo_Base
+└── TheMarketRobo_SDK.mqh         # Main include file
 ```
 
 ## Getting Started — Expert Advisor
 
 ### 1. Include the SDK
 
+Use the **lowercase** folder name `themarketrobo` so the path matches the repository and works on case-sensitive systems:
+
 ```cpp
-#include <TheMarketRobo/TheMarketRobo_SDK.mqh>
+#include <themarketrobo/TheMarketRobo_SDK.mqh>
 ```
 
 ### 2. Define Input Parameters (Customer-Provided)
@@ -135,12 +138,14 @@ public:
 
 ### 4. Create Your Robot Class
 
+Your EA can extend either `CTheMarketRobo_Base` or the alias `CTheMarketRobo_Bot_Base`; both refer to the same unified base class.
+
 ```cpp
-class CMyRobot : public CTheMarketRobo_Bot_Base
+class CMyRobot : public CTheMarketRobo_Base
 {
 public:
     // Programmer sets robot_version_uuid and config in constructor
-    CMyRobot() : CTheMarketRobo_Bot_Base(
+    CMyRobot() : CTheMarketRobo_Base(
         "550e8400-e29b-41d4-a716-446655440000",  // Programmer-defined UUID
         new CMyRobotConfig()                      // Programmer-defined config
     ) {}
@@ -182,27 +187,39 @@ int OnInit()
 
 void OnDeinit(const int reason)
 {
-    robot.on_deinit(reason);
-    delete robot;
+    if(CheckPointer(robot) != POINTER_INVALID)
+    {
+        robot.on_deinit(reason);
+        delete robot;
+        robot = NULL;
+    }
 }
 
-void OnTimer() { robot.on_timer(); }
-void OnTick() { robot.on_tick(); }
-
+void OnTimer()
+{
+    if(CheckPointer(robot) != POINTER_INVALID)
+        robot.on_timer();
+}
+void OnTick()
+{
+    if(CheckPointer(robot) != POINTER_INVALID)
+        robot.on_tick();
+}
 void OnChartEvent(const int id, const long &lparam, const double &dparam, const string &sparam)
 {
-    robot.on_chart_event(id, lparam, dparam, sparam);
+    if(CheckPointer(robot) != POINTER_INVALID)
+        robot.on_chart_event(id, lparam, dparam, sparam);
 }
 ```
 
 ## Getting Started — Custom Indicator
 
-Building a Custom Indicator uses the same SDK but requires less setup. Indicators do not use `IRobotConfig` classes and initialize without a magic number.
+Building a Custom Indicator uses the same SDK and the same base class (`CTheMarketRobo_Base`) with the **one-argument constructor** (indicator version UUID only). Indicators do not use `IRobotConfig` classes and initialize with `on_init(api_key)` (no magic number). Session registration, heartbeats, and termination are still handled by the SDK; config and symbol change requests are not used for indicators.
 
 ### 1. Include the SDK and Define Inputs
 
 ```cpp
-#include <TheMarketRobo/TheMarketRobo_SDK.mqh>
+#include <themarketrobo/TheMarketRobo_SDK.mqh>
 
 input string InpApiKey = "";           // API Key from TheMarketRobo
 ```
@@ -229,45 +246,60 @@ public:
 
 ### 3. Setup MQL5 Entry Points
 
+For indicators, set up your indicator buffers (e.g. `SetIndexBuffer`, `IndicatorSetInteger`) in `OnInit` as usual; create your indicator instance and call `on_init(InpApiKey)`. Forward `OnCalculate`, `OnTimer`, and `OnChartEvent` to the SDK instance so heartbeats and termination work.
+
 ```cpp
 CMyIndicator* indicator = NULL;
 
 int OnInit()
 {
     indicator = new CMyIndicator();
+    if(CheckPointer(indicator) == POINTER_INVALID)
+        return INIT_FAILED;
     return indicator.on_init(InpApiKey);
 }
 
 void OnDeinit(const int reason)
 {
-    indicator.on_deinit(reason);
-    delete indicator;
+    if(CheckPointer(indicator) != POINTER_INVALID)
+    {
+        indicator.on_deinit(reason);
+        delete indicator;
+        indicator = NULL;
+    }
 }
 
-void OnTimer() { indicator.on_timer(); }
+void OnTimer()
+{
+    if(CheckPointer(indicator) != POINTER_INVALID)
+        indicator.on_timer();
+}
 
 int OnCalculate(const int rates_total, const int prev_calculated, const datetime &time[],
                 const double &open[], const double &high[], const double &low[],
                 const double &close[], const long &tick_volume[], const long &volume[], const int &spread[])
 {
-    return indicator.on_calculate(rates_total, prev_calculated, time, open, high, low, close, tick_volume, volume, spread);
+    if(CheckPointer(indicator) != POINTER_INVALID)
+        return indicator.on_calculate(rates_total, prev_calculated, time, open, high, low, close, tick_volume, volume, spread);
+    return rates_total;
 }
 
 void OnChartEvent(const int id, const long &lparam, const double &dparam, const string &sparam)
 {
-    indicator.on_chart_event(id, lparam, dparam, sparam);
+    if(CheckPointer(indicator) != POINTER_INVALID)
+        indicator.on_chart_event(id, lparam, dparam, sparam);
 }
 ```
 
 ## Parameter Categories
 
-### Programmer-Defined (Hardcoded in Robot)
-- **robot_version_uuid**: Unique identifier assigned when registering the robot
-- **IRobotConfig implementation**: Configuration schema and handling logic
+### Programmer-Defined (Hardcoded in Robot or Indicator)
+- **robot_version_uuid / indicator_version_uuid**: Unique identifier assigned when registering the robot or indicator on TheMarketRobo platform
+- **IRobotConfig implementation**: Configuration schema and handling logic (Expert Advisors only; indicators do not use config)
 
 ### Customer-Provided (Input Parameters)
 - **api_key**: API key from TheMarketRobo platform
-- **magic_number**: MT5 magic number for trade identification
+- **magic_number**: MT5 magic number for trade identification (Expert Advisors only; indicators omit this)
 
 ### SDK Constants (Hardcoded in SDK)
 - **base_url**: API endpoint (SDK_API_BASE_URL in CSDKConstants.mqh)
@@ -293,6 +325,7 @@ The SDK uses MQL5 Chart Events for communication:
 | `SDK_EVENT_SYMBOL_CHANGED` | Trading symbol status changed |
 | `SDK_EVENT_TERMINATION_START` | Session termination initiated |
 | `SDK_EVENT_TERMINATION_END` | Session termination completed |
+| `SDK_EVENT_TERMINATION_REQUESTED` | Server requested session termination |
 | `SDK_EVENT_TOKEN_REFRESH` | Authentication token refreshed |
 
 ## API Contract Compliance
@@ -318,28 +351,39 @@ The SDK produces data structures matching the API contracts exactly:
 
 ## API Reference
 
-### CTheMarketRobo_Bot_Base Methods
+### CTheMarketRobo_Base / CTheMarketRobo_Bot_Base
 
-#### Constructor
+The unified base class for both Expert Advisors and Custom Indicators. `CTheMarketRobo_Bot_Base` is a backwards-compatibility alias for `CTheMarketRobo_Base`; both refer to the same class.
+
+#### Constructors
+
+**Expert Advisor (Robot):**
 ```cpp
-CTheMarketRobo_Bot_Base(string robot_version_uuid, IRobotConfig* robot_config)
+CTheMarketRobo_Base(string robot_version_uuid, IRobotConfig* robot_config)
+```
+
+**Custom Indicator:**
+```cpp
+CTheMarketRobo_Base(string indicator_version_uuid)   // One argument only; no config
 ```
 
 #### Lifecycle Methods
-- `on_init(string api_key, long magic_number)` - Initialize SDK (returns INIT_SUCCEEDED/INIT_FAILED)
-- `on_deinit(int reason)` - Cleanup resources
-- `on_timer()` - Handle timer events
-- `on_chart_event(...)` - Handle chart events
+
+- `on_init(string api_key, long magic_number)` — Initialize SDK for **Robot** (returns INIT_SUCCEEDED/INIT_FAILED)
+- `on_init(string api_key)` — Initialize SDK for **Indicator** (no magic number)
+- `on_deinit(int reason)` — Cleanup resources
+- `on_timer()` — Handle timer events (heartbeats; must be forwarded from MQL5 `OnTimer`)
+- `on_chart_event(...)` — Handle chart events (must be forwarded from MQL5 `OnChartEvent`)
 
 #### Feature Configuration
 - `set_token_refresh_threshold(int seconds)` - Set proactive token refresh
 - `set_enable_config_change_requests(bool enable)` - Toggle config changes
 - `set_enable_symbol_change_requests(bool enable)` - Toggle symbol changes
 
-#### Abstract Methods (Must Implement)
-- `on_tick()` - Main trading logic
-- `on_config_changed(string event_json)` - Handle config updates
-- `on_symbol_changed(string event_json)` - Handle symbol changes
+#### Abstract / Override Methods
+
+- **Robot:** `on_tick()` — Main trading logic. `on_config_changed(string event_json)` — Handle config updates. `on_symbol_changed(string event_json)` — Handle symbol changes.
+- **Indicator:** Override `on_calculate(rates_total, prev_calculated, time, open, high, low, close, tick_volume, volume, spread)` — return `rates_total`.
 
 ### IRobotConfig Interface
 
@@ -349,7 +393,7 @@ CTheMarketRobo_Bot_Base(string robot_version_uuid, IRobotConfig* robot_config)
 
 #### Required Methods (Override)
 - `to_json()` - Serialize to JSON
-- `update_from_json(CJAVal &config_json)` - Update from server JSON
+- `update_from_json(const CJAVal &config_json)` - Update from server JSON
 - `update_field(string field_name, string new_value)` - Update specific field
 - `get_field_as_string(string field_name)` - Get field as string
 

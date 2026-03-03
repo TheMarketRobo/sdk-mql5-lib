@@ -19,7 +19,8 @@ This document provides a comprehensive explanation of the `/heartbeat` endpoint 
 
 ### HTTP Request Format
 
-**Endpoint:** `POST /heartbeat`  
+**Endpoint:** `POST {SDK_API_BASE_URL}/robot/heartbeat`  
+(e.g. `POST https://api.staging.themarketrobo.com/robot/heartbeat`)  
 **Authorization:** `Bearer <jwt_token>`  
 **Content-Type:** `application/json`
 
@@ -95,8 +96,8 @@ The robot sends comprehensive real-time trading data:
 - `balance_drawdown`: Maximum drawdown from peak balance (double, default: 0)
 - `equity_drawdown`: Maximum drawdown from peak equity (double, default: 0)
 
-#### Change Results Objects
-The robot reports results of server-requested changes:
+#### Change Results Objects (Expert Advisors only)
+For **Custom Indicators** the SDK does **not** include `config_change_results` or `symbols_change_results` in the heartbeat payload. For **Expert Advisors** only:
 
 **Config Change Results:**
 - `status`: Overall status (`all_accepted`, `all_rejected`, `partially_accepted`)
@@ -286,18 +287,17 @@ The server validates sequence numbers to prevent replay attacks:
 ### Response Fields
 
 #### Core Fields
-- **`status`**: Always "success" for 200 responses
+- **`status`**: "success" for normal 200 responses; **`termination_requested`** when the server requests session termination (SDK then fires termination event and calls `/robot/end`)
+- **`termination_reason`**: Present when status is `termination_requested`; human-readable reason string
 - **`sequence`**: Echoed sequence number from request
-- **`server_timestamp`**: Server timestamp in ISO 8601 format
-- **`heartbeat_interval_seconds`**: Server-specified interval between heartbeats (1-300 seconds)
+- **`server_timestamp`**: Server timestamp in ISO 8601 format (optional)
+- **`heartbeat_interval_seconds`**: Server-specified interval between heartbeats; SDK clamps to maximum 300 seconds
 
-#### Configuration Changes
-- **`robot_config_change_request`**: Array of pending configuration updates (null if none)
-  - Each item contains `field_name` and `new_value`
+#### Configuration Changes (Robots only)
+- **`robot_config_change_request`**: Array of pending configuration updates (null if none); each item has `field_name` and `new_value`. Processed by SDK only for Expert Advisors; Indicators ignore.
 
-#### Symbol Changes
-- **`session_symbols_change_request`**: Array of pending symbol activation changes (null if none)
-  - Each item contains `symbol` and `active_to_trade` status
+#### Symbol Changes (Robots only)
+- **`session_symbols_change_request`**: Array of pending symbol activation changes (null if none); each item has `symbol` and `active_to_trade`. Processed by SDK only for Expert Advisors; Indicators ignore.
 
 #### Notifications
 - **`server_notifications`**: Array of server-generated notifications and alerts
@@ -351,6 +351,22 @@ The server validates sequence numbers to prevent replay attacks:
 ```
 
 ### 4. Invalid Sequence (409)
+```json
+{
+  "type": "https://api.themarketrobo.com/problems/session-error",
+  "title": "Session Error",
+  "status": 409,
+  "detail": "Invalid or duplicate sequence number",
+  "instance": "/api/v1/robots/heartbeat",
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "request_id": "req_abc123def456",
+  "session_error_code": "SEQUENCE_INVALID",
+  "context": {
+    "expected_sequence": 12346
+  }
+}
+```
+Or with `current_sequence` instead of `expected_sequence`. The SDK syncs its local sequence from this context and resets confirmation state so the next heartbeat uses the correct sequence. Sequence is only incremented after a successful 200 response.
 ```json
 {
   "type": "https://api.themarketrobo.com/problems/session-error",
@@ -485,39 +501,20 @@ The SDK maintains an internal cache to handle token expiration scenarios:
 **SDK Internal Process:**
 
 1. **Pre-Heartbeat Token Validation**
-   - Decode JWT payload locally using base64 decoding
-   - Check `exp` field against current timestamp
-   - If token expires within threshold (default 300 seconds):
-     - Cache current heartbeat data
-     - Call refresh endpoint first
-     - Retry heartbeat with cached data after successful refresh
-     - Ensure no data loss during token transitions
+   - Decode JWT payload locally (base64) and check `exp` against current time
+   - If token expires within threshold (default **60 seconds** in SDK, `SDK_DEFAULT_TOKEN_REFRESH_THRESHOLD`): cache current heartbeat data, call `/robot/refresh` first, then retry heartbeat with cached data
+   - Ensure no data loss during token transitions
 
 2. **Heartbeat Data Collection**
-   - Collect account information using MQL5 AccountInfo functions
-   - Calculate performance metrics (profit, drawdown)
-   - Gather any pending configuration/symbol change results
+   - Collect account information using MQL5 AccountInfo
+   - Calculate performance metrics (profit, drawdown) via `CDataCollectorService.get_dynamic_data()`
+   - For **Robots only**: gather any pending config_change_results and symbols_change_results; **Indicators** omit both
 
-3. **Configuration Change Results Processing**
-   - Retrieve any pending configuration changes from previous heartbeat responses
-   - Validate changes using developer's configuration object validation methods
-   - If **valid**: Apply changes, update SDK memory, notify robot via callback
-   - If **invalid**: Prepare rejection reason for server response
-   - Include validation results in `config_change_results` with proper status and results array
-
-4. **Symbol Change Results Processing**
-   - Process any pending symbol `active_to_trade` changes from previous heartbeat
-   - Attempt to modify symbol trading status in MetaTrader
-   - If **successful**: Update internal symbol list, notify robot via callback
-   - If **failed**: Prepare rejection reason with specific error message
-   - Include change results in `symbols_change_results` with proper status and results array
-
-5. **Send Heartbeat Request**
-   - Include incremental sequence number (monotonic counter)
-   - Include pending configuration/symbol change results
-   - Send all collected data in structured format
-   - Handle network errors with retry logic
-   - Mark data as "waiting for confirmation"
+3. **Send Heartbeat Request**
+   - POST to **`/robot/heartbeat`** (relative to `SDK_API_BASE_URL`) with Bearer token
+   - Payload: sequence (monotonic), timestamp (ISO 8601 via **TimeLocal()**-derived value so heartbeats continue when market is closed), dynamic_data, and for Robots optional config_change_results and symbols_change_results
+   - On 200: process response (interval, termination_requested, change requests for Robots); increment sequence; clear pending results; use **TimeLocal()** for next send time
+   - On 409: read context.expected_sequence or context.current_sequence; sync sequence; reset confirmation state; retry on next interval
 
 ### Response Processing
 
@@ -570,9 +567,11 @@ Same principle applies to symbol change results - SDK maintains results until se
 
 ### Developer Integration
 
-**Required Callback Interface:**
-- `OnConfigurationChanged`: Called when server changes configuration parameters
-- `OnSymbolStatusChanged`: Called when server changes symbol trading permissions
+**Required Callback Interface (Robots only):**
+- **`on_config_changed(string event_json)`**: Called when server configuration change request has been applied (and validated)
+- **`on_symbol_changed(string event_json)`**: Called when server symbol change request has been applied
+
+Indicators do not receive config or symbol change requests; these callbacks are not used for Custom Indicators.
 
 **SDK Automatic Operations:**
 The following operations happen automatically without developer intervention:

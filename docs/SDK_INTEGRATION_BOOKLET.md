@@ -32,18 +32,19 @@
 
 ## 1. Welcome
 
-Welcome to TheMarketRobo SDK integration guide! This booklet will teach you, step by step, how to update your existing MQL5 Expert Advisor (EA) to work with TheMarketRobo platform.
+Welcome to TheMarketRobo SDK integration guide! This booklet will teach you, step by step, how to integrate MQL5 **Expert Advisors (EAs)** and **Custom Indicators** with TheMarketRobo platform.
 
 **Who is this for?**
-- MQL5 developers who already have a working EA
-- Beginner to intermediate programmers who want to connect their robot to TheMarketRobo cloud dashboard
-- Vendors who want to distribute their robots through TheMarketRobo marketplace
+- MQL5 developers who have (or want to build) an EA or Custom Indicator
+- Beginner to intermediate programmers who want to connect their robot or indicator to TheMarketRobo cloud dashboard
+- Vendors who want to distribute their robots or indicators through TheMarketRobo marketplace
 
 **What you will learn:**
 - How to install the SDK files
-- How to define a configuration schema so customers can adjust your robot's settings from the web dashboard
-- How to handle real-time configuration & symbol changes from the server
-- How to properly initialize, run, and shut down the SDK alongside your robot
+- How to define a configuration schema (EAs only) so customers can adjust your robot's settings from the web dashboard
+- How to handle real-time configuration and symbol changes from the server (EAs only)
+- How to properly initialize, run, and shut down the SDK alongside your EA or Indicator
+- How **Custom Indicators** use the same base class with a simpler flow (no config, no magic number)
 
 **What you will NOT need:**
 - You do **not** need to write any HTTP, networking, or JSON code
@@ -56,7 +57,11 @@ The SDK handles all of that for you. You just need to tell it **what your settin
 
 ## 2. What Is TheMarketRobo SDK?
 
-TheMarketRobo SDK is a **library** that you include in your MQL5 Expert Advisor. It creates a **live connection** between your robot running on MetaTrader 5 and TheMarketRobo cloud platform.
+TheMarketRobo SDK is a **library** that you include in your MQL5 **Expert Advisor or Custom Indicator**. It creates a **live connection** between your program running on MetaTrader 5 and TheMarketRobo cloud platform.
+
+**Supported product types:**
+- **Expert Advisor (Robot)** — Full integration: config schema, magic number, session symbols, remote config and symbol changes.
+- **Custom Indicator** — Same base class (`CTheMarketRobo_Base`) with a **one-argument constructor** (indicator version UUID only); no config class, no magic number, no config/symbol change requests; session registration and heartbeats only.
 
 This connection allows:
 
@@ -66,15 +71,16 @@ This connection allows:
 | **Symbol Management** | Customers can enable/disable trading symbols remotely |
 | **Session Monitoring** | Real-time heartbeats report account balance, equity, drawdown, and profit |
 | **Authentication** | Secure JWT-based authentication with automatic token refresh |
-| **Graceful Shutdown** | Server can request the EA to stop, and the EA reports final stats |
+| **Graceful Shutdown** | Server can request the EA/Indicator to stop; the EA reports final stats; Indicators stop the timer and alert the user (no self-removal API) |
 
 ```
 ┌─────────────────────┐         ┌──────────────────────────┐
 │   MetaTrader 5      │         │  TheMarketRobo Cloud     │
 │                     │         │                          │
 │  ┌───────────────┐  │  HTTPS  │  ┌────────────────────┐  │
-│  │ Your EA       │  │◄───────►│  │ Customer Dashboard │  │
-│  │  + SDK        │  │         │  └────────────────────┘  │
+│  │ Your EA or    │  │◄───────►│  │ Customer Dashboard │  │
+│  │ Indicator     │  │         │  └────────────────────┘  │
+│  │  + SDK        │  │         │                          │
 │  └───────────────┘  │         │                          │
 └─────────────────────┘         └──────────────────────────┘
 ```
@@ -87,14 +93,18 @@ Before starting, make sure you have:
 
 - [x] **MetaTrader 5** installed and running
 - [x] **MetaEditor** for writing MQL5 code
-- [x] **An existing EA** that you want to integrate (or a new project)
+- [x] **An existing EA or Custom Indicator** that you want to integrate (or a new project)
 - [x] **API Key** from TheMarketRobo platform (you'll get this after registration)
-- [x] **Robot Version UUID** assigned to your robot version on the platform
+- [x] **Robot Version UUID** or **Indicator Version UUID** assigned on the platform (same UUID field in API; use it in the one-arg constructor for indicators, two-arg for EAs)
 
 > [!IMPORTANT]
 > You must add TheMarketRobo API URL to MetaTrader's "Allowed URLs" list.
 > Go to: **Tools → Options → Expert Advisors → Allow WebRequest for listed URL:**
 > Add: `https://api.staging.themarketrobo.com` (staging) or `https://api.themarketrobo.com` (production)
+
+**Documentation scope — data covered here vs elsewhere**
+- **This booklet:** Integration steps, config schema (EAs), callbacks, lifecycle, token/heartbeat defaults, Indicator vs EA differences, troubleshooting, template. All code samples and constants (e.g. token refresh 60s, heartbeat 60s max 300s) match the SDK source.
+- **Not covered in detail here (see API_REFERENCE.md and docs/api/important-notes.md):** Exact request/response JSON for `/robot/start`, `/robot/heartbeat`, `/robot/refresh`, `/robot/end`; full list of HTTP/API error codes and retry behavior; `SDK_API_BASE_URL` and staging/production URL handling inside the SDK; heartbeat payload field names and types; `CFinalStats` and shutdown reason values.
 
 ---
 
@@ -110,9 +120,10 @@ MQL5/
 │   └── MyRobot/
 │       └── MyRobot.mq5          ← Your EA file
 ├── Include/
-│   └── themarketrobo/           ← Copy this folder here
+│   └── themarketrobo/           ← Copy this folder here (lowercase name)
 │       ├── TheMarketRobo_SDK.mqh   (main include file)
-│       ├── CTheMarketRobo_Bot_Base.mqh
+│       ├── CTheMarketRobo_Base.mqh (unified base for EAs and Indicators)
+│       ├── CTheMarketRobo_Bot_Base.mqh (alias for CTheMarketRobo_Base; backwards compatibility)
 │       ├── Core/
 │       ├── Interfaces/
 │       ├── Models/
@@ -172,8 +183,8 @@ The SDK has a clean, layered architecture. Here's what each piece does:
 ```
 
 **As a developer, you only interact with two classes:**
-1. **`IRobotConfig`** — Define your robot's configurable settings (Expert Advisors only)
-2. **`CTheMarketRobo_Base`** — Your EA or Custom Indicator class extends this base
+1. **`IRobotConfig`** — Define your robot's configurable settings (**Expert Advisors only**; Custom Indicators do not use this)
+2. **`CTheMarketRobo_Base`** — Your EA or Custom Indicator class extends this base. (The name `CTheMarketRobo_Bot_Base` is an alias and works the same for EAs.)
 
 Everything else (HTTP calls, heartbeats, tokens, JSON) is handled automatically.
 
@@ -266,10 +277,11 @@ public:
 
 
 // ===== STEP 2: Robot Class =====
-class CMyBot : public CTheMarketRobo_Bot_Base
+// You can use CTheMarketRobo_Base or the alias CTheMarketRobo_Bot_Base; both refer to the same class.
+class CMyBot : public CTheMarketRobo_Base
 {
 public:
-    CMyBot() : CTheMarketRobo_Bot_Base(ROBOT_VERSION_UUID, new CMyConfig())
+    CMyBot() : CTheMarketRobo_Base(ROBOT_VERSION_UUID, new CMyConfig())
     {
     }
     ~CMyBot() {}
@@ -358,7 +370,7 @@ That's it for Expert Advisors! Compile and attach to a chart with a valid API ke
 
 ## 6.5 Quick Start — Your First Indicator in 15 Minutes
 
-The process is even simpler if you are integrating a Custom Indicator. This bypasses the config requirements and uses the empty constructor hook.
+The process is simpler for a **Custom Indicator**: use the same base class with the **one-argument constructor** (indicator version UUID only). No config class and no magic number; the SDK handles session registration and heartbeats only.
 
 ```mql5
 //+------------------------------------------------------------------+
@@ -370,13 +382,13 @@ The process is even simpler if you are integrating a Custom Indicator. This bypa
 input string InpApiKey = "";  // API Key (from TheMarketRobo dashboard)
 
 // ===== CONSTANTS =====
-const string ROBOT_VERSION_UUID = "your-uuid-here";
+const string INDICATOR_VERSION_UUID = "your-uuid-here";  // From TheMarketRobo (indicator version)
 
 // ===== STEP 1: Indicator Class =====
 class CMyIndicator : public CTheMarketRobo_Base
 {
 public:
-    CMyIndicator() : CTheMarketRobo_Base(ROBOT_VERSION_UUID) {}
+    CMyIndicator() : CTheMarketRobo_Base(INDICATOR_VERSION_UUID) {}  // One-arg constructor only
     ~CMyIndicator() {}
 
     virtual int on_calculate(const int rates_total, const int prev_calculated,
@@ -766,19 +778,21 @@ public:
 
 ### 8.1 — Extend The Base Class
 
+Your EA class extends **CTheMarketRobo_Base** (or the alias **CTheMarketRobo_Bot_Base**). The base class provides **default empty implementations** for the three callbacks, so you override them in your EA; they are not pure virtual.
+
 ```mql5
-class CMyBot : public CTheMarketRobo_Bot_Base
+class CMyBot : public CTheMarketRobo_Base
 {
 public:
     CMyBot();
     ~CMyBot();
 
-    // You MUST implement these three methods:
+    // Override these three methods for your EA:
     virtual void on_tick() override;
     virtual void on_config_changed(string event_json) override;
     virtual void on_symbol_changed(string event_json) override;
 
-    // Optional: override for custom termination handling
+    // Optional: override for custom termination handling (default: Alert + ExpertRemove)
     // virtual void on_termination_requested(string event_json) override;
 };
 ```
@@ -791,12 +805,14 @@ The constructor **must** call the parent constructor with two arguments:
 
 ```mql5
 CMyBot::CMyBot()
-    : CTheMarketRobo_Bot_Base(ROBOT_VERSION_UUID, new CMyConfig())
+    : CTheMarketRobo_Base(ROBOT_VERSION_UUID, new CMyConfig())
 {
     // Your initialization code here
     Print("My robot initialized!");
 }
 ```
+
+(You can also use `CTheMarketRobo_Bot_Base` — it is an alias for `CTheMarketRobo_Base`.)
 
 > [!CAUTION]
 > Use `new CMyConfig()` — the SDK takes ownership and will delete it automatically. Do NOT delete it yourself.
@@ -877,7 +893,7 @@ virtual void on_symbol_changed(string event_json) override
 
 ### 8.6 — on_termination_requested() — Optional Override
 
-By default, when the server requests the EA to stop, the SDK shows an alert and calls `ExpertRemove()`. You can override this:
+By default, when the server requests the EA to stop, the SDK shows an alert and calls `ExpertRemove()`. For **Custom Indicators**, the default is to stop the timer (`EventKillTimer()`) and print a message asking the user to remove the indicator (indicators have no self-removal API). You can override this for custom cleanup:
 
 ```mql5
 virtual void on_termination_requested(string event_json) override
@@ -889,10 +905,10 @@ virtual void on_termination_requested(string event_json) override
         Print("Server wants us to stop. Reason: ", reason);
     }
 
-    // Close all open positions first
+    // Close all open positions first (EA only)
     // ... your cleanup logic ...
 
-    // Then remove the EA
+    // Then remove the EA (or for Indicator: just stop timer; user removes manually)
     Alert("Shutting down as requested by server.");
     ExpertRemove();
 }
@@ -1040,7 +1056,7 @@ If you don't want the server to be able to change your config remotely:
 
 ```mql5
 CMyBot::CMyBot()
-    : CTheMarketRobo_Bot_Base(ROBOT_VERSION_UUID, new CMyConfig())
+    : CTheMarketRobo_Base(ROBOT_VERSION_UUID, new CMyConfig())
 {
     set_enable_config_change_requests(false);
 }
@@ -1054,13 +1070,13 @@ set_enable_symbol_change_requests(false);
 
 ### 11.3 — Adjusting Token Refresh Threshold
 
-By default, the JWT token is refreshed 60 seconds before expiration. You can change this:
+By default, the JWT token is refreshed **60 seconds** before expiration (`SDK_DEFAULT_TOKEN_REFRESH_THRESHOLD` in the SDK). You can change this:
 
 ```mql5
 set_token_refresh_threshold(120);  // Refresh 120 seconds before expiration
 ```
 
-Valid range: 60–3600 seconds.
+Valid range: **60–3600** seconds. Call **before** `on_init()`. If you set the threshold greater than or equal to the JWT expiration time (e.g. 300 seconds), the SDK will trigger refresh immediately.
 
 ### 11.4 — Printing SDK Configuration
 
@@ -1086,7 +1102,7 @@ Output:
 
 ## 12. SDK Lifecycle — What Happens Under the Hood
 
-Understanding the SDK lifecycle helps with debugging:
+Understanding the SDK lifecycle helps with debugging. The flow below is for **Expert Advisors**. For **Custom Indicators**, use `on_init(api_key)` only (no magic); start payload omits magic and session symbols; heartbeats omit config/symbol change requests and results; on shutdown or token failure the SDK stops the timer and alerts the user (no `ExpertRemove()`).
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
@@ -1152,10 +1168,10 @@ Understanding the SDK lifecycle helps with debugging:
 
 ### Key Concepts:
 
-- **Heartbeat** — The SDK sends a periodic "I'm alive" message to the server (default: every 60 seconds). The server can adjust this interval.
-- **Sequence Number** — Each heartbeat has an incrementing sequence number. If they get out of sync (HTTP 409 error), the SDK auto-corrects.
+- **Heartbeat** — The SDK sends a periodic "I'm alive" message to the server. The default interval is **60 seconds** (`SDK_DEFAULT_HEARTBEAT_INTERVAL`); the server can adjust it (max **300 seconds**). The SDK uses **TimeLocal()** for timing so heartbeats continue when the market is closed.
+- **Sequence Number** — Each heartbeat has an incrementing sequence number. If they get out of sync (HTTP 409 error), the SDK auto-corrects from the server response (`context.expected_sequence` or `context.current_sequence`).
 - **Dynamic Data** — Every heartbeat includes current balance, equity, margin, drawdown, and profit/loss since session start.
-- **Change Results** — When the server requests a config/symbol change, the results (accepted/rejected) are included in the next heartbeat.
+- **Change Results** — When the server requests a config/symbol change (EAs only), the results (accepted/rejected) are included in the next heartbeat. Indicators do not send or receive config/symbol change requests.
 
 ---
 
@@ -1169,7 +1185,7 @@ Understanding the SDK lifecycle helps with debugging:
 | `API Key is required!` | Empty API key | Set the `InpApiKey` input parameter |
 | `Invalid robot_version_uuid` | Wrong UUID length | Ensure UUID is exactly 36 characters (e.g., `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`) |
 | `Start session failed` | Server rejected the request | Check API key validity and internet connection |
-| `Token refresh failed` | Session may have expired | The SDK will remove the EA if it can't refresh; restart the EA |
+| `Token refresh failed` | Session may have expired | The SDK will remove the EA or stop the Indicator timer if it can't refresh; restart the program |
 | `Heartbeat sequence mismatch (409)` | Out-of-sync heartbeats | SDK auto-corrects this; no action needed |
 
 ### Debugging Tips
@@ -1394,11 +1410,11 @@ public:
 //+------------------------------------------------------------------+
 //| ROBOT CLASS                                                        |
 //+------------------------------------------------------------------+
-class CMyRobot : public CTheMarketRobo_Bot_Base
+class CMyRobot : public CTheMarketRobo_Base
 {
 public:
     CMyRobot()
-        : CTheMarketRobo_Bot_Base(ROBOT_VERSION_UUID, new CMyRobotConfig())
+        : CTheMarketRobo_Base(ROBOT_VERSION_UUID, new CMyRobotConfig())
     {
         Print("My Robot initialized!");
     }
@@ -1538,7 +1554,7 @@ void OnChartEvent(const int id,
 **A:** The SDK collects and reports **account-level** data (balance, equity, margin, drawdown) during heartbeats. It does **not** access individual trade history, order details, or trading strategies.
 
 ### Q: Why do Indicators not require a magic number or config class?
-**A:** Indicators are designed for chart analysis rather than executing trades directly, so they do not require magic numbers for trade tracking. Additionally, TheMarketRobo platform currently supports remote configuration and symbol tracking primarily for Expert Advisors; Indicators simply provide a secure licensing and session heartbeat layer.
+**A:** Indicators are used for chart analysis and do not place orders, so no magic number is needed for trade identification. The platform supports remote configuration and symbol tracking for **Expert Advisors**; Custom Indicators use the same SDK for session registration and heartbeats only, with a **one-argument constructor** (indicator version UUID). On server-requested termination or token failure, the SDK stops the timer and alerts the user to remove the indicator (there is no self-removal API for indicators).
 
 ---
 
@@ -1547,7 +1563,7 @@ void OnChartEvent(const int id,
 | Term | Definition |
 |---|---|
 | **API Key** | A secret string that authenticates your customer with TheMarketRobo backend |
-| **Robot Version UUID** | A unique identifier (36 characters) assigned to your robot version on the platform |
+| **Robot Version UUID** / **Indicator Version UUID** | A unique identifier (36 characters) assigned to your robot or indicator version on the platform. Same API field name; use in constructor (one-arg for indicators, two-arg for EAs). |
 | **JWT (JSON Web Token)** | A secure authentication token used for API communication after login |
 | **Heartbeat** | A periodic message sent to the server saying "I'm still running" with current account data |
 | **Session** | The period from when the EA starts (`/start`) to when it stops (`/end`) |

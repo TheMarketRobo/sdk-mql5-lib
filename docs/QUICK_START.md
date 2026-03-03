@@ -16,7 +16,7 @@ This guide will help you create your first trading robot using TheMarketRobo SDK
 Create a new file `MyBotConfig.mqh`:
 
 ```cpp
-#include <TheMarketRobo/TheMarketRobo_SDK.mqh>
+#include <themarketrobo/TheMarketRobo_SDK.mqh>
 
 class CMyRobotConfig : public IRobotConfig
 {
@@ -91,24 +91,14 @@ public:
     // Update from server JSON
     virtual bool update_from_json(const CJAVal &config_json) override
     {
-        CJAVal* node;
-        
-        node = config_json["max_risk"];
-        if(CheckPointer(node) != POINTER_INVALID)
-            m_max_risk = node.get_double();
-            
-        node = config_json["max_trades"];
-        if(CheckPointer(node) != POINTER_INVALID)
-            m_max_trades = (int)node.get_long();
-            
-        node = config_json["use_news_filter"];
-        if(CheckPointer(node) != POINTER_INVALID)
-            m_use_news_filter = node.get_bool();
-            
-        node = config_json["trading_mode"];
-        if(CheckPointer(node) != POINTER_INVALID)
-            m_trading_mode = node.get_string();
-            
+        if(config_json.has_key("max_risk"))
+            m_max_risk = config_json["max_risk"].get_double();
+        if(config_json.has_key("max_trades"))
+            m_max_trades = (int)config_json["max_trades"].get_long();
+        if(config_json.has_key("use_news_filter"))
+            m_use_news_filter = config_json["use_news_filter"].get_bool();
+        if(config_json.has_key("trading_mode"))
+            m_trading_mode = config_json["trading_mode"].get_string();
         return true;
     }
 
@@ -170,13 +160,14 @@ CMyRobot* robot = NULL;
 //+------------------------------------------------------------------+
 //| Expert Advisor Class                                             |
 //+------------------------------------------------------------------+
-class CMyRobot : public CTheMarketRobo_Bot_Base
+// CTheMarketRobo_Base is the unified base class; CTheMarketRobo_Bot_Base is an alias for backwards compatibility.
+class CMyRobot : public CTheMarketRobo_Base
 {
 private:
     CMyRobotConfig* m_config;
 
 public:
-    CMyRobot() : CTheMarketRobo_Bot_Base(ROBOT_VERSION_UUID, new CMyRobotConfig())
+    CMyRobot() : CTheMarketRobo_Base(ROBOT_VERSION_UUID, new CMyRobotConfig())
     {
         m_config = (CMyRobotConfig*)m_robot_config;
     }
@@ -273,7 +264,11 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
    - Copy the assigned UUID
    - Replace `ROBOT_VERSION_UUID` in your code
 
-2. **Compile the Expert Advisor:**
+2. **Ensure the SDK is available:**
+   - This repo uses the SDK as a submodule at `Include/themarketrobo`. Clone with `--recursive` or run `git submodule update --init --recursive`.
+   - The correct include path is `#include <themarketrobo/TheMarketRobo_SDK.mqh>` (folder name is lowercase).
+
+3. **Compile the Expert Advisor:**
    - Press F7 in MetaEditor
    - Fix any compilation errors
 
@@ -337,20 +332,20 @@ See the complete EA example in:
 
 ## Quick Start — Custom Indicator
 
-If you are building a Custom Indicator instead of an Expert Advisor, the process is significantly simpler because indicators do not support remote configuration or symbol change requests.
+If you are building a Custom Indicator instead of an Expert Advisor, the process is simpler: indicators use the same SDK base class (`CTheMarketRobo_Base`) with the **one-argument constructor** (indicator version UUID only). They do not support remote configuration or symbol change requests; the SDK still handles session registration, heartbeats, and termination.
 
 ### Step 1: Create Your Indicator
 
 Create a new file `MyIndicator.mq5`:
 
 ```cpp
-#include <TheMarketRobo/TheMarketRobo_SDK.mqh>
+#include <themarketrobo/TheMarketRobo_SDK.mqh>
 
 //--- Customer-provided input parameters
 input string InpApiKey = "";           // API Key (from TheMarketRobo)
 
-//--- Programmer-defined indicator version UUID
-#define ROBOT_VERSION_UUID "550e8400-e29b-41d4-a716-446655440000"
+//--- Programmer-defined indicator version UUID (from TheMarketRobo platform)
+#define INDICATOR_VERSION_UUID "550e8400-e29b-41d4-a716-446655440000"
 
 //--- Global variables
 CMyIndicator* indicator = NULL;
@@ -361,8 +356,8 @@ CMyIndicator* indicator = NULL;
 class CMyIndicator : public CTheMarketRobo_Base
 {
 public:
-    // Pass only the UUID to the constructor
-    CMyIndicator() : CTheMarketRobo_Base(ROBOT_VERSION_UUID) {}
+    // Pass only the UUID to the constructor (no IRobotConfig for indicators)
+    CMyIndicator() : CTheMarketRobo_Base(INDICATOR_VERSION_UUID) {}
 
     // Override on_calculate instead of on_tick
     virtual int on_calculate(const int rates_total,
@@ -391,6 +386,7 @@ int OnInit()
     if(CheckPointer(indicator) == POINTER_INVALID)
         return INIT_FAILED;
     
+    // For chart indicators: call SetIndexBuffer(), IndicatorSetInteger(), etc. here if needed, before or after init.
     // Initialize with customer inputs (Indicators do not use magic numbers)
     return indicator.on_init(InpApiKey);
 }

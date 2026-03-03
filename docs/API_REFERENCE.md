@@ -28,6 +28,8 @@ CTheMarketRobo_Base(string robot_version_uuid)
 
 **Description:** Creates the SDK base class for an Indicator. Indicators do not use remote configurations.
 
+**Destructor:** `~CTheMarketRobo_Base()` — Frees `m_sdk_context` and `m_robot_config` (if dynamic). Call `on_deinit()` before destroying the instance (e.g. from `OnDeinit`).
+
 ---
 
 ### Lifecycle Methods
@@ -89,7 +91,7 @@ virtual void on_chart_event(const int id, const long &lparam, const double &dpar
 - `dparam`: Double parameter
 - `sparam`: String parameter (contains JSON for SDK events)
 
-**Description:** Processes SDK chart events for configuration and symbol changes.
+**Description:** Processes SDK chart events. The SDK handles: `SDK_EVENT_CONFIG_CHANGED`, `SDK_EVENT_SYMBOL_CHANGED` (Robots only), `SDK_EVENT_TERMINATION_START`, `SDK_EVENT_TERMINATION_END`, `SDK_EVENT_TERMINATION_REQUESTED`, `SDK_EVENT_TOKEN_REFRESH`. For config/symbol events, only Robots receive callbacks; `sparam` contains the event JSON.
 
 ---
 
@@ -106,8 +108,10 @@ void set_token_refresh_threshold(int seconds)
 **Parameters:**
 - `seconds`: Number of seconds before token expiration to trigger proactive refresh
 
-**Default:** 300 seconds (5 minutes)  
-**Range:** 60 - 3600 seconds
+**Default:** 60 seconds (`SDK_DEFAULT_TOKEN_REFRESH_THRESHOLD` in CSDKConstants.mqh)  
+**Range:** 60–3600 seconds  
+
+**Note:** If set equal to or greater than the JWT expiration time (e.g. 300 seconds), refresh will trigger immediately.
 
 ---
 
@@ -147,15 +151,17 @@ void print_sdk_configuration() const
 
 ---
 
-### Abstract Methods (Must Implement)
+### Virtual Callbacks (Override in Robot or Indicator)
+
+These methods have **default empty implementations** (not pure virtual). Override them in your EA or Indicator as needed.
 
 #### on_tick
 
 ```cpp
-virtual void on_tick() = 0 // Required for Robots
+virtual void on_tick() {}  // Default: no-op. Override in Robot.
 ```
 
-**Description:** Your main trading logic. Only called when session is active. Unused by Indicators.
+**Description:** Main trading logic for Expert Advisors. Called when session is active. Indicators do not use this.
 
 ---
 
@@ -166,36 +172,79 @@ virtual int on_calculate(const int rates_total, const int prev_calculated,
                          const datetime &time[], const double &open[],
                          const double &high[], const double &low[],
                          const double &close[], const long &tick_volume[],
-                         const long &volume[], const int &spread[]) // Override in Indicator
+                         const long &volume[], const int &spread[]) { return rates_total; }
 ```
 
-**Description:** Your main indicator logic. Override this when building a Custom Indicator. Return `rates_total`.
+**Description:** Main indicator logic. Override when building a Custom Indicator. Return `rates_total`. Robots use the default no-op.
 
 ---
 
 #### on_config_changed
 
 ```cpp
-virtual void on_config_changed(string event_json) = 0 // Required for Robots
+virtual void on_config_changed(string event_json) {}  // Override in Robot.
 ```
 
-**Parameters:**
-- `event_json`: JSON string containing configuration change details
+**Parameters:** `event_json` — JSON string with configuration change details (e.g. field, old_value, new_value).
 
-**Description:** Called when server changes a configuration parameter. Indicators do not receive this event.
+**Description:** Called when the server has sent a configuration change request and the SDK has applied it. **Robots only**; Indicators do not receive this event.
 
 ---
 
 #### on_symbol_changed
 
 ```cpp
-virtual void on_symbol_changed(string event_json) = 0
+virtual void on_symbol_changed(string event_json) {}  // Override in Robot.
 ```
 
-**Parameters:**
-- `event_json`: JSON string containing symbol change details
+**Parameters:** `event_json` — JSON string with symbol change details (e.g. symbol, active_to_trade).
 
-**Description:** Called when server changes symbol trading status.
+**Description:** Called when the server has sent a symbol change request and the SDK has applied it. **Robots only**; Indicators do not receive this event.
+
+---
+
+#### on_termination_requested
+
+```cpp
+virtual void on_termination_requested(string event_json);
+```
+
+**Parameters:** `event_json` — JSON string with a `reason` field (server-requested termination).
+
+**Description:** Called when the server requested session termination (e.g. from heartbeat response). Default behavior: Alert the user; for Robots call `ExpertRemove()`; for Indicators call `EventKillTimer()` and print a message. Override to customize behavior.
+
+---
+
+### Public Getters (Read-Only)
+
+#### get_robot_version_uuid
+
+```cpp
+string get_robot_version_uuid() const
+```
+
+**Returns:** The version UUID passed to the constructor (robot or indicator).
+
+---
+
+#### get_token_refresh_threshold
+
+```cpp
+int get_token_refresh_threshold() const
+```
+
+**Returns:** Current token refresh threshold in seconds (before expiration).
+
+---
+
+#### is_indicator_mode / is_robot_mode
+
+```cpp
+bool is_indicator_mode() const
+bool is_robot_mode() const
+```
+
+**Returns:** `true` if the instance was initialized as an Indicator or Robot respectively. Useful inside shared code or `on_termination_requested`.
 
 ---
 
@@ -309,6 +358,28 @@ CConfigSchema* get_schema()
 
 ---
 
+#### get_schema_json
+
+```cpp
+string get_schema_json()
+```
+
+**Returns:** Schema serialized as a JSON string.
+
+---
+
+#### get_field_definition
+
+```cpp
+CConfigField* get_field_definition(string key)
+```
+
+**Parameters:** `key` — Field key (e.g. `"max_trades"`).
+
+**Returns:** Pointer to the `CConfigField` for that key, or `NULL` if not found.
+
+---
+
 ## CConfigField
 
 Factory class for creating configuration field definitions.
@@ -342,6 +413,8 @@ CConfigField* with_default_selections(string &selections[])  // Multiple only
 CConfigField* with_depends_on(CConfigDependency* dependency)
 ```
 
+**Dependencies:** Use `CConfigDependency` (Models/CConfigField.mqh) to show a field only when another field matches a condition. Example: `dep.set_bool_value("use_trailing_stop", CONDITION_EQUALS, true);` then `.with_depends_on(dep)` on the dependent field. Conditions: `CONDITION_EQUALS`, `CONDITION_NOT_EQUALS`, `CONDITION_GREATER_THAN`, `CONDITION_LESS_THAN`, etc.
+
 ### Usage Example
 
 ```cpp
@@ -373,17 +446,18 @@ virtual void define_schema() override
 
 ## CConfigSchema
 
-Container for robot configuration schema.
+Container for robot configuration schema. Defined in `Models/CConfigSchema.mqh`.
 
 ### Methods
 
 ```cpp
 void add_field(CConfigField* field)
 CConfigField* get_field(string key)
+CConfigField* get_field_by_index(int index)
 int get_field_count()
 void get_field_keys(string &keys[])
 
-// Default value getters
+// Default value getters (key = field key string, e.g. "max_trades")
 int get_default_int(string key)
 double get_default_double(string key)
 bool get_default_bool(string key)
@@ -396,22 +470,28 @@ bool validate_field_value(string key, bool value, string &reason)
 bool validate_field_value(string key, string value, string &reason)
 
 // Serialization
-string to_json_string()
+CJAVal* to_json()           // Returns JSON object (caller must delete)
+string to_json_string()     // Returns JSON string
 ```
 
 ---
 
 ## SDK Events
 
+Defined in `Utils/CSDK_Events.mqh`. Event IDs are based on `CHARTEVENT_CUSTOM` so they do not collide with MQL5 built-in events.
+
 ### Event Constants
 
 ```cpp
-#define SDK_EVENT_CONFIG_CHANGED    1001
-#define SDK_EVENT_SYMBOL_CHANGED    1002
-#define SDK_EVENT_TERMINATION_START 1003
-#define SDK_EVENT_TERMINATION_END   1004
-#define SDK_EVENT_TOKEN_REFRESH     1005
+#define SDK_EVENT_CONFIG_CHANGED          (CHARTEVENT_CUSTOM + 1000)
+#define SDK_EVENT_SYMBOL_CHANGED          (CHARTEVENT_CUSTOM + 1001)
+#define SDK_EVENT_TERMINATION_START       (CHARTEVENT_CUSTOM + 1002)
+#define SDK_EVENT_TERMINATION_END         (CHARTEVENT_CUSTOM + 1003)
+#define SDK_EVENT_TOKEN_REFRESH           (CHARTEVENT_CUSTOM + 1004)
+#define SDK_EVENT_TERMINATION_REQUESTED   (CHARTEVENT_CUSTOM + 1005)  // Server requested termination
 ```
+
+The numeric offset (1000–1005) is used when calling `EventChartCustom()`. The base class switches on the full constant (e.g. `SDK_EVENT_CONFIG_CHANGED`) in `on_chart_event`.
 
 ### Event Data Structures
 
@@ -457,24 +537,27 @@ string to_json_string()
 
 ## SDK Constants
 
-Defined in `CSDKConstants.mqh`:
+Defined in `Core/CSDKConstants.mqh`:
 
 ```cpp
 // SDK Version
 #define SDK_VERSION "1.0.0"
 
-// API Configuration
-#define SDK_API_BASE_URL "http://api.staging.themarketrobo.com/"
+// API Configuration (no trailing slash; endpoints are concatenated, e.g. base_url + "/robot/start")
+#define SDK_API_BASE_URL "https://api.staging.themarketrobo.com"
 
 // Default Values
-#define SDK_DEFAULT_TOKEN_REFRESH_THRESHOLD 300  // 5 minutes
-#define SDK_DEFAULT_HEARTBEAT_INTERVAL 60        // 1 minute
-#define SDK_MAX_HEARTBEAT_INTERVAL 300           // 5 minutes max
+#define SDK_DEFAULT_TOKEN_REFRESH_THRESHOLD 60   // Seconds before token expiry to refresh
+#define SDK_DEFAULT_HEARTBEAT_INTERVAL 60       // Fallback heartbeat interval (seconds)
+#define SDK_MAX_HEARTBEAT_INTERVAL 300          // Max heartbeat interval (seconds)
+
+// HTTP
+#define SDK_HTTP_TIMEOUT 5000  // 5 seconds
 
 // UUID Length
 #define SDK_UUID_LENGTH 36
 
-// Error Codes
+// Error Codes (for config/symbol change result reporting)
 #define SDK_ERROR_INVALID_VALUE     "INVALID_VALUE"
 #define SDK_ERROR_OUT_OF_RANGE      "OUT_OF_RANGE"
 #define SDK_ERROR_FIELD_NOT_FOUND   "FIELD_NOT_FOUND"
@@ -483,9 +566,9 @@ Defined in `CSDKConstants.mqh`:
 #define SDK_ERROR_SYMBOL_UNAVAILABLE "SYMBOL_UNAVAILABLE"
 #define SDK_ERROR_TRADING_DISABLED  "TRADING_DISABLED"
 
-// Change Result Status
+// Change Result Status (for heartbeat config/symbol results)
 #define SDK_STATUS_ALL_ACCEPTED       "all_accepted"
-#define SDK_STATUS_ALL_REJECTED       "all_rejected"
+#define SDK_STATUS_ALL_REJECTED      "all_rejected"
 #define SDK_STATUS_PARTIALLY_ACCEPTED "partially_accepted"
 ```
 
@@ -505,6 +588,37 @@ enum ENUM_SDK_SESSION_STATE
 };
 ```
 
+**Defined in:** `Core/CSDKConstants.mqh`
+
+---
+
+## Product Types
+
+```cpp
+enum ENUM_SDK_PRODUCT_TYPE
+{
+    PRODUCT_TYPE_ROBOT,      // Expert Advisor (EA)
+    PRODUCT_TYPE_INDICATOR   // Custom Indicator
+};
+
+#define SDK_PRODUCT_TYPE_ROBOT     "robot"
+#define SDK_PRODUCT_TYPE_INDICATOR "indicator"
+```
+
+---
+
+## Heartbeat States
+
+```cpp
+enum ENUM_SDK_HEARTBEAT_STATE
+{
+    SDK_HEARTBEAT_IDLE,             // Waiting for next heartbeat
+    SDK_HEARTBEAT_SENDING,          // Heartbeat is being sent
+    SDK_HEARTBEAT_WAITING_CONFIRM,  // Waiting for server confirmation
+    SDK_HEARTBEAT_FAILED            // Last heartbeat failed
+};
+```
+
 ---
 
 ## Error Handling
@@ -518,10 +632,10 @@ enum ENUM_SDK_SESSION_STATE
 
 ### Runtime Errors
 
-- Authentication failures trigger automatic EA removal
-- Token expiration triggers automatic refresh
-- Network issues are handled with retry logic
-- Invalid configurations are rejected with detailed messages
+- **Robots:** Authentication failures trigger automatic EA removal (`ExpertRemove()`). Token expiration triggers proactive refresh (threshold from `SDK_DEFAULT_TOKEN_REFRESH_THRESHOLD` or `set_token_refresh_threshold`).
+- **Indicators:** On auth failure or token refresh failure the SDK stops the timer (`EventKillTimer()`) and alerts the user to remove the indicator; there is no self-removal API for indicators.
+- Network issues are handled with retry logic (e.g. heartbeat 409 sequence sync).
+- Invalid configurations are rejected with detailed messages; session may not become active if initial config validation fails (Robots only).
 
 ### Best Practices
 
@@ -534,8 +648,10 @@ enum ENUM_SDK_SESSION_STATE
 
 ## Complete Example
 
+Use the **lowercase** include path `themarketrobo` so it matches the repository folder and works on case-sensitive systems:
+
 ```cpp
-#include <TheMarketRobo/TheMarketRobo_SDK.mqh>
+#include <themarketrobo/TheMarketRobo_SDK.mqh>
 
 input string InpApiKey = "";           // API Key
 input long   InpMagicNumber = 12345;   // Magic Number
@@ -569,10 +685,10 @@ public:
     virtual string get_field_as_string(string f) override { if(f=="max_trades") return IntegerToString(m_max_trades); if(f=="risk") return DoubleToString(m_risk,2); return ""; }
 };
 
-class CMyRobot : public CTheMarketRobo_Bot_Base
+class CMyRobot : public CTheMarketRobo_Base
 {
 public:
-    CMyRobot() : CTheMarketRobo_Bot_Base("550e8400-e29b-41d4-a716-446655440000", new CMyConfig()) {}
+    CMyRobot() : CTheMarketRobo_Base("550e8400-e29b-41d4-a716-446655440000", new CMyConfig()) {}
     virtual void on_tick() override { /* Trading logic */ }
     virtual void on_config_changed(string json) override { Print("Config changed: ", json); }
     virtual void on_symbol_changed(string json) override { Print("Symbol changed: ", json); }
@@ -583,15 +699,25 @@ CMyRobot* robot = NULL;
 int OnInit()
 {
     robot = new CMyRobot();
-    robot.set_token_refresh_threshold(300);
+    if(CheckPointer(robot) == POINTER_INVALID) return INIT_FAILED;
+    robot.set_token_refresh_threshold(60);  // Optional; default is 60
     return robot.on_init(InpApiKey, InpMagicNumber);
 }
 
-void OnDeinit(const int reason) { robot.on_deinit(reason); delete robot; }
-void OnTimer() { robot.on_timer(); }
-void OnTick() { robot.on_tick(); }
+void OnDeinit(const int reason)
+{
+    if(CheckPointer(robot) != POINTER_INVALID) { robot.on_deinit(reason); delete robot; robot = NULL; }
+}
+void OnTimer()
+{
+    if(CheckPointer(robot) != POINTER_INVALID) robot.on_timer();
+}
+void OnTick()
+{
+    if(CheckPointer(robot) != POINTER_INVALID) robot.on_tick();
+}
 void OnChartEvent(const int id, const long &lparam, const double &dparam, const string &sparam)
 {
-    robot.on_chart_event(id, lparam, dparam, sparam);
+    if(CheckPointer(robot) != POINTER_INVALID) robot.on_chart_event(id, lparam, dparam, sparam);
 }
 ```
