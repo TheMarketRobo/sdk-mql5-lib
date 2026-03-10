@@ -97,7 +97,7 @@ CSDKContext::CSDKContext(string api_key, string robot_version_uuid, long magic_n
     // Apply product type — this also enforces indicator restrictions on config/symbol toggles
     m_options.set_product_type(product_type);
 
-    http_service = new CHttpService();
+    http_service = new CHttpService(product_type);
     if(CheckPointer(http_service) == POINTER_INVALID) { Print("SDK Error: Failed to create CHttpService"); return; }
 
     data_collector = new CDataCollectorService();
