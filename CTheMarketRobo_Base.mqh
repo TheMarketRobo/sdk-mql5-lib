@@ -13,6 +13,7 @@
 #include "Core/CSDKContext.mqh"
 #include "Core/CSDKConstants.mqh"
 #include "Utils/CSDK_Events.mqh"
+#include "Utils/CSDKUserErrors.mqh"
 #include "Interfaces/IRobotConfig.mqh"
 
 /**
@@ -75,6 +76,8 @@ protected:
     int             m_token_refresh_threshold_seconds;
     bool            m_enable_config_change_requests;
     bool            m_enable_symbol_change_requests;
+    string          m_indicator_short_name;   // For ChartIndicatorDelete self-removal
+    bool            m_pending_removal;        // Deferred removal flag (set during init, executed on first tick/timer)
 
 public:
     // Robot constructor — requires config object
@@ -129,8 +132,14 @@ public:
     string get_robot_version_uuid() const;
     bool   is_indicator_mode() const;
     bool   is_robot_mode() const;
+    
+    // Indicator self-removal — call set_indicator_short_name() during OnInit()
+    void   set_indicator_short_name(string short_name);
+    bool   is_pending_removal() const;
 
 protected:
+    void   remove_indicator_from_chart();
+    bool   check_pending_removal();
     void handle_termination_event(string event_json);
     void handle_termination_requested_event(string event_json);
     void handle_token_refresh_event(string event_json);
@@ -149,6 +158,8 @@ CTheMarketRobo_Base::CTheMarketRobo_Base(string robot_version_uuid, IRobotConfig
     m_token_refresh_threshold_seconds = SDK_DEFAULT_TOKEN_REFRESH_THRESHOLD;
     m_enable_config_change_requests = true;
     m_enable_symbol_change_requests = true;
+    m_indicator_short_name = "";
+    m_pending_removal = false;
     Print("SDK Info: Robot Version UUID = ", m_robot_version_uuid);
 }
 
@@ -163,6 +174,8 @@ CTheMarketRobo_Base::CTheMarketRobo_Base(string robot_version_uuid)
     m_token_refresh_threshold_seconds = SDK_DEFAULT_TOKEN_REFRESH_THRESHOLD;
     m_enable_config_change_requests = false; // Indicators never use config changes
     m_enable_symbol_change_requests = false; // Indicators never use symbol changes
+    m_indicator_short_name = "";
+    m_pending_removal = false;
     Print("SDK Info: Indicator Version UUID = ", m_robot_version_uuid);
 }
 
@@ -196,20 +209,76 @@ bool CTheMarketRobo_Base::is_robot_mode() const
 }
 
 //+------------------------------------------------------------------+
+//| Indicator short name (for self-removal via ChartIndicatorDelete)  |
+//+------------------------------------------------------------------+
+void CTheMarketRobo_Base::set_indicator_short_name(string short_name)
+{
+    m_indicator_short_name = short_name;
+}
+
+bool CTheMarketRobo_Base::is_pending_removal() const
+{
+    return m_pending_removal;
+}
+
+//+------------------------------------------------------------------+
+//| Remove this indicator from the chart using ChartIndicatorDelete   |
+//+------------------------------------------------------------------+
+void CTheMarketRobo_Base::remove_indicator_from_chart()
+{
+    EventKillTimer();
+    if(m_indicator_short_name != "")
+    {
+        SDKRemoveIndicatorFromChart(m_indicator_short_name);
+    }
+    else
+    {
+        Print("SDK Warning: Indicator short name not set — cannot auto-remove. Please remove the indicator manually.");
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Check if pending removal should execute (call at top of          |
+//| on_calculate / on_timer). Returns true if removal was triggered.  |
+//+------------------------------------------------------------------+
+bool CTheMarketRobo_Base::check_pending_removal()
+{
+    if(m_pending_removal)
+    {
+        remove_indicator_from_chart();
+        return true;
+    }
+    return false;
+}
+
+//+------------------------------------------------------------------+
 //| Shared init implementation                                        |
 //+------------------------------------------------------------------+
 int CTheMarketRobo_Base::init_common(string api_key, long magic_number, ENUM_SDK_PRODUCT_TYPE product_type)
 {
+    bool is_ind = (product_type == PRODUCT_TYPE_INDICATOR);
+
     if(m_robot_version_uuid == "" || StringLen(m_robot_version_uuid) != SDK_UUID_LENGTH)
     {
         Print("SDK Error: Invalid robot_version_uuid. Must be a valid UUID (36 characters).");
+        if(is_ind)
+        {
+            SDKUserError("Setup error — invalid product configuration. Please contact support.");
+            m_pending_removal = true;
+        }
         return INIT_FAILED;
     }
     
     if(api_key == "")
     {
         Print("SDK Error: API Key is required. Please provide a valid API key.");
-        Alert("TheMarketRobo SDK: API Key is required!");
+        if(is_ind)
+        {
+            SDKUserError("API Key is required. Please set it in the indicator settings.");
+            m_pending_removal = true;
+        }
+        else
+            Alert("TheMarketRobo: API Key is required!");
         return INIT_FAILED;
     }
     
@@ -228,6 +297,11 @@ int CTheMarketRobo_Base::init_common(string api_key, long magic_number, ENUM_SDK
     if(CheckPointer(m_sdk_context) == POINTER_INVALID)
     {
         Print("SDK Error: Failed to create SDK Context.");
+        if(is_ind)
+        {
+            SDKUserError("Failed to start. Please try removing and re-adding the indicator.");
+            m_pending_removal = true;
+        }
         return INIT_FAILED;
     }
     
@@ -241,15 +315,19 @@ int CTheMarketRobo_Base::init_common(string api_key, long magic_number, ENUM_SDK
 
     if(!m_sdk_context.start())
     {
-        bool is_ind = (product_type == PRODUCT_TYPE_INDICATOR);
-        string program_label = is_ind ? "indicator" : "robot";
-        string error_msg = "SDK Error: Failed to start SDK session. Check API Key and connection. The " + program_label + " will be removed.";
-        Print(error_msg);
-        Alert(error_msg);
         delete m_sdk_context;
         m_sdk_context = NULL;
-        if(!is_ind)
+        
+        if(is_ind)
+        {
+            SDKUserError("Could not connect to TheMarketRobo service. Please check your internet connection and try again.");
+            m_pending_removal = true;
+        }
+        else
+        {
+            Alert("TheMarketRobo: Could not connect to the service. The robot will be removed.");
             ExpertRemove();
+        }
         return INIT_FAILED;
     }
 
@@ -291,6 +369,10 @@ void CTheMarketRobo_Base::on_deinit(const int reason)
 //+------------------------------------------------------------------+
 void CTheMarketRobo_Base::on_timer()
 {
+    // Deferred removal check — remove indicator if init failed
+    if(is_indicator_mode() && check_pending_removal())
+        return;
+
     if(CheckPointer(m_sdk_context) != POINTER_INVALID)
         m_sdk_context.on_timer();
 }
@@ -405,19 +487,20 @@ void CTheMarketRobo_Base::handle_termination_event(string event_json)
     if(!event_data.parse(event_json)) return;
 
     string reason = event_data["reason"].get_string();
-    string message = "Session terminated by server. Reason: " + reason;
-    
-    Print(message);
-    Alert(message);
     
     if(is_robot_mode())
+    {
+        string message = "Session terminated by server. Reason: " + reason;
+        Print(message);
+        Alert(message);
         ExpertRemove();
+    }
     else
     {
-        // Indicators have no self-removal function; stop the timer so
-        // heartbeats cease and alert the user to remove the indicator.
-        EventKillTimer();
-        Print("SDK Info: Indicator session terminated. Please remove the indicator from the chart.");
+        SDKUserErrorWithDetails(
+            "Session ended. The indicator will be removed from the chart.",
+            "Server termination reason: " + reason);
+        remove_indicator_from_chart();
     }
 }
 
@@ -453,19 +536,17 @@ void CTheMarketRobo_Base::on_termination_requested(string event_json)
     if(event_data.parse(event_json))
         reason = event_data["reason"].get_string();
     
-    string message = "Server requested termination: " + reason;
-    Alert(message);
-    
     if(is_robot_mode())
     {
+        Alert("TheMarketRobo: Server requested termination: " + reason);
         ExpertRemove();
     }
     else
     {
-        // Stop heartbeats; inform the user to remove the indicator manually.
-        EventKillTimer();
-        Print("SDK Info: Indicator timer stopped due to server-requested termination. ",
-              "Please remove this indicator from the chart.");
+        SDKUserErrorWithDetails(
+            "Session stopped by server. The indicator will be removed from the chart.",
+            "Termination reason: " + reason);
+        remove_indicator_from_chart();
     }
 }
 
@@ -480,19 +561,17 @@ void CTheMarketRobo_Base::handle_token_refresh_event(string event_json)
     bool success = event_data["success"].get_bool();
     if(!success)
     {
-        string program_label = is_robot_mode() ? "Expert Advisor" : "Indicator";
-        string message = "SDK critical error: Failed to refresh authentication token. " +
-                         program_label + " will be removed to prevent an unauthorized session.";
-        Print(message);
-        Alert(message);
-        
         if(is_robot_mode())
+        {
+            string message = "TheMarketRobo: Authentication failed. The robot will be removed to prevent an unauthorized session.";
+            Print(message);
+            Alert(message);
             ExpertRemove();
+        }
         else
         {
-            EventKillTimer();
-            Print("SDK Info: Indicator timer stopped due to token refresh failure. ",
-                  "Please remove this indicator from the chart.");
+            SDKUserError("Authentication failed. The indicator will be removed from the chart.");
+            remove_indicator_from_chart();
         }
     }
     else

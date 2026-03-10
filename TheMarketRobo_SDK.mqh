@@ -114,6 +114,7 @@
 
 // Utilities
 #include "Utils/CSDK_Events.mqh"
+#include "Utils/CSDKUserErrors.mqh"
 
 // Unified Base Class (supports both robots and indicators)
 #include "CTheMarketRobo_Base.mqh"
