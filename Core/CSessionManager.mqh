@@ -31,11 +31,13 @@ public:
     ~CSessionManager();
 
     bool start_session();
+    bool resume_session(ulong session_id);
     bool end_session(string reason, CFinalStats* final_stats);
     bool refresh_token();
     
     bool is_session_active() const;
     ulong get_session_id() const;
+    string get_api_key() const;
 };
 
 #include "CSDKContext.mqh"
@@ -74,6 +76,28 @@ bool CSessionManager::is_session_active() const
 ulong CSessionManager::get_session_id() const
 {
     return m_session_id;
+}
+
+//+------------------------------------------------------------------+
+//| Returns the API key                                               |
+//+------------------------------------------------------------------+
+string CSessionManager::get_api_key() const
+{
+    return m_api_key;
+}
+
+//+------------------------------------------------------------------+
+//| Resume a previously saved session (no HTTP call to /robot/start). |
+//| The backend session is still alive; we just restore local state.  |
+//+------------------------------------------------------------------+
+bool CSessionManager::resume_session(ulong session_id)
+{
+    m_session_id = session_id;
+    m_is_active  = true;
+    m_context.heartbeat_manager.set_session_id(session_id);
+    m_context.heartbeat_manager.request_immediate_heartbeat();
+    Print("SDK Info: Resumed existing session. Session ID: ", m_session_id);
+    return true;
 }
 
 //+------------------------------------------------------------------+
@@ -256,6 +280,7 @@ bool CSessionManager::end_session(string reason, CFinalStats* final_stats)
     start_event.reason = reason;
     start_event.success = false;
     start_event.message = "Termination started";
+    start_event.session_id = m_session_id;
     Fire_Termination_Start_Event(0, start_event);
     
     CJAVal* payload = new CJAVal(JA_OBJECT);
@@ -300,6 +325,7 @@ bool CSessionManager::end_session(string reason, CFinalStats* final_stats)
     end_event.reason = reason;
     end_event.success = success;
     end_event.message = message;
+    end_event.session_id = m_session_id;
     Fire_Termination_End_Event(0, end_event);
     
     return success;

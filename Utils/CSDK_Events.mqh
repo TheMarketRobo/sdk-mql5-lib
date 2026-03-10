@@ -72,14 +72,16 @@ struct STermination_Event
     string reason;
     bool success;
     string message;
+    ulong session_id;
     
     /**
      * @brief Converts the event data to JSON string for sparam
      */
     string to_json()
     {
-        return StringFormat("{\"type\":\"termination\",\"reason\":\"%s\",\"success\":%s,\"message\":\"%s\"}",
-                          reason, success ? "true" : "false", message);
+        return StringFormat("{\"type\":\"termination\",\"reason\":\"%s\",\"success\":%s,\"message\":\"%s\",\"session_id\":%s}",
+                          reason, success ? "true" : "false", message,
+                          IntegerToString(session_id));
     }
 };
 

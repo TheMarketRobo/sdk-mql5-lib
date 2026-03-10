@@ -36,8 +36,11 @@ public:
     ~CTokenManager();
 
     void   set_token(string jwt);
+    void   restore_token(string jwt, int expires_in);
     void   set_expires_in(int expires_in);
     string get_token() const;
+    int    get_expires_in() const;
+    long   get_expiration_timestamp() const;
     bool   is_token_set() const;
     
     bool   should_refresh_token();
@@ -94,11 +97,47 @@ void CTokenManager::set_token(string jwt)
 }
 
 //+------------------------------------------------------------------+
+//| Restore token from saved state (no decode log noise)              |
+//+------------------------------------------------------------------+
+void CTokenManager::restore_token(string jwt, int expires_in)
+{
+    m_jwt = jwt;
+    m_expires_in = expires_in;
+    if(!decode_token_payload(jwt))
+    {
+        m_expiration_timestamp = 0;
+        m_issued_at_timestamp = 0;
+        m_jwt = "";
+    }
+    else
+    {
+        Print("SDK Info: Token restored. Expires at: ",
+              TimeToString(m_expiration_timestamp, TIME_DATE|TIME_SECONDS));
+    }
+}
+
+//+------------------------------------------------------------------+
 //| Sets the expires_in value from server response                    |
 //+------------------------------------------------------------------+
 void CTokenManager::set_expires_in(int expires_in)
 {
     m_expires_in = expires_in;
+}
+
+//+------------------------------------------------------------------+
+//| Returns the expires_in value                                      |
+//+------------------------------------------------------------------+
+int CTokenManager::get_expires_in() const
+{
+    return m_expires_in;
+}
+
+//+------------------------------------------------------------------+
+//| Returns the expiration timestamp                                   |
+//+------------------------------------------------------------------+
+long CTokenManager::get_expiration_timestamp() const
+{
+    return m_expiration_timestamp;
 }
 
 //+------------------------------------------------------------------+

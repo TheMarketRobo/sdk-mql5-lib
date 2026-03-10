@@ -49,6 +49,9 @@ public:
     ~CSDKContext();
 
     bool start();
+    bool try_restore_session();
+    void save_session_state();
+    void clear_session_state();
     void on_timer();
     void terminate(string reason);
     
@@ -67,6 +70,9 @@ public:
     bool is_indicator() const;
     bool is_robot() const;
     ENUM_SDK_PRODUCT_TYPE get_product_type() const;
+
+private:
+    string get_state_filename() const;
 };
 
 //+------------------------------------------------------------------+
@@ -146,6 +152,130 @@ bool CSDKContext::start()
 {
     if(CheckPointer(session_manager) == POINTER_INVALID) return false;
     return session_manager.start_session();
+}
+
+//+------------------------------------------------------------------+
+//| Build the state filename unique to this chart + API key           |
+//+------------------------------------------------------------------+
+string CSDKContext::get_state_filename() const
+{
+    string api_key = "";
+    if(CheckPointer(session_manager) != POINTER_INVALID)
+        api_key = session_manager.get_api_key();
+    string key_prefix = StringSubstr(api_key, 0, 8);
+    return "TMR_session_" + IntegerToString(ChartID()) + "_" + key_prefix + ".dat";
+}
+
+//+------------------------------------------------------------------+
+//| Save session state to file for resumption after non-destructive   |
+//| deinit (chart change, parameter change, recompile, etc.)          |
+//+------------------------------------------------------------------+
+void CSDKContext::save_session_state()
+{
+    if(CheckPointer(session_manager) == POINTER_INVALID || !session_manager.is_session_active())
+        return;
+
+    string fname = get_state_filename();
+    int handle = FileOpen(fname, FILE_WRITE | FILE_TXT | FILE_ANSI);
+    if(handle == INVALID_HANDLE)
+    {
+        Print("SDK Warning: Could not save session state (FileOpen failed).");
+        return;
+    }
+
+    string jwt = token_manager.get_token();
+    int    expires_in = token_manager.get_expires_in();
+    long   exp_ts = token_manager.get_expiration_timestamp();
+    ulong  sid = session_manager.get_session_id();
+    string api_key = session_manager.get_api_key();
+
+    // Format: session_id|expires_in|expiration_ts|api_key|jwt (jwt last because it contains no '|')
+    string line = IntegerToString(sid) + "|"
+                + IntegerToString(expires_in) + "|"
+                + IntegerToString(exp_ts) + "|"
+                + api_key + "|"
+                + jwt;
+    FileWriteString(handle, line);
+    FileClose(handle);
+
+    Print("SDK Info: Session state saved for resumption (session ", sid, ").");
+}
+
+//+------------------------------------------------------------------+
+//| Try to restore a previously saved session. Returns true if the    |
+//| session was successfully resumed (no /robot/start needed).        |
+//+------------------------------------------------------------------+
+bool CSDKContext::try_restore_session()
+{
+    string fname = get_state_filename();
+
+    if(!FileIsExist(fname))
+        return false;
+
+    int handle = FileOpen(fname, FILE_READ | FILE_TXT | FILE_ANSI);
+    if(handle == INVALID_HANDLE)
+    {
+        Print("SDK Info: Session state file exists but could not be opened.");
+        return false;
+    }
+
+    string line = FileReadString(handle);
+    FileClose(handle);
+    FileDelete(fname);
+
+    if(line == "")
+        return false;
+
+    // Parse: session_id|expires_in|expiration_ts|api_key|jwt
+    string parts[];
+    int count = StringSplit(line, '|', parts);
+    if(count < 5)
+    {
+        Print("SDK Warning: Corrupt session state file (expected 5 fields, got ", count, ").");
+        return false;
+    }
+
+    ulong  saved_sid     = (ulong)StringToInteger(parts[0]);
+    int    saved_exp_in  = (int)StringToInteger(parts[1]);
+    long   saved_exp_ts  = (long)StringToInteger(parts[2]);
+    string saved_api_key = parts[3];
+    string saved_jwt     = parts[4];
+
+    // Validate the API key matches (user might have changed inputs)
+    if(saved_api_key != session_manager.get_api_key())
+    {
+        Print("SDK Info: Saved session API key mismatch — starting fresh session.");
+        return false;
+    }
+
+    // Check token expiry — if already expired, start fresh
+    if(saved_exp_ts > 0 && (long)TimeLocal() >= saved_exp_ts)
+    {
+        Print("SDK Info: Saved session token expired — starting fresh session.");
+        return false;
+    }
+
+    // Restore token and resume session
+    token_manager.restore_token(saved_jwt, saved_exp_in);
+    if(!token_manager.is_token_set())
+    {
+        Print("SDK Warning: Saved token could not be decoded — starting fresh session.");
+        return false;
+    }
+
+    session_manager.resume_session(saved_sid);
+    Print("SDK Info: Session resumed after chart reinit (session ", saved_sid, ").");
+    return true;
+}
+
+//+------------------------------------------------------------------+
+//| Delete saved session state file (destructive deinit)              |
+//+------------------------------------------------------------------+
+void CSDKContext::clear_session_state()
+{
+    string fname = get_state_filename();
+    if(FileIsExist(fname))
+        FileDelete(fname);
 }
 
 //+------------------------------------------------------------------+

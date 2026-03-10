@@ -41,6 +41,7 @@ public:
     ~CHeartbeatManager();
 
     void set_session_id(ulong session_id);
+    void request_immediate_heartbeat();
     void set_interval(uint interval);
     bool is_time_to_send();
     CJAVal* build_heartbeat_payload();
@@ -82,6 +83,14 @@ void CHeartbeatManager::set_session_id(ulong session_id)
 {
     m_session_id = session_id;
     Print("SDK Debug: HeartbeatManager - Session ID set to: ", m_session_id);
+}
+
+//+------------------------------------------------------------------+
+//| Force the next is_time_to_send() to return true immediately       |
+//+------------------------------------------------------------------+
+void CHeartbeatManager::request_immediate_heartbeat()
+{
+    m_last_heartbeat_time = 0;
 }
 
 //+------------------------------------------------------------------+

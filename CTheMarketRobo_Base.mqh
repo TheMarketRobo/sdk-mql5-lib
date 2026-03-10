@@ -313,6 +313,15 @@ int CTheMarketRobo_Base::init_common(string api_key, long magic_number, ENUM_SDK
     
     print_sdk_configuration();
 
+    // For indicators: try to resume a previously saved session (from a
+    // non-destructive deinit like chart change / parameter change).
+    if(is_ind && m_sdk_context.try_restore_session())
+    {
+        Print("SDK session resumed successfully!");
+        EventSetTimer(1);
+        return INIT_SUCCEEDED;
+    }
+
     if(!m_sdk_context.start())
     {
         delete m_sdk_context;
@@ -353,14 +362,54 @@ int CTheMarketRobo_Base::on_init(string api_key)
 }
 
 //+------------------------------------------------------------------+
+//| Returns true for deinit reasons where MT5 will reinitialize the   |
+//| indicator (chart change, parameter change, recompile, etc.).      |
+//| The session should be preserved, not terminated.                   |
+//+------------------------------------------------------------------+
+static bool IsNonDestructiveDeinit(int reason)
+{
+    switch(reason)
+    {
+        case REASON_CHARTCHANGE:   // 3 — symbol or period changed
+        case REASON_PARAMETERS:    // 5 — input parameters changed
+        case REASON_RECOMPILE:     // 2 — recompiled
+        case REASON_ACCOUNT:       // 6 — account changed
+        case REASON_TEMPLATE:      // 8 — template applied
+            return true;
+        default:                   // 0-PROGRAM, 1-REMOVE, 4-CHARTCLOSE, others
+            return false;
+    }
+}
+
+//+------------------------------------------------------------------+
 //| Deinitialize                                                      |
 //+------------------------------------------------------------------+
 void CTheMarketRobo_Base::on_deinit(const int reason)
 {
     string label = is_indicator_mode() ? "Indicator" : "EA";
     Print("Deinitializing ", label, " SDK (reason=", reason, ")...");
-    if(CheckPointer(m_sdk_context) != POINTER_INVALID)
+
+    if(CheckPointer(m_sdk_context) == POINTER_INVALID)
+    {
+        EventKillTimer();
+        return;
+    }
+
+    // For indicators: non-destructive deinit means MT5 will reinit immediately.
+    // Save session state so the new instance can resume without a new /robot/start.
+    if(is_indicator_mode() && IsNonDestructiveDeinit(reason))
+    {
+        Print("SDK Info: Non-destructive deinit (reason ", reason,
+              ") — saving session for resumption.");
+        m_sdk_context.save_session_state();
+    }
+    else
+    {
+        // Destructive deinit (or robot mode): terminate the session normally.
         m_sdk_context.terminate(label + " Shutdown: reason " + (string)reason);
+        m_sdk_context.clear_session_state();
+    }
+
     EventKillTimer();
 }
 
@@ -385,19 +434,42 @@ void CTheMarketRobo_Base::on_chart_event(const int id, const long &lparam, const
     switch(id)
     {
         case SDK_EVENT_CONFIG_CHANGED:
-            // Only robots receive config change events
             if(is_robot_mode())
                 on_config_changed(sparam);
             break;
         case SDK_EVENT_SYMBOL_CHANGED:
-            // Only robots receive symbol change events
             if(is_robot_mode())
                 on_symbol_changed(sparam);
             break;
         case SDK_EVENT_TERMINATION_START:
         case SDK_EVENT_TERMINATION_END:
+        {
+            // Guard: ignore termination events from a previous (stale) session.
+            // After a non-destructive deinit → reinit cycle, the chart event queue
+            // may still contain events fired by the old instance.
+            if(CheckPointer(m_sdk_context) != POINTER_INVALID
+               && CheckPointer(m_sdk_context.session_manager) != POINTER_INVALID)
+            {
+                CJAVal guard_data;
+                if(guard_data.parse(sparam))
+                {
+                    CJAVal* sid_node = guard_data["session_id"];
+                    if(CheckPointer(sid_node) != POINTER_INVALID)
+                    {
+                        ulong event_sid = (ulong)sid_node.get_long();
+                        ulong current_sid = m_sdk_context.session_manager.get_session_id();
+                        if(event_sid != 0 && current_sid != 0 && event_sid != current_sid)
+                        {
+                            Print("SDK Info: Ignoring stale termination event from session ",
+                                  event_sid, " (current session: ", current_sid, ").");
+                            break;
+                        }
+                    }
+                }
+            }
             handle_termination_event(sparam);
             break;
+        }
         case SDK_EVENT_TERMINATION_REQUESTED:
             handle_termination_requested_event(sparam);
             break;
