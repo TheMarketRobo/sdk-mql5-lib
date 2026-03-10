@@ -366,7 +366,7 @@ int CTheMarketRobo_Base::on_init(string api_key)
 //| indicator (chart change, parameter change, recompile, etc.).      |
 //| The session should be preserved, not terminated.                   |
 //+------------------------------------------------------------------+
-static bool IsNonDestructiveDeinit(int reason)
+bool IsNonDestructiveDeinit(int reason)
 {
     switch(reason)
     {
@@ -451,7 +451,8 @@ void CTheMarketRobo_Base::on_chart_event(const int id, const long &lparam, const
                && CheckPointer(m_sdk_context.session_manager) != POINTER_INVALID)
             {
                 CJAVal guard_data;
-                if(guard_data.parse(sparam))
+                string sparam_copy = sparam;
+                if(guard_data.parse(sparam_copy))
                 {
                     CJAVal* sid_node = guard_data["session_id"];
                     if(CheckPointer(sid_node) != POINTER_INVALID)
