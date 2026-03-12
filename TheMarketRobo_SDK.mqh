@@ -86,14 +86,13 @@
 //| Core SDK Components                                               |
 //+------------------------------------------------------------------+
 
-// SDK Constants and Configuration
+// SDK Constants — always included (contains SDK_ENABLED toggle)
 #include "Core/CSDKConstants.mqh"
-#include "Core/CSDKOptions.mqh"
 
-// Services
+// ----- Always compiled (pure data structures, no network/DLL code) -----
+
+// JSON parser
 #include "Services/Json.mqh"
-#include "Services/CHttpService.mqh"
-#include "Services/CDataCollectorService.mqh"
 
 // Models
 #include "Models/CConfigField.mqh"
@@ -101,8 +100,23 @@
 #include "Models/CSessionSymbol.mqh"
 #include "Models/CFinalStats.mqh"
 
-// Interfaces
+// Interfaces (developer config classes extend IRobotConfig)
 #include "Interfaces/IRobotConfig.mqh"
+
+// Utilities (events, error messages)
+#include "Utils/CSDK_Events.mqh"
+#include "Utils/CSDKUserErrors.mqh"
+
+// ----- Only compiled when SDK is enabled (network, managers, DLLs) -----
+
+#ifdef SDK_ENABLED
+
+// SDK Options
+#include "Core/CSDKOptions.mqh"
+
+// HTTP Services (includes WinINet DLL imports for indicators)
+#include "Services/CHttpService.mqh"
+#include "Services/CDataCollectorService.mqh"
 
 // Core Managers
 #include "Core/CTokenManager.mqh"
@@ -112,15 +126,15 @@
 #include "Core/CSessionManager.mqh"
 #include "Core/CSDKContext.mqh"
 
-// Utilities
-#include "Utils/CSDK_Events.mqh"
-#include "Utils/CSDKUserErrors.mqh"
+#endif // SDK_ENABLED
 
 // Unified Base Class (supports both robots and indicators)
+// Contains full implementation when SDK_ENABLED, lightweight stub otherwise
 #include "CTheMarketRobo_Base.mqh"
 
 // Backwards-compatibility alias — existing robots using CTheMarketRobo_Bot_Base compile unchanged
 #include "CTheMarketRobo_Bot_Base.mqh"
 
-#endif
+#endif // THEMARKETROBO_SDK_MQH
 //+------------------------------------------------------------------+
+

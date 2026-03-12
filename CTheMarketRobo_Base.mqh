@@ -10,6 +10,99 @@
 #ifndef CTHEMARKETROBO_BASE_MQH
 #define CTHEMARKETROBO_BASE_MQH
 
+#include "Core/CSDKConstants.mqh"
+
+//+------------------------------------------------------------------+
+//| When SDK_ENABLED is NOT defined, provide a lightweight stub       |
+//| that preserves the public interface but performs no SDK operations. |
+//| Developer code compiles and runs without changes.                  |
+//+------------------------------------------------------------------+
+#ifndef SDK_ENABLED
+
+#include "Interfaces/IRobotConfig.mqh"
+
+class CTheMarketRobo_Base
+{
+protected:
+    string       m_robot_version_uuid;
+    IRobotConfig* m_robot_config;
+
+public:
+    // Robot constructor (matches full API — config pointer is stored for developer access)
+    CTheMarketRobo_Base(string robot_version_uuid, IRobotConfig* robot_config)
+    {
+        m_robot_version_uuid = robot_version_uuid;
+        m_robot_config = robot_config;
+    }
+
+    // Indicator constructor
+    CTheMarketRobo_Base(string robot_version_uuid)
+    {
+        m_robot_version_uuid = robot_version_uuid;
+        m_robot_config = NULL;
+    }
+
+    ~CTheMarketRobo_Base()
+    {
+        if(CheckPointer(m_robot_config) == POINTER_DYNAMIC)
+            delete m_robot_config;
+    }
+
+    // Robot init — returns success immediately
+    virtual int on_init(string api_key, long magic_number)
+    {
+        Print("SDK Info: SDK_ENABLED is not defined — running in standalone mode.");
+        return INIT_SUCCEEDED;
+    }
+
+    // Indicator init — returns success immediately
+    virtual int on_init(string api_key)
+    {
+        Print("SDK Info: SDK_ENABLED is not defined — running in standalone mode.");
+        return INIT_SUCCEEDED;
+    }
+
+    virtual void on_deinit(const int reason) {}
+    virtual void on_timer() {}
+    virtual void on_chart_event(const int id, const long &lparam, const double &dparam, const string &sparam) {}
+
+    // Robot callbacks (override in EA)
+    virtual void on_tick() {}
+    virtual void on_config_changed(string event_json) {}
+    virtual void on_symbol_changed(string event_json) {}
+
+    // Indicator callback (override in indicator)
+    virtual int on_calculate(const int rates_total,
+                              const int prev_calculated,
+                              const datetime &time[],
+                              const double   &open[],
+                              const double   &high[],
+                              const double   &low[],
+                              const double   &close[],
+                              const long     &tick_volume[],
+                              const long     &volume[],
+                              const int      &spread[]) { return rates_total; }
+
+    // Shared callback
+    virtual void on_termination_requested(string event_json) {}
+
+    // Configuration stubs (no-ops)
+    void set_token_refresh_threshold(int seconds) {}
+    int  get_token_refresh_threshold() const { return 0; }
+    void set_enable_config_change_requests(bool enable) {}
+    bool is_config_change_requests_enabled() const { return false; }
+    void set_enable_symbol_change_requests(bool enable) {}
+    bool is_symbol_change_requests_enabled() const { return false; }
+    void print_sdk_configuration() const { Print("SDK Info: SDK is disabled — no configuration to display."); }
+    string get_robot_version_uuid() const { return m_robot_version_uuid; }
+    bool is_indicator_mode() const { return false; }
+    bool is_robot_mode() const { return true; }
+    void set_indicator_short_name(string short_name) {}
+    bool is_pending_removal() const { return false; }
+};
+
+#else // SDK_ENABLED is defined — full SDK implementation follows
+
 #include "Core/CSDKContext.mqh"
 #include "Core/CSDKConstants.mqh"
 #include "Utils/CSDK_Events.mqh"
@@ -653,5 +746,7 @@ void CTheMarketRobo_Base::handle_token_refresh_event(string event_json)
     }
 }
 
-#endif
+#endif // SDK_ENABLED
+
+#endif // CTHEMARKETROBO_BASE_MQH
 //+------------------------------------------------------------------+

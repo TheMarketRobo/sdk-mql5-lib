@@ -12,6 +12,10 @@
 #ifndef CWININET_HTTP_SERVICE_MQH
 #define CWININET_HTTP_SERVICE_MQH
 
+#include "../Core/CSDKConstants.mqh"
+
+#ifdef SDK_ENABLED
+
 #define WININET_SDK_TIMEOUT_SECS     10
 #define WININET_SDK_BUFF_SIZE        16384
 
@@ -251,5 +255,7 @@ int WinINetPost(const string host,
     return status_code;
 }
 
-#endif
+#endif // SDK_ENABLED
+
+#endif // CWININET_HTTP_SERVICE_MQH
 //+------------------------------------------------------------------+

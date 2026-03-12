@@ -26,7 +26,9 @@
 14. [Best Practices & Tips](#14-best-practices--tips)
 15. [Complete Template — Copy & Customize](#15-complete-template--copy--customize)
 16. [FAQ](#16-faq)
-17. [Glossary](#17-glossary)
+17. [DLL Usage (Indicators Only)](#17-dll-usage-indicators-only)
+18. [SDK Enable/Disable Toggle](#18-sdk-enabledisable-toggle-sdk_enabled)
+19. [Glossary](#19-glossary)
 
 ---
 
@@ -97,6 +99,7 @@ Before starting, make sure you have:
 - [x] **An existing EA or Custom Indicator** that you want to integrate (or a new project)
 - [x] **API Key** from TheMarketRobo platform (you'll get this after registration)
 - [x] **Robot Version UUID** or **Indicator Version UUID** assigned on the platform (same UUID field in API; use it in the one-arg constructor for indicators, two-arg for EAs)
+- [x] **Indicators only:** "Allow DLL imports" enabled in MetaTrader 5 (the SDK uses `kernel32.dll` and `wininet.dll` for HTTP communication in indicators; EAs use the built-in `WebRequest()` instead)
 
 > [!IMPORTANT]
 > You must add TheMarketRobo API URL to MetaTrader's "Allowed URLs" list.
@@ -1809,7 +1812,91 @@ void OnChartEvent(const int id,
 
 ---
 
-## 17. Glossary
+## 17. DLL Usage (Indicators Only)
+
+Custom Indicators in MQL5 cannot use the built-in `WebRequest()` function (runtime error 4014). The SDK works around this by using Windows DLLs for HTTP communication **only when the program is a Custom Indicator**.
+
+### DLLs Used
+
+| DLL | Functions Used | Purpose |
+|-----|---------------|---------|
+| `kernel32.dll` | `GetLastError()` | Retrieve Windows error codes for diagnostics |
+| `wininet.dll` | `InternetOpenW`, `InternetConnectW`, `HttpOpenRequestW`, `HttpSendRequestExW`, `HttpEndRequestW`, `HttpQueryInfoW`, `InternetWriteFile`, `InternetReadFile`, `InternetCloseHandle`, `InternetSetOptionW`, `HttpAddRequestHeadersW` | Full HTTPS POST request lifecycle |
+
+These imports are defined in `Services/CWinINetHttpService.mqh`.
+
+**Expert Advisors (EAs/Robots) do NOT use any DLLs** — they use the built-in MQL5 `WebRequest()` function.
+
+### Enabling DLL Imports
+
+End users must enable **"Allow DLL imports"** in MetaTrader 5 for any indicator that uses the SDK:
+
+1. When attaching the indicator, in the **Common** tab, check **"Allow DLL imports"**
+2. Or: Right-click an already-running indicator → **Properties** → **Common** tab → check **"Allow DLL imports"**
+
+> [!WARNING]
+> If DLL imports are not enabled, the indicator’s HTTP requests will fail and the SDK session will not start. The indicator may remove itself from the chart.
+
+### When SDK is Disabled
+
+When `SDK_ENABLED` is not defined (see next section), the `#import "kernel32.dll"` and `#import "wininet.dll"` directives are **completely excluded** from compilation. The compiled binary contains zero DLL references.
+
+---
+
+## 18. SDK Enable/Disable Toggle (`SDK_ENABLED`)
+
+The SDK provides a compile-time toggle that allows developers to completely disable all SDK functionality. When disabled, the robot or indicator runs independently — no sessions, no heartbeats, no network calls, no DLL imports.
+
+### How to Toggle
+
+Open `Core/CSDKConstants.mqh` and find:
+
+```cpp
+#define SDK_ENABLED
+```
+
+- **To disable the SDK:** Comment out or delete this line
+- **To enable the SDK:** Ensure this line is uncommented (this is the default)
+
+### What Changes
+
+| Feature | SDK Enabled (default) | SDK Disabled |
+|---------|----------------------|--------------|
+| `on_init()` | Starts session, authenticates | Returns `INIT_SUCCEEDED` immediately |
+| `on_timer()` | Sends heartbeats | No-op |
+| `on_deinit()` | Terminates session | No-op |
+| `on_chart_event()` | Handles SDK events | No-op |
+| `on_tick()` / `on_calculate()` | Your logic runs normally | Your logic runs normally |
+| DLL imports | Compiled for indicators | Not compiled |
+| Network calls | Active | None |
+| Binary size | Full SDK code | Minimal — only your code |
+
+### Usage Example
+
+```cpp
+// In Core/CSDKConstants.mqh, comment out to disable:
+// #define SDK_ENABLED
+
+// Your code stays EXACTLY the same — no changes needed:
+class CMyRobot : public CTheMarketRobo_Base
+{
+public:
+    CMyRobot() : CTheMarketRobo_Base("uuid-here", new CMyRobotConfig()) {}
+    virtual void on_tick() override { /* runs normally in both modes */ }
+};
+```
+
+### Security
+
+This is a **compile-time** preprocessor exclusion, not a runtime boolean:
+- When disabled, the MQL5 compiler strips **all** SDK code from the `.ex5` binary
+- No API URLs, no DLL references, no authentication logic in the compiled file
+- Nothing to reverse-engineer or decompile
+- This is more secure than a runtime flag because a runtime flag would still compile all SDK code into the binary
+
+---
+
+## 19. Glossary
 
 | Term | Definition |
 |---|---|

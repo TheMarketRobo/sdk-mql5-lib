@@ -10,6 +10,7 @@ This guide will help you create your first trading robot using TheMarketRobo SDK
 - Valid TheMarketRobo API key
 - Robot version UUID from TheMarketRobo platform
 - Basic MQL5 knowledge
+- **Indicators only:** "Allow DLL imports" must be enabled in MT5 (the SDK uses `kernel32.dll` and `wininet.dll` for HTTP communication in indicators; EAs use the built-in `WebRequest()` instead)
 
 **For local testing:** Generate a new **test license** from your Vendor Portal and use its API key with the staging API (`https://api.staging.themarketrobo.com`). Do not use production licenses for development.
 
@@ -436,5 +437,19 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
         indicator.on_chart_event(id, lparam, dparam, sparam);
 }
 ```
+
+### DLL Imports for Indicators
+
+The SDK uses `kernel32.dll` and `wininet.dll` for HTTP communication in Custom Indicators (since `WebRequest()` is not available). Ensure **"Allow DLL imports"** is checked when attaching the indicator to a chart. Expert Advisors (Robots) do NOT require DLL imports.
+
+### Running Without the SDK (`SDK_ENABLED`)
+
+To run your robot or indicator without any SDK functionality (standalone mode), comment out `#define SDK_ENABLED` in `Core/CSDKConstants.mqh`:
+
+```cpp
+// #define SDK_ENABLED   // ← commented out = SDK disabled
+```
+
+Your code compiles and runs unchanged — all SDK methods become safe no-ops and `on_init()` returns `INIT_SUCCEEDED` immediately. No network calls or DLL imports are compiled into the binary.
 
 **You're ready to build with TheMarketRobo SDK!**

@@ -7,6 +7,28 @@
 #define CSDK_CONSTANTS_MQH
 
 //+------------------------------------------------------------------+
+//| SDK Master Toggle                                                  |
+//|                                                                    |
+//| Define SDK_ENABLED to activate all SDK functionality:              |
+//|   - Session management (start / heartbeat / end)                   |
+//|   - JWT authentication and token refresh                           |
+//|   - Remote configuration and symbol change handling                |
+//|   - Data collection and telemetry                                  |
+//|   - DLL imports (kernel32.dll, wininet.dll — indicators only)      |
+//|                                                                    |
+//| Comment out or #undef SDK_ENABLED to run the robot or indicator    |
+//| in standalone mode with ZERO SDK overhead:                         |
+//|   - No network calls, no DLL imports, no session management        |
+//|   - All SDK lifecycle methods become safe no-ops                   |
+//|   - on_init() returns INIT_SUCCEEDED immediately                   |
+//|   - Your trading/indicator logic runs normally without the SDK     |
+//|                                                                    |
+//| Security: When disabled, the compiled binary contains no SDK       |
+//| code, no DLL references, and no API URLs — nothing to decompile.   |
+//+------------------------------------------------------------------+
+#define SDK_ENABLED
+
+//+------------------------------------------------------------------+
 //| SDK Version                                                       |
 //+------------------------------------------------------------------+
 #define SDK_VERSION "1.0.0"

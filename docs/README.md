@@ -459,6 +459,84 @@ CConfigField::create_multiple(key, label, required)
 2. **Session Monitoring**: SDK automatically monitors session health
 3. **Automatic Removal**: EA removes itself on authentication failures
 4. **Token Management**: Proactive token refresh before expiration
+5. **SDK Toggle Security**: Use `SDK_ENABLED` (compile-time) to strip all SDK code from standalone builds — zero dead code in the binary
+
+## DLL Usage (Indicators Only)
+
+Custom Indicators in MQL5 cannot use the built-in `WebRequest()` function (runtime error 4014). To work around this, the SDK uses Windows DLLs for HTTP communication **only when the program is a Custom Indicator**:
+
+| DLL | Functions Used | Purpose |
+|-----|---------------|---------|
+| `kernel32.dll` | `GetLastError()` | Retrieve Windows error codes for diagnostics |
+| `wininet.dll` | `InternetOpenW`, `InternetConnectW`, `HttpOpenRequestW`, `HttpSendRequestExW`, `HttpEndRequestW`, `HttpQueryInfoW`, `InternetWriteFile`, `InternetReadFile`, `InternetCloseHandle`, `InternetSetOptionW`, `HttpAddRequestHeadersW` | Full HTTPS POST request lifecycle |
+
+These imports are defined in [`Services/CWinINetHttpService.mqh`](../Services/CWinINetHttpService.mqh).
+
+**Expert Advisors (EAs/Robots) do NOT use any DLLs** — they use the built-in MQL5 `WebRequest()` function.
+
+### Indicator Setup Requirement
+
+End users must enable **"Allow DLL imports"** in MetaTrader 5 for any indicator that uses the SDK:
+
+1. When attaching the indicator, in the **Common** tab, check **"Allow DLL imports"**
+2. Or: Right-click an already-running indicator → **Properties** → **Common** tab → check **"Allow DLL imports"**
+
+If DLL imports are not enabled, the indicator's HTTP requests will fail silently. The `CWinINetHttpService` logs error details to the Experts tab.
+
+### When SDK is Disabled
+
+When `SDK_ENABLED` is not defined (see below), the `#import "kernel32.dll"` and `#import "wininet.dll"` directives are **completely excluded** from compilation. The compiled binary contains zero DLL references.
+
+## SDK Enable/Disable Toggle (`SDK_ENABLED`)
+
+The SDK provides a compile-time toggle that allows developers to completely disable all SDK functionality. When disabled, the robot or indicator runs independently — no sessions, no heartbeats, no network calls, no DLL imports.
+
+### Location
+
+The toggle is defined at the top of `Core/CSDKConstants.mqh`:
+
+```cpp
+// Comment out this line to disable the SDK entirely:
+#define SDK_ENABLED
+```
+
+### Behavior
+
+| State | Description |
+|-------|-------------|
+| **`SDK_ENABLED` defined** (default) | Full SDK: sessions, heartbeats, JWT auth, config/symbol management, DLL imports (indicators) |
+| **`SDK_ENABLED` not defined** | Stub mode: `on_init()` returns `INIT_SUCCEEDED` immediately, all other SDK methods are no-ops, your trading/indicator logic runs normally |
+
+### What Happens When Disabled
+
+- `on_init(api_key, magic_number)` / `on_init(api_key)` → prints "SDK disabled — running in standalone mode" and returns `INIT_SUCCEEDED`
+- `on_deinit()`, `on_timer()`, `on_chart_event()` → no-ops
+- `on_tick()`, `on_calculate()` → your overridden logic executes normally
+- No `CSDKContext`, `CSessionManager`, `CTokenManager`, etc. are instantiated
+- No `#import` DLL directives are compiled
+- No HTTP requests of any kind are made
+
+### Usage Example
+
+```cpp
+// To disable SDK: open Core/CSDKConstants.mqh and comment out:
+// #define SDK_ENABLED
+
+// Your code remains EXACTLY the same — no changes needed:
+class CMyRobot : public CTheMarketRobo_Base
+{
+public:
+    CMyRobot() : CTheMarketRobo_Base("uuid-here", new CMyRobotConfig()) {}
+    virtual void on_tick() override { /* your logic runs regardless */ }
+};
+```
+
+### Security
+
+This is a **compile-time** exclusion, not a runtime boolean. When `SDK_ENABLED` is not defined:
+- The MQL5 compiler strips all SDK code from the binary
+- No API URLs, DLL references, or authentication logic exist in the compiled `.ex5` file
+- There is nothing to reverse-engineer or decompile
 
 ## Support
 
@@ -468,5 +546,6 @@ For additional support:
 
 ---
 
-*Last updated: 2024*
+*Last updated: 2026*
 *SDK Version: 1.00*
+
