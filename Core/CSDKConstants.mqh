@@ -23,10 +23,15 @@
 //|   - on_init() returns INIT_SUCCEEDED immediately                   |
 //|   - Your trading/indicator logic runs normally without the SDK     |
 //|                                                                    |
+//| To disable the SDK for a single file (e.g. one indicator), define  |
+//| TMR_SDK_DISABLED before including the SDK in that file.            |
+//|                                                                    |
 //| Security: When disabled, the compiled binary contains no SDK       |
 //| code, no DLL references, and no API URLs — nothing to decompile.   |
 //+------------------------------------------------------------------+
+#ifndef TMR_SDK_DISABLED
 #define SDK_ENABLED
+#endif
 
 //+------------------------------------------------------------------+
 //| SDK Version                                                       |
