@@ -461,6 +461,13 @@ CConfigField::create_multiple(key, label, required)
 4. **Token Management**: Proactive token refresh before expiration
 5. **SDK Toggle Security**: Use `SDK_ENABLED` (compile-time) to strip all SDK code from standalone builds — zero dead code in the binary
 
+### Programmer obligations and prohibited conduct
+
+By using this SDK you agree to the [Programmer Obligations and Prohibited Conduct](../PROGRAMMER_OBLIGATIONS.md). In particular:
+
+- **No vendor or third-party redirects.** You must not include any name, link, or address in the product that redirects the customer to the vendor or any third party. The product must always be identified as **The Market Robo** app with the sole official URL **https://www.themarketrobo.com/**.
+- **No time- or condition-based third-party promotion.** You must not implement any function or behaviour that triggers after a certain time or condition (e.g. alerts or messages) that introduce or promote third parties or other programmers. See [PROGRAMMER_OBLIGATIONS.md](../PROGRAMMER_OBLIGATIONS.md) for the full list of prohibited acts and legal effect.
+
 ## DLL Usage (Indicators Only)
 
 Custom Indicators in MQL5 cannot use the built-in `WebRequest()` function (runtime error 4014). To work around this, the SDK uses Windows DLLs for HTTP communication **only when the program is a Custom Indicator**:

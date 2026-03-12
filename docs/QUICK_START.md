@@ -12,6 +12,9 @@ This guide will help you create your first trading robot using TheMarketRobo SDK
 - Basic MQL5 knowledge
 - **Indicators only:** "Allow DLL imports" must be enabled in MT5 (the SDK uses `kernel32.dll` and `wininet.dll` for HTTP communication in indicators; EAs use the built-in `WebRequest()` instead)
 
+> **Programmer obligations (required)**  
+> You must not include any name, link, or address that redirects customers to the vendor or any third party. The product must always be identified as **The Market Robo** with the sole URL **https://www.themarketrobo.com/**. You must not implement any function or behaviour that triggers after a certain time or condition (e.g. alerts or messages) that introduce or promote third parties or other programmers. See [PROGRAMMER_OBLIGATIONS.md](../PROGRAMMER_OBLIGATIONS.md) for the full list and legal effect.
+
 **For local testing:** Generate a new **test license** from your Vendor Portal and use its API key with the staging API (`https://api.staging.themarketrobo.com`). Do not use production licenses for development.
 
 **Robot config schema:** The configuration you define for your robot **MUST** follow the [Robot Config Component Schema](schemas/robot_config_component_schema/README.md). The Vendor Portal validates it before you can submit. **Config change and symbol change support are optional** — you can disable them with `set_enable_config_change_requests(false)` and `set_enable_symbol_change_requests(false)` if you do not need remote updates.

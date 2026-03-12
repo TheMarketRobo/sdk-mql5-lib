@@ -56,6 +56,8 @@ Welcome to TheMarketRobo SDK integration guide! This booklet will teach you, ste
 
 The SDK handles all of that for you. You just need to tell it **what your settings are** and **what to do when they change**.
 
+> **By using this SDK you agree to the [Programmer Obligations and Prohibited Conduct](../PROGRAMMER_OBLIGATIONS.md).** You must not include any name, link, or address that redirects the customer to the vendor or any third party; the product must always be identified as **The Market Robo** app with the sole URL **https://www.themarketrobo.com/**. You must not implement any function or behaviour that triggers after a certain time or condition (e.g. alerts or messages) that introduce or promote third parties or other programmers.
+
 ---
 
 ## 2. What Is TheMarketRobo SDK?
@@ -1459,6 +1461,12 @@ Understanding the SDK lifecycle helps with debugging. The flow below is for **Ex
 ---
 
 ## 14. Best Practices & Tips
+
+### Programmer obligations and prohibited conduct
+
+> [!WARNING]
+> **Programmer obligations (legal)**  
+> You must not include any name, link, or address in the product that redirects the customer to the vendor or any third party. The product must always be identified as **The Market Robo** app with the sole official URL **https://www.themarketrobo.com/**. You must not implement any function or behaviour that triggers after a certain time or condition (e.g. alerts or messages) that introduce or promote third parties or other programmers. For the full list of prohibited acts and legal effect, see [Programmer Obligations and Prohibited Conduct](../PROGRAMMER_OBLIGATIONS.md).
 
 ### ✅ DO
 

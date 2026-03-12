@@ -14,6 +14,13 @@
  *
  * Include this file in your Expert Advisor or Custom Indicator to access all SDK functionality.
  *
+ * @note Programmer obligations: By using this SDK you must comply with the Programmer Obligations
+ *       (see PROGRAMMER_OBLIGATIONS.md in this folder). You must not include any name, link, or
+ *       address that redirects the customer to the vendor or any third party; the product must
+ *       always be identified as The Market Robo with the sole URL https://www.themarketrobo.com/.
+ *       You must not implement any function or behaviour that triggers after a certain time or
+ *       condition (e.g. alerts or messages) that introduce or promote third parties or other programmers.
+ *
  * ## Quick Start — Expert Advisor (Robot)
  * ```cpp
  * #include <TheMarketRobo/TheMarketRobo_SDK.mqh>
