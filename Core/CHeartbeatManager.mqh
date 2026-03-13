@@ -8,6 +8,7 @@
 
 #include <Object.mqh>
 #include "../Services/Json.mqh"
+#include "../Utils/CSDKLogger.mqh"
 
 class CSDKContext;
 
@@ -82,7 +83,8 @@ CHeartbeatManager::~CHeartbeatManager()
 void CHeartbeatManager::set_session_id(ulong session_id)
 {
     m_session_id = session_id;
-    Print("SDK Debug: HeartbeatManager - Session ID set to: ", m_session_id);
+    if(SDKShouldLogDebug())
+        Print("SDK Debug: HeartbeatManager - Session ID set to: ", m_session_id);
 }
 
 //+------------------------------------------------------------------+
@@ -102,8 +104,9 @@ void CHeartbeatManager::set_interval(uint interval)
     m_heartbeat_interval_seconds = MathMin(interval, m_max_heartbeat_interval);
     if(old_interval != m_heartbeat_interval_seconds)
     {
-        Print("SDK Debug: HeartbeatManager - Interval changed from ", old_interval, 
-              " to ", m_heartbeat_interval_seconds, " seconds");
+        if(SDKShouldLogDebug())
+            Print("SDK Debug: HeartbeatManager - Interval changed from ", old_interval, 
+                  " to ", m_heartbeat_interval_seconds, " seconds");
     }
 }
 
@@ -122,7 +125,7 @@ bool CHeartbeatManager::is_time_to_send()
     bool should_send = (current_time >= next_heartbeat_time);
     
     // Debug logging only when we're about to send
-    if(should_send)
+    if(should_send && SDKShouldLogDebug())
     {
         Print("SDK Debug: HeartbeatManager - Time to send heartbeat. ",
               "Last sent: ", (m_last_heartbeat_time == 0 ? "never" : TimeToString(m_last_heartbeat_time, TIME_DATE|TIME_SECONDS)),
@@ -153,11 +156,13 @@ CJAVal* CHeartbeatManager::build_heartbeat_payload()
 {
     if(m_waiting_for_confirmation && CheckPointer(m_pending_heartbeat_data) != POINTER_INVALID)
     {
-        Print("SDK Debug: HeartbeatManager - Reusing pending heartbeat data (waiting for confirmation)");
+        if(SDKShouldLogDebug())
+            Print("SDK Debug: HeartbeatManager - Reusing pending heartbeat data (waiting for confirmation)");
         return m_pending_heartbeat_data;
     }
 
-    Print("SDK Debug: HeartbeatManager - Building new heartbeat payload for sequence ", m_sequence + 1);
+    if(SDKShouldLogDebug())
+        Print("SDK Debug: HeartbeatManager - Building new heartbeat payload for sequence ", m_sequence + 1);
     
     CJAVal* payload = new CJAVal(JA_OBJECT);
     if(payload == NULL)
@@ -177,7 +182,8 @@ CJAVal* CHeartbeatManager::build_heartbeat_payload()
     CJAVal* dynamic_data = m_context.data_collector.get_dynamic_data();
     if(CheckPointer(dynamic_data) == POINTER_INVALID)
     {
-        Print("SDK Warning: HeartbeatManager - Failed to get dynamic data");
+        if(SDKShouldLogWarning())
+            Print("SDK Warning: HeartbeatManager - Failed to get dynamic data");
     }
     payload.Add("dynamic_data", dynamic_data);
     
@@ -188,14 +194,16 @@ CJAVal* CHeartbeatManager::build_heartbeat_payload()
         CJAVal* config_results = m_context.config_manager.get_pending_results();
         if(CheckPointer(config_results) != POINTER_INVALID)
         {
-            Print("SDK Debug: HeartbeatManager - Including config change results");
+            if(SDKShouldLogDebug())
+                Print("SDK Debug: HeartbeatManager - Including config change results");
             payload.Add("config_change_results", config_results);
         }
 
         CJAVal* symbol_results = m_context.symbol_manager.get_pending_results();
         if(CheckPointer(symbol_results) != POINTER_INVALID)
         {
-            Print("SDK Debug: HeartbeatManager - Including symbol change results");
+            if(SDKShouldLogDebug())
+                Print("SDK Debug: HeartbeatManager - Including symbol change results");
             payload.Add("symbols_change_results", symbol_results);
         }
     }
@@ -203,7 +211,8 @@ CJAVal* CHeartbeatManager::build_heartbeat_payload()
     m_pending_heartbeat_data = payload;
     m_waiting_for_confirmation = true;
 
-    Print("SDK Debug: HeartbeatManager - Payload built successfully");
+    if(SDKShouldLogDebug())
+        Print("SDK Debug: HeartbeatManager - Payload built successfully");
     return payload;
 }
 
@@ -212,7 +221,8 @@ CJAVal* CHeartbeatManager::build_heartbeat_payload()
 //+------------------------------------------------------------------+
 void CHeartbeatManager::process_heartbeat_response(const CJAVal &response)
 {
-    Print("SDK Debug: HeartbeatManager - Processing heartbeat response");
+    if(SDKShouldLogDebug())
+        Print("SDK Debug: HeartbeatManager - Processing heartbeat response");
     
     m_sequence++;
     // Use TimeLocal() to match is_time_to_send() - this ensures consistent timing
@@ -220,8 +230,9 @@ void CHeartbeatManager::process_heartbeat_response(const CJAVal &response)
     m_last_heartbeat_time = TimeLocal();
     m_waiting_for_confirmation = false;
     
-    Print("SDK Debug: HeartbeatManager - Sequence updated to ", m_sequence, 
-          ", last heartbeat time: ", TimeToString(m_last_heartbeat_time, TIME_DATE|TIME_SECONDS));
+    if(SDKShouldLogDebug())
+        Print("SDK Debug: HeartbeatManager - Sequence updated to ", m_sequence, 
+              ", last heartbeat time: ", TimeToString(m_last_heartbeat_time, TIME_DATE|TIME_SECONDS));
     
     // Clear pending change results only for robots (indicators never have them)
     if(m_context.is_robot())
@@ -255,7 +266,8 @@ void CHeartbeatManager::process_heartbeat_response(const CJAVal &response)
             }
             
             string product_label = m_context.is_indicator() ? "Indicator" : "Expert Advisor";
-            Print("SDK Warning: Server requested ", product_label, " session termination. Reason: ", reason);
+            if(SDKShouldLogWarning())
+                Print("SDK Warning: Server requested ", product_label, " session termination. Reason: ", reason);
             
             // Fire termination event — the program should handle this
             CJAVal event_json(JA_OBJECT);
@@ -267,7 +279,8 @@ void CHeartbeatManager::process_heartbeat_response(const CJAVal &response)
             Fire_Termination_Requested_Event(0, event_str);
             
             // Also terminate the SDK session
-            Print("SDK Info: Initiating session termination...");
+            if(SDKShouldLogInfo())
+                Print("SDK Info: Initiating session termination...");
             m_context.terminate(reason);
             
             return; // Don't process other fields if terminating
@@ -278,7 +291,8 @@ void CHeartbeatManager::process_heartbeat_response(const CJAVal &response)
     if(CheckPointer(interval_node) != POINTER_INVALID && interval_node.get_type() == JA_NUMBER)
     {
         uint new_interval = (uint)interval_node.get_long();
-        Print("SDK Debug: HeartbeatManager - Server requested interval: ", new_interval, " seconds");
+        if(SDKShouldLogDebug())
+            Print("SDK Debug: HeartbeatManager - Server requested interval: ", new_interval, " seconds");
         set_interval(new_interval);
     }
     
@@ -288,19 +302,22 @@ void CHeartbeatManager::process_heartbeat_response(const CJAVal &response)
         CJAVal* config_change_node = response["robot_config_change_request"];
         if(CheckPointer(config_change_node) != POINTER_INVALID)
         {
-            Print("SDK Debug: HeartbeatManager - Processing config change request from server");
+            if(SDKShouldLogDebug())
+                Print("SDK Debug: HeartbeatManager - Processing config change request from server");
             m_context.config_manager.process_change_request(config_change_node);
         }
         
         CJAVal* symbol_change_node = response["session_symbols_change_request"];
         if(CheckPointer(symbol_change_node) != POINTER_INVALID)
         {
-            Print("SDK Debug: HeartbeatManager - Processing symbol change request from server");
+            if(SDKShouldLogDebug())
+                Print("SDK Debug: HeartbeatManager - Processing symbol change request from server");
             m_context.symbol_manager.process_change_request(symbol_change_node);
         }
     }
     
-    Print("SDK Debug: HeartbeatManager - Response processed successfully");
+    if(SDKShouldLogDebug())
+        Print("SDK Debug: HeartbeatManager - Response processed successfully");
 }
 
 //+------------------------------------------------------------------+
@@ -313,7 +330,8 @@ bool CHeartbeatManager::handle_sequence_error(const CJAVal &error_response)
     CJAVal* context_node = error_response["context"];
     if(CheckPointer(context_node) == POINTER_INVALID)
     {
-        Print("SDK Warning: HeartbeatManager - No context in sequence error response");
+        if(SDKShouldLogWarning())
+            Print("SDK Warning: HeartbeatManager - No context in sequence error response");
         return false;
     }
     
@@ -324,7 +342,8 @@ bool CHeartbeatManager::handle_sequence_error(const CJAVal &error_response)
         CJAVal* current_node = context_node["current_sequence"];
         if(CheckPointer(current_node) == POINTER_INVALID)
         {
-            Print("SDK Warning: HeartbeatManager - No sequence info in error response");
+            if(SDKShouldLogWarning())
+                Print("SDK Warning: HeartbeatManager - No sequence info in error response");
             return false;
         }
         
@@ -332,16 +351,18 @@ bool CHeartbeatManager::handle_sequence_error(const CJAVal &error_response)
         // So our m_sequence should be set to current_sequence (we send m_sequence + 1)
         uint server_current = (uint)current_node.get_long();
         m_sequence = server_current;
-        Print("SDK Info: HeartbeatManager - Synced sequence from current_sequence. Server has: ", 
-              server_current, ", next will send: ", m_sequence + 1);
+        if(SDKShouldLogInfo())
+            Print("SDK Info: HeartbeatManager - Synced sequence from current_sequence. Server has: ", 
+                  server_current, ", next will send: ", m_sequence + 1);
     }
     else
     {
         // expected_sequence is what server wants, so m_sequence = expected - 1
         uint expected = (uint)expected_node.get_long();
         m_sequence = expected - 1;
-        Print("SDK Info: HeartbeatManager - Synced sequence from expected_sequence. Expected: ", 
-              expected, ", m_sequence set to: ", m_sequence);
+        if(SDKShouldLogInfo())
+            Print("SDK Info: HeartbeatManager - Synced sequence from expected_sequence. Expected: ", 
+                  expected, ", m_sequence set to: ", m_sequence);
     }
     
     // Clear pending state so next heartbeat builds fresh payload with correct sequence
@@ -363,7 +384,8 @@ void CHeartbeatManager::reset_confirmation_state()
         m_pending_heartbeat_data = NULL;
     }
     
-    Print("SDK Debug: HeartbeatManager - Confirmation state reset");
+    if(SDKShouldLogDebug())
+        Print("SDK Debug: HeartbeatManager - Confirmation state reset");
 }
 
 #endif

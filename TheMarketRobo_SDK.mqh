@@ -110,6 +110,9 @@
 // Interfaces (developer config classes extend IRobotConfig)
 #include "Interfaces/IRobotConfig.mqh"
 
+// Logger (global log level + level-check helpers — include before other utils)
+#include "Utils/CSDKLogger.mqh"
+
 // Utilities (events, error messages)
 #include "Utils/CSDK_Events.mqh"
 #include "Utils/CSDKUserErrors.mqh"

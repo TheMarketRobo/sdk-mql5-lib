@@ -9,6 +9,7 @@
 #include <Object.mqh>
 #include "Json.mqh"
 #include "../Core/CSDKConstants.mqh"
+#include "../Utils/CSDKLogger.mqh"
 #include "CWinINetHttpService.mqh"
 
 #define HTTP_TIMEOUT 5000
@@ -81,12 +82,16 @@ CHttpService::CHttpService(ENUM_SDK_PRODUCT_TYPE product_type)
     if(m_product_type == PRODUCT_TYPE_INDICATOR)
     {
         WinINetParseUrl(m_base_url, m_wininet_host, m_wininet_base_path, m_wininet_port);
-        Print("SDK Info: API Base URL = ", m_base_url, " (using WinINet for indicator)");
-        Print("SDK Info: WinINet target: ", m_wininet_host, ":", m_wininet_port);
+        if(SDKShouldLogInfo())
+        {
+            Print("SDK Info: API Base URL = ", m_base_url, " (using WinINet for indicator)");
+            Print("SDK Info: WinINet target: ", m_wininet_host, ":", m_wininet_port);
+        }
     }
     else
     {
-        Print("SDK Info: API Base URL = ", m_base_url);
+        if(SDKShouldLogInfo())
+            Print("SDK Info: API Base URL = ", m_base_url);
     }
 }
 
@@ -138,7 +143,7 @@ CHttpResponse* CHttpService::post_webrequest(string endpoint, string jwt_token, 
         headers += "Authorization: Bearer " + jwt_token + "\r\n";
     }
 
-    if(m_enable_logging)
+    if(m_enable_logging && SDKShouldLogDebug())
     {
         Print("============================================================");
         Print("| SENDING HTTP REQUEST                                      |");
@@ -174,7 +179,7 @@ CHttpResponse* CHttpService::post_webrequest(string endpoint, string jwt_token, 
         response.code = res;
         response.body = CharArrayToString(result, 0, -1, CP_UTF8);
         
-        if(m_enable_logging)
+        if(m_enable_logging && SDKShouldLogDebug())
         {
             Print("============================================================");
             Print("| HTTP RESPONSE RECEIVED                                    |");
@@ -215,7 +220,7 @@ CHttpResponse* CHttpService::post_wininet(string endpoint, string jwt_token, str
     if(m_wininet_base_path == "/" && StringLen(endpoint) > 0 && StringGetCharacter(endpoint, 0) == '/')
         full_path = endpoint;
 
-    if(m_enable_logging)
+    if(m_enable_logging && SDKShouldLogDebug())
     {
         Print("============================================================");
         Print("| SENDING HTTP REQUEST (WinINet)                            |");
@@ -251,7 +256,7 @@ CHttpResponse* CHttpService::post_wininet(string endpoint, string jwt_token, str
         response.code = status;
         response.body = response_body;
 
-        if(m_enable_logging)
+        if(m_enable_logging && SDKShouldLogDebug())
         {
             Print("============================================================");
             Print("| HTTP RESPONSE RECEIVED (WinINet)                          |");

@@ -9,6 +9,7 @@
 #include <Object.mqh>
 #include "Json.mqh"
 #include "../Models/CSessionSymbol.mqh"
+#include "../Utils/CSDKLogger.mqh"
 
 /**
  * @class CDataCollectorService
@@ -92,7 +93,7 @@ double CDataCollectorService::get_current_equity() const { return AccountInfoDou
 //+------------------------------------------------------------------+
 bool CDataCollectorService::wait_for_account_data(int timeout_seconds)
 {
-    Print("SDK Info: Waiting for account data to be available...");
+    if(SDKShouldLogInfo()) Print("SDK Info: Waiting for account data to be available...");
     
     datetime start_time = TimeLocal();
     int wait_count = 0;
@@ -101,7 +102,7 @@ bool CDataCollectorService::wait_for_account_data(int timeout_seconds)
     {
         if(TimeLocal() - start_time >= timeout_seconds)
         {
-            Print("SDK Warning: Timeout waiting for account data after ", timeout_seconds, " seconds");
+            if(SDKShouldLogWarning()) Print("SDK Warning: Timeout waiting for account data after ", timeout_seconds, " seconds");
             return false;
         }
         
@@ -111,14 +112,14 @@ bool CDataCollectorService::wait_for_account_data(int timeout_seconds)
         
         if(wait_count % 10 == 0) // Every second
         {
-            Print("SDK Debug: Still waiting for account data... (", wait_count / 10, "s)");
+            if(SDKShouldLogDebug()) Print("SDK Debug: Still waiting for account data... (", wait_count / 10, "s)");
         }
     }
     
     // Account data is now available
     double balance = AccountInfoDouble(ACCOUNT_BALANCE);
     double equity = AccountInfoDouble(ACCOUNT_EQUITY);
-    Print("SDK Info: Account data available. Balance: ", balance, ", Equity: ", equity);
+    if(SDKShouldLogInfo()) Print("SDK Info: Account data available. Balance: ", balance, ", Equity: ", equity);
     
     return true;
 }
@@ -249,10 +250,10 @@ CArrayObj* CDataCollectorService::get_session_symbols()
     // Do NOT change 'true' to 'false' as that would collect ALL available symbols (thousands),
     // causing massive payload size and timeout issues.
     int total_symbols = SymbolsTotal(true);
-    Print("SDK Debug: Found ", total_symbols, " symbols in Market Watch (Watchlist).");
+    if(SDKShouldLogDebug()) Print("SDK Debug: Found ", total_symbols, " symbols in Market Watch (Watchlist).");
     for(int i = 0; i < total_symbols; i++)
     {
-        if(i % 100 == 0) Print("SDK Debug: Processing watchlist symbol ", i, " / ", total_symbols);
+        if(i % 100 == 0 && SDKShouldLogDebug()) Print("SDK Debug: Processing watchlist symbol ", i, " / ", total_symbols);
         string symbol_name = SymbolName(i, true);
         CSessionSymbol* symbol = new CSessionSymbol(symbol_name);
         if(symbol != NULL)
@@ -305,7 +306,7 @@ CJAVal* CDataCollectorService::get_dynamic_data()
     static datetime last_debug_log = 0;
     if(TimeLocal() - last_debug_log >= 60) // Log every 60 seconds
     {
-        Print("SDK Debug: Dynamic data - Connected: ", data_available,
+        if(SDKShouldLogDebug()) Print("SDK Debug: Dynamic data - Connected: ", data_available,
               ", Balance: ", current_balance,
               ", Equity: ", current_equity,
               ", Margin: ", current_margin,
@@ -317,7 +318,7 @@ CJAVal* CDataCollectorService::get_dynamic_data()
     // If not connected and values are 0, try to wait or warn
     if(!data_available && current_balance == 0)
     {
-        Print("SDK Warning: Terminal not connected or account data not available yet. Values may be 0.");
+        if(SDKShouldLogWarning()) Print("SDK Warning: Terminal not connected or account data not available yet. Values may be 0.");
     }
 
     add_json_double(dynamic_data, "account_balance", NormalizeDouble(current_balance, 2));

@@ -154,6 +154,27 @@ enum ENUM_SDK_PRODUCT_TYPE
 #define SDK_PRODUCT_TYPE_ROBOT     "robot"
 #define SDK_PRODUCT_TYPE_INDICATOR "indicator"
 
+//+------------------------------------------------------------------+
+//| Log Levels                                                        |
+//+------------------------------------------------------------------+
+/**
+ * Controls the verbosity of SDK log output.
+ * Each level includes all levels above it:
+ *   ALL     = debug + info + warning + error  (most verbose)
+ *   INFO    = info + warning + error
+ *   WARNING = warning + error
+ *   ERROR   = error only                      (least verbose — for production)
+ *
+ * Errors always print regardless of the configured level.
+ */
+enum ENUM_SDK_LOG_LEVEL
+{
+    SDK_LOG_ALL     = 0,   // All (debug + info + warning + error)
+    SDK_LOG_INFO    = 1,   // Info + Warning + Error
+    SDK_LOG_WARNING = 2,   // Warning + Error
+    SDK_LOG_ERROR   = 3    // Error only (recommended for production)
+};
+
 #endif
 //+------------------------------------------------------------------+
 

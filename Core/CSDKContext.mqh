@@ -14,6 +14,7 @@
 #include "CTokenManager.mqh"
 #include "CConfigurationManager.mqh"
 #include "CSymbolManager.mqh"
+#include "../Utils/CSDKLogger.mqh"
 #include "../Services/CHttpService.mqh"
 #include "../Services/CDataCollectorService.mqh"
 #include "../Interfaces/IRobotConfig.mqh"
@@ -91,9 +92,9 @@ CSDKContext::CSDKContext(string api_key, string robot_version_uuid, long magic_n
     data_collector        = NULL;
     robot_config          = NULL;
 
-    Print("SDK Info: TheMarketRobo SDK v", SDK_VERSION);
-    Print("SDK Info: API Base URL = ", SDK_API_BASE_URL);
-    Print("SDK Info: Product type = ", (product_type == PRODUCT_TYPE_INDICATOR) ? "INDICATOR" : "ROBOT");
+    if(SDKShouldLogInfo()) Print("SDK Info: TheMarketRobo SDK v", SDK_VERSION);
+    if(SDKShouldLogInfo()) Print("SDK Info: API Base URL = ", SDK_API_BASE_URL);
+    if(SDKShouldLogInfo()) Print("SDK Info: Product type = ", (product_type == PRODUCT_TYPE_INDICATOR) ? "INDICATOR" : "ROBOT");
 
     robot_config = config;
     
@@ -179,7 +180,7 @@ void CSDKContext::save_session_state()
     int handle = FileOpen(fname, FILE_WRITE | FILE_TXT | FILE_ANSI);
     if(handle == INVALID_HANDLE)
     {
-        Print("SDK Warning: Could not save session state (FileOpen failed).");
+        if(SDKShouldLogWarning()) Print("SDK Warning: Could not save session state (FileOpen failed).");
         return;
     }
 
@@ -198,7 +199,7 @@ void CSDKContext::save_session_state()
     FileWriteString(handle, line);
     FileClose(handle);
 
-    Print("SDK Info: Session state saved for resumption (session ", sid, ").");
+    if(SDKShouldLogInfo()) Print("SDK Info: Session state saved for resumption (session ", sid, ").");
 }
 
 //+------------------------------------------------------------------+
@@ -215,7 +216,7 @@ bool CSDKContext::try_restore_session()
     int handle = FileOpen(fname, FILE_READ | FILE_TXT | FILE_ANSI);
     if(handle == INVALID_HANDLE)
     {
-        Print("SDK Info: Session state file exists but could not be opened.");
+        if(SDKShouldLogInfo()) Print("SDK Info: Session state file exists but could not be opened.");
         return false;
     }
 
@@ -231,7 +232,7 @@ bool CSDKContext::try_restore_session()
     int count = StringSplit(line, '|', parts);
     if(count < 5)
     {
-        Print("SDK Warning: Corrupt session state file (expected 5 fields, got ", count, ").");
+        if(SDKShouldLogWarning()) Print("SDK Warning: Corrupt session state file (expected 5 fields, got ", count, ").");
         return false;
     }
 
@@ -244,14 +245,14 @@ bool CSDKContext::try_restore_session()
     // Validate the API key matches (user might have changed inputs)
     if(saved_api_key != session_manager.get_api_key())
     {
-        Print("SDK Info: Saved session API key mismatch — starting fresh session.");
+        if(SDKShouldLogInfo()) Print("SDK Info: Saved session API key mismatch — starting fresh session.");
         return false;
     }
 
     // Check token expiry — if already expired, start fresh
     if(saved_exp_ts > 0 && (long)TimeLocal() >= saved_exp_ts)
     {
-        Print("SDK Info: Saved session token expired — starting fresh session.");
+        if(SDKShouldLogInfo()) Print("SDK Info: Saved session token expired — starting fresh session.");
         return false;
     }
 
@@ -259,12 +260,12 @@ bool CSDKContext::try_restore_session()
     token_manager.restore_token(saved_jwt, saved_exp_in);
     if(!token_manager.is_token_set())
     {
-        Print("SDK Warning: Saved token could not be decoded — starting fresh session.");
+        if(SDKShouldLogWarning()) Print("SDK Warning: Saved token could not be decoded — starting fresh session.");
         return false;
     }
 
     session_manager.resume_session(saved_sid);
-    Print("SDK Info: Session resumed after chart reinit (session ", saved_sid, ").");
+    if(SDKShouldLogInfo()) Print("SDK Info: Session resumed after chart reinit (session ", saved_sid, ").");
     return true;
 }
 
@@ -286,28 +287,28 @@ void CSDKContext::on_timer()
     // Check if session manager is valid
     if(CheckPointer(session_manager) == POINTER_INVALID)
     {
-        Print("SDK Debug: on_timer() - Session manager is INVALID, skipping");
+        if(SDKShouldLogDebug()) Print("SDK Debug: on_timer() - Session manager is INVALID, skipping");
         return;
     }
     
     // Check if session is active
     if(!session_manager.is_session_active())
     {
-        Print("SDK Debug: on_timer() - Session is NOT ACTIVE, skipping heartbeat");
+        if(SDKShouldLogDebug()) Print("SDK Debug: on_timer() - Session is NOT ACTIVE, skipping heartbeat");
         return;
     }
     
     // Check if token needs refresh
     if(token_manager.should_refresh_token())
     {
-        Print("SDK Debug: Token refresh required, refreshing...");
+        if(SDKShouldLogDebug()) Print("SDK Debug: Token refresh required, refreshing...");
         session_manager.refresh_token();
     }
     
     // Check heartbeat manager validity
     if(CheckPointer(heartbeat_manager) == POINTER_INVALID)
     {
-        Print("SDK Debug: on_timer() - Heartbeat manager is INVALID");
+        if(SDKShouldLogDebug()) Print("SDK Debug: on_timer() - Heartbeat manager is INVALID");
         return;
     }
     
@@ -320,14 +321,14 @@ void CSDKContext::on_timer()
         static datetime last_waiting_log = 0;
         if(TimeLocal() - last_waiting_log >= 30)
         {
-            Print("SDK Debug: Waiting for heartbeat interval...");
+            if(SDKShouldLogDebug()) Print("SDK Debug: Waiting for heartbeat interval...");
             last_waiting_log = TimeLocal();
         }
         return;
     }
     
     // Build heartbeat payload
-    Print("SDK Debug: Building heartbeat payload...");
+    if(SDKShouldLogDebug()) Print("SDK Debug: Building heartbeat payload...");
     CJAVal* payload = heartbeat_manager.build_heartbeat_payload();
     if(CheckPointer(payload) == POINTER_INVALID)
     {
@@ -337,7 +338,7 @@ void CSDKContext::on_timer()
     
     // Send heartbeat
     string payload_str = payload.to_string();
-    Print("SDK Debug: Sending heartbeat request...");
+    if(SDKShouldLogDebug()) Print("SDK Debug: Sending heartbeat request...");
     CHttpResponse* response = http_service.post("/robot/heartbeat", token_manager.get_token(), payload_str);
 
     if(CheckPointer(response) == POINTER_INVALID)
@@ -348,29 +349,29 @@ void CSDKContext::on_timer()
     
     if(response.code == 200)
     {
-        Print("SDK Info: Heartbeat sent successfully (HTTP 200)");
+        if(SDKShouldLogInfo()) Print("SDK Info: Heartbeat sent successfully (HTTP 200)");
         heartbeat_manager.process_heartbeat_response(response.json_body);
     }
     else if(response.code == 409)
     {
         // Sequence error - sync with server and retry
-        Print("SDK Warning: Heartbeat sequence mismatch (HTTP 409), syncing...");
+        if(SDKShouldLogWarning()) Print("SDK Warning: Heartbeat sequence mismatch (HTTP 409), syncing...");
         if(CheckPointer(response.json_body) != POINTER_INVALID)
         {
             if(heartbeat_manager.handle_sequence_error(response.json_body))
             {
-                Print("SDK Info: Sequence synced successfully, will retry next interval");
+                if(SDKShouldLogInfo()) Print("SDK Info: Sequence synced successfully, will retry next interval");
             }
             else
             {
-                Print("SDK Warning: Could not sync sequence from server response");
+                if(SDKShouldLogWarning()) Print("SDK Warning: Could not sync sequence from server response");
                 // Reset state anyway to try again
                 heartbeat_manager.reset_confirmation_state();
             }
         }
         else
         {
-            Print("SDK Warning: No JSON body in 409 response, resetting state");
+            if(SDKShouldLogWarning()) Print("SDK Warning: No JSON body in 409 response, resetting state");
             heartbeat_manager.reset_confirmation_state();
         }
     }
@@ -382,7 +383,7 @@ void CSDKContext::on_timer()
         // For transient errors (5xx, network issues), reset state to allow retry
         if(response.code >= 500 || response.code == 0)
         {
-            Print("SDK Info: Transient error, will retry heartbeat");
+            if(SDKShouldLogInfo()) Print("SDK Info: Transient error, will retry heartbeat");
             heartbeat_manager.reset_confirmation_state();
         }
     }

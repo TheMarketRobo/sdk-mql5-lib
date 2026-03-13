@@ -8,6 +8,7 @@
 
 #include <Object.mqh>
 #include "../Services/Json.mqh"
+#include "../Utils/CSDKLogger.mqh"
 
 /**
  * @class CTokenManager
@@ -91,8 +92,9 @@ void CTokenManager::set_token(string jwt)
     }
     else
     {
-        Print("SDK Info: Token set successfully. Expires at: ", 
-              TimeToString(m_expiration_timestamp, TIME_DATE|TIME_SECONDS));
+        if(SDKShouldLogInfo())
+            Print("SDK Info: Token set successfully. Expires at: ", 
+                  TimeToString(m_expiration_timestamp, TIME_DATE|TIME_SECONDS));
     }
 }
 
@@ -111,8 +113,9 @@ void CTokenManager::restore_token(string jwt, int expires_in)
     }
     else
     {
-        Print("SDK Info: Token restored. Expires at: ",
-              TimeToString(m_expiration_timestamp, TIME_DATE|TIME_SECONDS));
+        if(SDKShouldLogInfo())
+            Print("SDK Info: Token restored. Expires at: ",
+                  TimeToString(m_expiration_timestamp, TIME_DATE|TIME_SECONDS));
     }
 }
 
@@ -163,12 +166,14 @@ void CTokenManager::set_refresh_threshold_seconds(int seconds)
 {
     if(seconds < 60)
     {
-        Print("SDK Warning: Refresh threshold too low. Setting to minimum 60 seconds.");
+        if(SDKShouldLogWarning())
+            Print("SDK Warning: Refresh threshold too low. Setting to minimum 60 seconds.");
         seconds = 60;
     }
     else if(seconds > 3600)
     {
-        Print("SDK Warning: Refresh threshold too high. Setting to maximum 3600 seconds.");
+        if(SDKShouldLogWarning())
+            Print("SDK Warning: Refresh threshold too high. Setting to maximum 3600 seconds.");
         seconds = 3600;
     }
     m_refresh_threshold_seconds = seconds;

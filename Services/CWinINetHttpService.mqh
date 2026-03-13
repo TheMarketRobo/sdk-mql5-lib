@@ -13,6 +13,7 @@
 #define CWININET_HTTP_SERVICE_MQH
 
 #include "../Core/CSDKConstants.mqh"
+#include "../Utils/CSDKLogger.mqh"
 
 #ifdef SDK_ENABLED
 

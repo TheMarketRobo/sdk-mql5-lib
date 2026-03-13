@@ -11,6 +11,7 @@
 #include "../Models/CSessionSymbol.mqh"
 #include "../Services/Json.mqh"
 #include "../Utils/CSDK_Events.mqh"
+#include "../Utils/CSDKLogger.mqh"
 
 // Error codes matching API contract
 #define SYMBOL_ERROR_NOT_FOUND       "SYMBOL_NOT_FOUND"
@@ -155,7 +156,7 @@ void CSymbolManager::process_change_request(const CJAVal &change_request)
 {
     if(!m_enabled)
     {
-        Print("SDK Info: Symbol change request received but feature is DISABLED. Ignoring.");
+        if(SDKShouldLogInfo()) Print("SDK Info: Symbol change request received but feature is DISABLED. Ignoring.");
         return;
     }
     
@@ -173,11 +174,11 @@ void CSymbolManager::process_change_request(const CJAVal &change_request)
         CJAVal* request_id_val = new CJAVal();
         request_id_val.set_string(request_id);
         m_pending_change_results.Add("request_id", request_id_val);
-        Print("SDK Debug: Symbol change request ID: ", request_id);
+        if(SDKShouldLogDebug()) Print("SDK Debug: Symbol change request ID: ", request_id);
     }
     else
     {
-        Print("SDK Warning: Symbol change request missing 'id' field");
+        if(SDKShouldLogWarning()) Print("SDK Warning: Symbol change request missing 'id' field");
     }
     
     CJAVal* results_array = new CJAVal(JA_ARRAY);
@@ -251,7 +252,7 @@ void CSymbolManager::process_change_request(const CJAVal &change_request)
                     result_item.Add("applied_active_to_trade", aat_val);
                     
                     accepted_count++;
-                    Print("SDK Info: Symbol '", symbol_name, "' active_to_trade set to ", requested_active);
+                    if(SDKShouldLogInfo()) Print("SDK Info: Symbol '", symbol_name, "' active_to_trade set to ", requested_active);
 
                     SSymbol_Change_Event event_data;
                     event_data.symbol = symbol_name;
@@ -276,7 +277,7 @@ void CSymbolManager::process_change_request(const CJAVal &change_request)
                     result_item.Add("error_message", em_val);
                     
                     rejected_count++;
-                    Print("SDK Warning: Symbol '", symbol_name, "' change rejected by terminal.");
+                    if(SDKShouldLogWarning()) Print("SDK Warning: Symbol '", symbol_name, "' change rejected by terminal.");
                 }
             }
             else
@@ -297,7 +298,7 @@ void CSymbolManager::process_change_request(const CJAVal &change_request)
                 result_item.Add("error_message", em_val);
                 
                 rejected_count++;
-                Print("SDK Warning: Symbol '", symbol_name, "' not found in session symbols.");
+                if(SDKShouldLogWarning()) Print("SDK Warning: Symbol '", symbol_name, "' not found in session symbols.");
             }
             
             results_array.Add(result_item);

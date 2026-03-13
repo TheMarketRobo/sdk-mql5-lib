@@ -11,6 +11,7 @@
 #define CTHEMARKETROBO_BASE_MQH
 
 #include "Core/CSDKConstants.mqh"
+#include "Utils/CSDKLogger.mqh"
 
 //+------------------------------------------------------------------+
 //| When SDK_ENABLED is NOT defined, provide a lightweight stub       |
@@ -51,14 +52,14 @@ public:
     // Robot init — returns success immediately
     virtual int on_init(string api_key, long magic_number)
     {
-        Print("SDK Info: SDK_ENABLED is not defined — running in standalone mode.");
+        if(SDKShouldLogInfo()) Print("SDK Info: SDK_ENABLED is not defined — running in standalone mode.");
         return INIT_SUCCEEDED;
     }
 
     // Indicator init — returns success immediately
     virtual int on_init(string api_key)
     {
-        Print("SDK Info: SDK_ENABLED is not defined — running in standalone mode.");
+        if(SDKShouldLogInfo()) Print("SDK Info: SDK_ENABLED is not defined — running in standalone mode.");
         return INIT_SUCCEEDED;
     }
 
@@ -93,12 +94,14 @@ public:
     bool is_config_change_requests_enabled() const { return false; }
     void set_enable_symbol_change_requests(bool enable) {}
     bool is_symbol_change_requests_enabled() const { return false; }
-    void print_sdk_configuration() const { Print("SDK Info: SDK is disabled — no configuration to display."); }
+    void print_sdk_configuration() const { if(SDKShouldLogInfo()) Print("SDK Info: SDK is disabled — no configuration to display."); }
     string get_robot_version_uuid() const { return m_robot_version_uuid; }
     bool is_indicator_mode() const { return false; }
     bool is_robot_mode() const { return true; }
     void set_indicator_short_name(string short_name) {}
     bool is_pending_removal() const { return false; }
+    void set_log_level(ENUM_SDK_LOG_LEVEL level) { SDKSetLogLevel(level); }
+    ENUM_SDK_LOG_LEVEL get_log_level() const { return SDKGetLogLevel(); }
 };
 
 #else // SDK_ENABLED is defined — full SDK implementation follows
@@ -230,6 +233,10 @@ public:
     void   set_indicator_short_name(string short_name);
     bool   is_pending_removal() const;
 
+    // Log level control — set before or after on_init()
+    void   set_log_level(ENUM_SDK_LOG_LEVEL level);
+    ENUM_SDK_LOG_LEVEL get_log_level() const;
+
 protected:
     void   remove_indicator_from_chart();
     bool   check_pending_removal();
@@ -253,7 +260,7 @@ CTheMarketRobo_Base::CTheMarketRobo_Base(string robot_version_uuid, IRobotConfig
     m_enable_symbol_change_requests = true;
     m_indicator_short_name = "";
     m_pending_removal = false;
-    Print("SDK Info: Robot Version UUID = ", m_robot_version_uuid);
+    if(SDKShouldLogInfo()) Print("SDK Info: Robot Version UUID = ", m_robot_version_uuid);
 }
 
 //+------------------------------------------------------------------+
@@ -269,7 +276,7 @@ CTheMarketRobo_Base::CTheMarketRobo_Base(string robot_version_uuid)
     m_enable_symbol_change_requests = false; // Indicators never use symbol changes
     m_indicator_short_name = "";
     m_pending_removal = false;
-    Print("SDK Info: Indicator Version UUID = ", m_robot_version_uuid);
+    if(SDKShouldLogInfo()) Print("SDK Info: Indicator Version UUID = ", m_robot_version_uuid);
 }
 
 //+------------------------------------------------------------------+
@@ -326,7 +333,10 @@ void CTheMarketRobo_Base::remove_indicator_from_chart()
     }
     else
     {
-        Print("SDK Warning: Indicator short name not set — cannot auto-remove. Please remove the indicator manually.");
+        Print("SDK SECURITY ERROR: Indicator short name not set — cannot auto-remove from chart. "
+              "The programmer MUST call set_indicator_short_name() during OnInit(). "
+              "Without it, server-side termination cannot remove the indicator.");
+        Alert("TheMarketRobo: CRITICAL — indicator could not be removed. Please remove it manually.");
     }
 }
 
@@ -381,10 +391,20 @@ int CTheMarketRobo_Base::init_common(string api_key, long magic_number, ENUM_SDK
         return INIT_FAILED;
     }
     
-    if(product_type == PRODUCT_TYPE_ROBOT)
-        Print("SDK Info: Initializing ROBOT with Magic Number = ", magic_number);
-    else
-        Print("SDK Info: Initializing INDICATOR (no magic number)");
+    if(is_ind && m_indicator_short_name == "")
+    {
+        Print("SDK SECURITY WARNING: set_indicator_short_name() was not called before on_init(). "
+              "Server-side termination will NOT be able to remove this indicator from the chart. "
+              "Call set_indicator_short_name() in OnInit() BEFORE calling on_init().");
+    }
+
+    if(SDKShouldLogInfo())
+    {
+        if(product_type == PRODUCT_TYPE_ROBOT)
+            Print("SDK Info: Initializing ROBOT with Magic Number = ", magic_number);
+        else
+            Print("SDK Info: Initializing INDICATOR (no magic number)");
+    }
 
     m_sdk_context = new CSDKContext(api_key, m_robot_version_uuid, magic_number, m_robot_config, product_type);
     if(CheckPointer(m_sdk_context) == POINTER_INVALID)
@@ -410,7 +430,7 @@ int CTheMarketRobo_Base::init_common(string api_key, long magic_number, ENUM_SDK
     // non-destructive deinit like chart change / parameter change).
     if(is_ind && m_sdk_context.try_restore_session())
     {
-        Print("SDK session resumed successfully!");
+        if(SDKShouldLogInfo()) Print("SDK Info: Session resumed successfully!");
         EventSetTimer(1);
         return INIT_SUCCEEDED;
     }
@@ -433,7 +453,7 @@ int CTheMarketRobo_Base::init_common(string api_key, long magic_number, ENUM_SDK
         return INIT_FAILED;
     }
 
-    Print("SDK session started successfully!");
+    if(SDKShouldLogInfo()) Print("SDK Info: Session started successfully!");
     EventSetTimer(1);
     return INIT_SUCCEEDED;
 }
@@ -480,7 +500,7 @@ bool IsNonDestructiveDeinit(int reason)
 void CTheMarketRobo_Base::on_deinit(const int reason)
 {
     string label = is_indicator_mode() ? "Indicator" : "EA";
-    Print("Deinitializing ", label, " SDK (reason=", reason, ")...");
+    if(SDKShouldLogInfo()) Print("SDK Info: Deinitializing ", label, " SDK (reason=", reason, ")...");
 
     if(CheckPointer(m_sdk_context) == POINTER_INVALID)
     {
@@ -492,7 +512,7 @@ void CTheMarketRobo_Base::on_deinit(const int reason)
     // Save session state so the new instance can resume without a new /robot/start.
     if(is_indicator_mode() && IsNonDestructiveDeinit(reason))
     {
-        Print("SDK Info: Non-destructive deinit (reason ", reason,
+        if(SDKShouldLogInfo()) Print("SDK Info: Non-destructive deinit (reason ", reason,
               ") — saving session for resumption.");
         m_sdk_context.save_session_state();
     }
@@ -554,7 +574,7 @@ void CTheMarketRobo_Base::on_chart_event(const int id, const long &lparam, const
                         ulong current_sid = m_sdk_context.session_manager.get_session_id();
                         if(event_sid != 0 && current_sid != 0 && event_sid != current_sid)
                         {
-                            Print("SDK Info: Ignoring stale termination event from session ",
+                            if(SDKShouldLogWarning()) Print("SDK Warning: Ignoring stale termination event from session ",
                                   event_sid, " (current session: ", current_sid, ").");
                             break;
                         }
@@ -629,9 +649,11 @@ bool CTheMarketRobo_Base::is_symbol_change_requests_enabled() const
 //+------------------------------------------------------------------+
 void CTheMarketRobo_Base::print_sdk_configuration() const
 {
+    if(!SDKShouldLogInfo()) return;
     Print("=== SDK Configuration ===");
     Print("  Version UUID: ", m_robot_version_uuid);
     Print("  API Base URL: ", SDK_API_BASE_URL);
+    Print("  Log level: ", SDKLogLevelToString(SDKGetLogLevel()));
     
     if(CheckPointer(m_sdk_context) != POINTER_INVALID)
         m_sdk_context.print_configuration();
@@ -680,13 +702,9 @@ void CTheMarketRobo_Base::handle_termination_requested_event(string event_json)
 
     string reason = event_data["reason"].get_string();
     
-    Print("============================================================");
-    Print("| SERVER REQUESTED SESSION TERMINATION                     |");
-    Print("============================================================");
-    Print("Reason: ", reason);
-    Print(is_robot_mode() ? "The Expert Advisor will now terminate..." 
-                           : "The Indicator session will now terminate...");
-    Print("============================================================");
+    Print("SDK Error: SERVER REQUESTED SESSION TERMINATION. Reason: ", reason,
+          ". ", (is_robot_mode() ? "The Expert Advisor will now terminate..." 
+                                  : "The Indicator session will now terminate..."));
     
     on_termination_requested(event_json);
 }
@@ -742,8 +760,21 @@ void CTheMarketRobo_Base::handle_token_refresh_event(string event_json)
     }
     else
     {
-        Print("SDK Info: Authentication token refreshed successfully.");
+        if(SDKShouldLogInfo()) Print("SDK Info: Authentication token refreshed successfully.");
     }
+}
+
+//+------------------------------------------------------------------+
+//| Log level                                                         |
+//+------------------------------------------------------------------+
+void CTheMarketRobo_Base::set_log_level(ENUM_SDK_LOG_LEVEL level)
+{
+    SDKSetLogLevel(level);
+}
+
+ENUM_SDK_LOG_LEVEL CTheMarketRobo_Base::get_log_level() const
+{
+    return SDKGetLogLevel();
 }
 
 #endif // SDK_ENABLED

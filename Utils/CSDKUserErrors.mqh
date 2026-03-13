@@ -10,6 +10,8 @@
 #ifndef CSDK_USER_ERRORS_MQH
 #define CSDK_USER_ERRORS_MQH
 
+#include "CSDKLogger.mqh"
+
 //+------------------------------------------------------------------+
 //| SDK User-Facing Error Utility                                     |
 //|                                                                    |
@@ -17,6 +19,9 @@
 //| that end users always see short, non-technical messages while     |
 //| programmers can still find the technical detail in the Experts    |
 //| log via Print().                                                   |
+//|                                                                    |
+//| Error-level messages (SDKUserError, SDKUserErrorWithDetails)      |
+//| ALWAYS print regardless of the global log level.                   |
 //+------------------------------------------------------------------+
 
 #define SDK_USER_PREFIX "TheMarketRobo: "
@@ -110,24 +115,47 @@ bool SDKRemoveIndicatorFromChart(string indicator_short_name)
 {
     if(indicator_short_name == "")
     {
-        Print("SDK Warning: Cannot remove indicator — short name is empty.");
+        Print("SDK Error: Cannot remove indicator — short name is empty. "
+              "Call set_indicator_short_name() during OnInit().");
         return false;
     }
-    
+
     int sub_window = ChartWindowFind(0, indicator_short_name);
-    if(sub_window < 0)
+    if(sub_window >= 0)
     {
-        Print("SDK Warning: Indicator '", indicator_short_name, "' not found on chart. May already be removed.");
-        return false;
+        bool removed = ChartIndicatorDelete(0, sub_window, indicator_short_name);
+        if(removed)
+        {
+            if(SDKShouldLogInfo()) Print("SDK Info: Indicator '", indicator_short_name,
+                  "' removed from chart (subwindow ", sub_window, ").");
+            return true;
+        }
     }
-    
-    bool removed = ChartIndicatorDelete(0, sub_window, indicator_short_name);
-    if(removed)
-        Print("SDK Info: Indicator '", indicator_short_name, "' removed from chart (subwindow ", sub_window, ").");
-    else
-        Print("SDK Warning: Failed to remove indicator '", indicator_short_name, "' from chart. Error: ", GetLastError());
-    
-    return removed;
+
+    // Fallback: scan every subwindow to find and remove the indicator.
+    // Handles chart-window indicators where ChartWindowFind may return -1.
+    int total_windows = (int)ChartGetInteger(0, CHART_WINDOWS_TOTAL);
+    for(int w = 0; w < total_windows; w++)
+    {
+        int total_ind = ChartIndicatorsTotal(0, w);
+        for(int i = total_ind - 1; i >= 0; i--)
+        {
+            if(ChartIndicatorName(0, w, i) == indicator_short_name)
+            {
+                bool removed = ChartIndicatorDelete(0, w, indicator_short_name);
+                if(removed)
+                {
+                    if(SDKShouldLogInfo()) Print("SDK Info: Indicator '", indicator_short_name,
+                          "' removed from chart (subwindow ", w, ", fallback scan).");
+                    return true;
+                }
+            }
+        }
+    }
+
+    Print("SDK Error: Failed to remove indicator '", indicator_short_name,
+          "' from chart. It may already be removed. Error: ", GetLastError());
+    return false;
 }
 
 #endif

@@ -9,6 +9,7 @@
 #include <Object.mqh>
 #include "../Models/CFinalStats.mqh"
 #include "../Utils/CSDK_Events.mqh"
+#include "../Utils/CSDKLogger.mqh"
 
 class CSDKContext;
 
@@ -96,7 +97,7 @@ bool CSessionManager::resume_session(ulong session_id)
     m_is_active  = true;
     m_context.heartbeat_manager.set_session_id(session_id);
     m_context.heartbeat_manager.request_immediate_heartbeat();
-    Print("SDK Info: Resumed existing session. Session ID: ", m_session_id);
+    if(SDKShouldLogInfo()) Print("SDK Info: Resumed existing session. Session ID: ", m_session_id);
     return true;
 }
 
@@ -110,11 +111,11 @@ bool CSessionManager::start_session()
     // IMPORTANT: Wait for account data to be available before starting
     // AccountInfoDouble returns 0 when called in OnInit before the terminal
     // receives any ticks from the server
-    Print("SDK Info: Checking account data availability...");
+    if(SDKShouldLogInfo()) Print("SDK Info: Checking account data availability...");
     
     if(!m_context.data_collector.wait_for_account_data(10)) // Wait up to 10 seconds
     {
-        Print("SDK Warning: Starting session without full account data - values may be 0");
+        if(SDKShouldLogWarning()) Print("SDK Warning: Starting session without full account data - values may be 0");
     }
     
     CJAVal* payload = new CJAVal(JA_OBJECT);
@@ -144,7 +145,7 @@ bool CSessionManager::start_session()
     double initial_balance = AccountInfoDouble(ACCOUNT_BALANCE);
     double initial_equity  = AccountInfoDouble(ACCOUNT_EQUITY);
     
-    Print("SDK Debug: Initial Balance: ", initial_balance, ", Initial Equity: ", initial_equity);
+    if(SDKShouldLogDebug()) Print("SDK Debug: Initial Balance: ", initial_balance, ", Initial Equity: ", initial_equity);
     
     CJAVal* balance_val = new CJAVal();
     balance_val.set_double(NormalizeDouble(initial_balance, 2));
@@ -154,7 +155,7 @@ bool CSessionManager::start_session()
     equity_val.set_double(NormalizeDouble(initial_equity, 2));
     payload.Add("initial_equity", equity_val);
     
-    Print("SDK Debug: Collecting static fields...");
+    if(SDKShouldLogDebug()) Print("SDK Debug: Collecting static fields...");
     m_context.data_collector.initialize(initial_balance, initial_equity);
 
     // Indicators pass 0 for magic_number in static_fields; robots pass the real value
@@ -164,7 +165,7 @@ bool CSessionManager::start_session()
     // Robots collect and send session symbols; indicators skip this entirely
     if(!is_indicator)
     {
-        Print("SDK Debug: Collecting session symbols...");
+        if(SDKShouldLogDebug()) Print("SDK Debug: Collecting session symbols...");
         CArrayObj* symbols_list = m_context.data_collector.get_session_symbols();
         CJAVal* symbols_array = new CJAVal(JA_ARRAY);
         if(symbols_list != NULL && symbols_array != NULL)
@@ -179,10 +180,10 @@ bool CSessionManager::start_session()
         }
     }
 
-    Print("SDK Debug: Serializing payload...");
+    if(SDKShouldLogDebug()) Print("SDK Debug: Serializing payload...");
     string payload_str = payload.to_string();
-    Print("SDK Debug: Payload size: ", StringLen(payload_str));
-    Print("SDK Info: Sending start request to server...");
+    if(SDKShouldLogDebug()) Print("SDK Debug: Payload size: ", StringLen(payload_str));
+    if(SDKShouldLogInfo()) Print("SDK Info: Sending start request to server...");
     // API Gateway requires Authorization header to be present for the authorizer to invoke,
     // even for the /start endpoint where we use the API key in the body.
     CHttpResponse* response = m_context.http_service.post("/robot/start", "api-key-start", payload_str);
@@ -212,7 +213,7 @@ bool CSessionManager::start_session()
             m_session_id = (ulong)session_id_node.get_long();
         }
     }
-    Print("SDK Info: Session started. Session ID: ", m_session_id);
+    if(SDKShouldLogInfo()) Print("SDK Info: Session started. Session ID: ", m_session_id);
     
     // Pass session ID to heartbeat manager
     m_context.heartbeat_manager.set_session_id(m_session_id);
@@ -229,7 +230,7 @@ bool CSessionManager::start_session()
     // Robots validate the initial config from the server.
     if(is_indicator)
     {
-        Print("SDK Info: Indicator session started — no robot_config expected. Session is ACTIVE.");
+        if(SDKShouldLogInfo()) Print("SDK Info: Indicator session started — no robot_config expected. Session is ACTIVE.");
         m_is_active = true;
     }
     else
@@ -237,12 +238,12 @@ bool CSessionManager::start_session()
         CJAVal* server_config = body["robot_config"];
         if(CheckPointer(server_config) == POINTER_INVALID)
         {
-            Print("SDK Warning: No robot_config received from server, session will be marked as active");
+            if(SDKShouldLogWarning()) Print("SDK Warning: No robot_config received from server, session will be marked as active");
             m_is_active = true;
         }
         else if(m_context.config_manager.validate_initial_config(server_config))
         {
-            Print("SDK Info: Initial configuration validated successfully, session is ACTIVE");
+            if(SDKShouldLogInfo()) Print("SDK Info: Initial configuration validated successfully, session is ACTIVE");
             m_is_active = true;
         }
         else
@@ -311,7 +312,7 @@ bool CSessionManager::end_session(string reason, CFinalStats* final_stats)
         m_is_active = false;
         success = true;
         message = "Session terminated successfully.";
-        Print("SDK Info: ", message);
+        if(SDKShouldLogInfo()) Print("SDK Info: ", message);
         delete response;
     }
     else

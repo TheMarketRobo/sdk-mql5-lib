@@ -7,6 +7,7 @@
 #define CSDK_OPTIONS_MQH
 
 #include "CSDKConstants.mqh"
+#include "../Utils/CSDKLogger.mqh"
 
 //--- Constants for token refresh thresholds
 #define SDK_MIN_REFRESH_THRESHOLD  60
@@ -82,7 +83,7 @@ void CSDKOptions::set_product_type(ENUM_SDK_PRODUCT_TYPE type)
         // Indicators never support remote config or symbol changes — enforce immediately.
         m_enable_config_change_requests = false;
         m_enable_symbol_change_requests = false;
-        Print("SDK Options: Product type set to INDICATOR. ",
+        if(SDKShouldLogInfo()) Print("SDK Info: Product type set to INDICATOR. ",
               "Config and symbol change requests are permanently disabled.");
     }
 }
@@ -109,13 +110,13 @@ void CSDKOptions::set_enable_config_change_requests(bool enable)
 {
     if(m_product_type == PRODUCT_TYPE_INDICATOR)
     {
-        Print("SDK Warning: Config change requests cannot be enabled for INDICATOR product type. Ignored.");
+        if(SDKShouldLogWarning()) Print("SDK Warning: Config change requests cannot be enabled for INDICATOR product type. Ignored.");
         return;
     }
     m_enable_config_change_requests = enable;
     if(!enable)
     {
-        Print("SDK Options: Configuration change requests DISABLED. ",
+        if(SDKShouldLogInfo()) Print("SDK Info: Configuration change requests DISABLED. ",
               "Server config change requests will be ignored.");
     }
 }
@@ -132,13 +133,13 @@ void CSDKOptions::set_enable_symbol_change_requests(bool enable)
 {
     if(m_product_type == PRODUCT_TYPE_INDICATOR)
     {
-        Print("SDK Warning: Symbol change requests cannot be enabled for INDICATOR product type. Ignored.");
+        if(SDKShouldLogWarning()) Print("SDK Warning: Symbol change requests cannot be enabled for INDICATOR product type. Ignored.");
         return;
     }
     m_enable_symbol_change_requests = enable;
     if(!enable)
     {
-        Print("SDK Options: Symbol change requests DISABLED. ",
+        if(SDKShouldLogInfo()) Print("SDK Info: Symbol change requests DISABLED. ",
               "Server symbol change requests will be ignored.");
     }
 }
@@ -155,13 +156,13 @@ void CSDKOptions::set_token_refresh_threshold_seconds(int seconds)
 {
     if(seconds < SDK_MIN_REFRESH_THRESHOLD)
     {
-        Print("SDK Options: Token refresh threshold too low. ",
+        if(SDKShouldLogWarning()) Print("SDK Warning: Token refresh threshold too low. ",
               "Setting to minimum: ", SDK_MIN_REFRESH_THRESHOLD, " seconds.");
         seconds = SDK_MIN_REFRESH_THRESHOLD;
     }
     else if(seconds > SDK_MAX_REFRESH_THRESHOLD)
     {
-        Print("SDK Options: Token refresh threshold too high. ",
+        if(SDKShouldLogWarning()) Print("SDK Warning: Token refresh threshold too high. ",
               "Setting to maximum: ", SDK_MAX_REFRESH_THRESHOLD, " seconds.");
         seconds = SDK_MAX_REFRESH_THRESHOLD;
     }
@@ -195,11 +196,13 @@ CSDKOptions* CSDKOptions::clone() const
 //+------------------------------------------------------------------+
 void CSDKOptions::print_options() const
 {
+    if(!SDKShouldLogInfo()) return;
     Print("=== SDK Options ===");
     Print("  Product type: ", (m_product_type == PRODUCT_TYPE_INDICATOR) ? "INDICATOR" : "ROBOT");
     Print("  Config change requests: ", m_enable_config_change_requests ? "ENABLED" : "DISABLED");
     Print("  Symbol change requests: ", m_enable_symbol_change_requests ? "ENABLED" : "DISABLED");
     Print("  Token refresh threshold: ", m_token_refresh_threshold_seconds, " seconds");
+    Print("  Log level: ", SDKLogLevelToString(SDKGetLogLevel()));
     Print("===================");
 }
 

@@ -10,6 +10,7 @@
 #include "../Interfaces/IRobotConfig.mqh"
 #include "../Services/Json.mqh"
 #include "../Utils/CSDK_Events.mqh"
+#include "../Utils/CSDKLogger.mqh"
 
 // Error codes matching API contract
 #define CONFIG_ERROR_INVALID_VALUE    "INVALID_VALUE"
@@ -103,7 +104,7 @@ void CConfigurationManager::process_change_request(const CJAVal &change_request)
 {
     if(!m_enabled)
     {
-        Print("SDK Info: Config change request received but feature is DISABLED. Ignoring.");
+        if(SDKShouldLogInfo()) Print("SDK Info: Config change request received but feature is DISABLED. Ignoring.");
         return;
     }
     
@@ -121,11 +122,11 @@ void CConfigurationManager::process_change_request(const CJAVal &change_request)
         CJAVal* request_id_val = new CJAVal();
         request_id_val.set_string(request_id);
         m_pending_change_results.Add("request_id", request_id_val);
-        Print("SDK Debug: Config change request ID: ", request_id);
+        if(SDKShouldLogDebug()) Print("SDK Debug: Config change request ID: ", request_id);
     }
     else
     {
-        Print("SDK Warning: Config change request missing 'id' field");
+        if(SDKShouldLogWarning()) Print("SDK Warning: Config change request missing 'id' field");
     }
 
     CJAVal* results_array = new CJAVal(JA_ARRAY);
@@ -201,7 +202,7 @@ void CConfigurationManager::process_change_request(const CJAVal &change_request)
                 result_item.Add("applied_value", av_val);
                 
                 accepted_count++;
-                Print("SDK Info: Config field '", field_name, "' updated to '", new_value_str, "'");
+                if(SDKShouldLogInfo()) Print("SDK Info: Config field '", field_name, "' updated to '", new_value_str, "'");
             }
             else
             {
@@ -221,7 +222,7 @@ void CConfigurationManager::process_change_request(const CJAVal &change_request)
                 result_item.Add("error_message", em_val);
                 
                 rejected_count++;
-                Print("SDK Warning: Config field '", field_name, "' rejected. Reason: ", reason);
+                if(SDKShouldLogWarning()) Print("SDK Warning: Config field '", field_name, "' rejected. Reason: ", reason);
             }
             
             results_array.Add(result_item);
