@@ -16,10 +16,11 @@
 //| Global SDK Log Level                                              |
 //|                                                                    |
 //| Defaults to SDK_LOG_ALL (full verbosity) for development.         |
-//| Set to SDK_LOG_ERROR for production builds via:                    |
-//|   SDKSetLogLevel(SDK_LOG_ERROR);                                  |
-//| or from a CTheMarketRobo_Base instance:                           |
-//|   myRobot.set_log_level(SDK_LOG_ERROR);                          |
+//| For the FINAL PRODUCT the programmer MUST set the level to        |
+//| SDK_LOG_ERROR (errors only). Set via:                             |
+//|   SDKSetLogLevel(SDK_LOG_ERROR);   or                              |
+//|   myRobot.set_log_level(SDK_LOG_ERROR);   before on_init(),       |
+//| or use an input with default SDK_LOG_ERROR.                       |
 //+------------------------------------------------------------------+
 ENUM_SDK_LOG_LEVEL g_sdk_log_level = SDK_LOG_ALL;
 

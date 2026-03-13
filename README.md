@@ -67,3 +67,7 @@ In `Core/CSDKConstants.mqh`, find:
 ### Security
 
 When `SDK_ENABLED` is not defined, the compiled binary contains **zero SDK code** — no DLL references, no API URLs, no dead code. This is a compile-time exclusion, not a runtime check, so there is nothing to decompile or reverse-engineer.
+
+## Log Level (Final Product)
+
+The SDK supports configurable log levels (`SDK_LOG_ALL`, `SDK_LOG_INFO`, `SDK_LOG_WARNING`, `SDK_LOG_ERROR`). **For the final product delivered to customers, the programmer must set the log level to error level (`SDK_LOG_ERROR`).** Use higher verbosity only during development. Set via `SDKSetLogLevel(SDK_LOG_ERROR)` or `set_log_level(SDK_LOG_ERROR)` before `on_init()`, or expose an input parameter with default `SDK_LOG_ERROR`.

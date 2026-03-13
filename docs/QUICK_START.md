@@ -19,6 +19,8 @@ This guide will help you create your first trading robot using TheMarketRobo SDK
 
 **Robot config schema:** The configuration you define for your robot **MUST** follow the [Robot Config Component Schema](schemas/robot_config_component_schema/README.md). The Vendor Portal validates it before you can submit. **Config change and symbol change support are optional** — you can disable them with `set_enable_config_change_requests(false)` and `set_enable_symbol_change_requests(false)` if you do not need remote updates.
 
+**Final product — log level:** For the product you deliver to customers, you **must** set the SDK log level to error level (`SDK_LOG_ERROR`). Use `SDKSetLogLevel(SDK_LOG_ERROR)` or `robot.set_log_level(SDK_LOG_ERROR)` before `on_init()`, or an input with default `SDK_LOG_ERROR`. Higher verbosity is for development only.
+
 ### Step 1: Create Your Robot Configuration
 
 Create a new file `MyBotConfig.mqh`:

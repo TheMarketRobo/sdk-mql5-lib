@@ -315,7 +315,16 @@ The SDK supports optional features that can be enabled/disabled. **Config change
 robot.set_enable_config_change_requests(false);  // Disable config changes
 robot.set_enable_symbol_change_requests(false);  // Disable symbol changes
 robot.set_token_refresh_threshold(600);          // Refresh 10 min before expiry
+robot.set_log_level(SDK_LOG_ERROR);              // Required for final product (see below)
 ```
+
+### Log Level — Required for Final Product
+
+The SDK log level controls how much is written to the Experts tab (`SDK_LOG_ALL`, `SDK_LOG_INFO`, `SDK_LOG_WARNING`, `SDK_LOG_ERROR`). **For the final product delivered to customers, the programmer must set the log level to error level (`SDK_LOG_ERROR`).** Use `SDK_LOG_ALL`, `SDK_LOG_INFO`, or `SDK_LOG_WARNING` only during development. Errors always print regardless of level.
+
+- Set globally: `SDKSetLogLevel(SDK_LOG_ERROR);` before `on_init()`.
+- Or on the instance: `robot.set_log_level(SDK_LOG_ERROR);` / `indicator.set_log_level(SDK_LOG_ERROR);` before `on_init()`.
+- Or expose an input with default `SDK_LOG_ERROR`: `input ENUM_SDK_LOG_LEVEL InpLogLevel = SDK_LOG_ERROR;` then `SDKSetLogLevel(InpLogLevel);` in `OnInit()`.
 
 ## Event Handling
 
@@ -381,6 +390,8 @@ CTheMarketRobo_Base(string indicator_version_uuid)   // One argument only; no co
 - `set_token_refresh_threshold(int seconds)` - Set proactive token refresh
 - `set_enable_config_change_requests(bool enable)` - Toggle config changes
 - `set_enable_symbol_change_requests(bool enable)` - Toggle symbol changes
+- `set_log_level(ENUM_SDK_LOG_LEVEL level)` - Set SDK log verbosity. **For final product, must be `SDK_LOG_ERROR`.**
+- `get_log_level()` - Get current log level
 
 #### Abstract / Override Methods
 

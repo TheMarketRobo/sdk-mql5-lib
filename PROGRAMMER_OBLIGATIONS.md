@@ -81,6 +81,10 @@ The Programmer must not include code that, after a specified date or condition, 
 
 The Programmer must not decompile, disassemble, or otherwise reverse engineer the SDK or the Company's protection mechanisms, and must not remove or bypass license, session, or authentication checks in order to enable unlicensed use or to redirect Customers to the Programmer or any third party.
 
+### 4.12 SDK Log Level for Final Product
+
+For the final product delivered to Customers, the Programmer must set the SDK log level to error level (`SDK_LOG_ERROR`). The SDK supports configurable log levels; higher verbosity (`SDK_LOG_ALL`, `SDK_LOG_INFO`, `SDK_LOG_WARNING`) may be used only during development. The Programmer must ensure that the product as distributed uses `SDK_LOG_ERROR` (e.g. via `SDKSetLogLevel(SDK_LOG_ERROR)` or an input parameter with default `SDK_LOG_ERROR`).
+
 ---
 
 ## 5. Acceptance and Acknowledgment

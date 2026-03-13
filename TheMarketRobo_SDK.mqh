@@ -81,6 +81,13 @@
  *     { indicator.on_chart_event(id, lparam, dparam, sparam); }
  * ```
  *
+ * ## Log Level (Final Product Requirement)
+ * The SDK supports configurable log levels: SDK_LOG_ALL, SDK_LOG_INFO, SDK_LOG_WARNING, SDK_LOG_ERROR.
+ * For the final product delivered to customers, the programmer MUST set the log level to SDK_LOG_ERROR
+ * (errors only). Use higher verbosity (e.g. SDK_LOG_ALL) only during development. Set via
+ * SDKSetLogLevel(SDK_LOG_ERROR) or set_log_level(SDK_LOG_ERROR) before on_init(), or expose an input
+ * with default SDK_LOG_ERROR.
+ *
  * ## Backwards Compatibility
  * CTheMarketRobo_Bot_Base is still available as a typedef alias for CTheMarketRobo_Base.
  * Existing robots require NO code changes.

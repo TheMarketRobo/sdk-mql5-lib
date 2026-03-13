@@ -163,9 +163,15 @@ enum ENUM_SDK_PRODUCT_TYPE
  *   ALL     = debug + info + warning + error  (most verbose)
  *   INFO    = info + warning + error
  *   WARNING = warning + error
- *   ERROR   = error only                      (least verbose — for production)
+ *   ERROR   = error only                      (least verbose)
  *
  * Errors always print regardless of the configured level.
+ *
+ * IMPORTANT — Final product: The programmer MUST set the log level to
+ * SDK_LOG_ERROR for the final product delivered to customers. Use
+ * SDK_LOG_ALL, SDK_LOG_INFO, or SDK_LOG_WARNING only during development.
+ * Set via input (e.g. input ENUM_SDK_LOG_LEVEL InpLogLevel = SDK_LOG_ERROR)
+ * or SDKSetLogLevel(SDK_LOG_ERROR) before on_init().
  */
 enum ENUM_SDK_LOG_LEVEL
 {

@@ -1354,6 +1354,24 @@ Output:
 =========================
 ```
 
+### 11.6 — Log Level (Final Product Requirement)
+
+The SDK supports configurable log levels: `SDK_LOG_ALL`, `SDK_LOG_INFO`, `SDK_LOG_WARNING`, `SDK_LOG_ERROR`. **For the final product delivered to customers, you must set the log level to `SDK_LOG_ERROR` (errors only).** Use higher verbosity only during development.
+
+```mql5
+// In OnInit(), before on_init():
+SDKSetLogLevel(SDK_LOG_ERROR);           // Global
+// or
+g_robot.set_log_level(SDK_LOG_ERROR);    // On instance
+
+// Or expose an input with default SDK_LOG_ERROR:
+input ENUM_SDK_LOG_LEVEL InpLogLevel = SDK_LOG_ERROR;  // SDK Log Level
+// ...
+SDKSetLogLevel(InpLogLevel);
+```
+
+This is a [Programmer Obligation](../PROGRAMMER_OBLIGATIONS.md) (see §4.12).
+
 ---
 
 ## 12. SDK Lifecycle — What Happens Under the Hood
@@ -1470,6 +1488,7 @@ Understanding the SDK lifecycle helps with debugging. The flow below is for **Ex
 
 ### ✅ DO
 
+- **Set log level to `SDK_LOG_ERROR` for final product** — For the product you deliver to customers, call `SDKSetLogLevel(SDK_LOG_ERROR)` or `set_log_level(SDK_LOG_ERROR)` before `on_init()`, or use an input with default `SDK_LOG_ERROR`. Higher verbosity is for development only (see [§4.12 Programmer Obligations](../PROGRAMMER_OBLIGATIONS.md)).
 - **Keep field keys consistent** — Use `snake_case` for all field keys (e.g., `max_trades`, `lot_size`)
 - **Always check pointers** — Use `CheckPointer(ptr) != POINTER_INVALID` before accessing any pointer
 - **Match defaults** — Ensure `define_schema()` and `apply_defaults()` use the same default values

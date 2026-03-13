@@ -145,6 +145,29 @@ void set_enable_symbol_change_requests(bool enable)
 
 ---
 
+#### set_log_level
+
+```cpp
+void set_log_level(ENUM_SDK_LOG_LEVEL level)
+```
+
+**Parameters:**
+- `level`: One of `SDK_LOG_ALL`, `SDK_LOG_INFO`, `SDK_LOG_WARNING`, `SDK_LOG_ERROR`
+
+**Description:** Sets the SDK log verbosity. Errors always print regardless of level. **For the final product delivered to customers, the programmer must set the log level to `SDK_LOG_ERROR`.** Use higher verbosity only during development. Call before `on_init()`, or set globally with `SDKSetLogLevel(level)`.
+
+---
+
+#### get_log_level
+
+```cpp
+ENUM_SDK_LOG_LEVEL get_log_level() const
+```
+
+**Returns:** Current log level.
+
+---
+
 #### print_sdk_configuration
 
 ```cpp
