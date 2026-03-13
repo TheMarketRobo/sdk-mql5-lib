@@ -83,6 +83,14 @@
  */
 #define SDK_MAX_HEARTBEAT_INTERVAL 300
 
+/**
+ * Default number of heartbeat intervals to allow failed before removing the product.
+ * If connectivity is lost, after this many consecutive heartbeat failures the product
+ * (EA or indicator) is removed from the chart. Example: interval=60s, default=3
+ * -> remove after 3*60 = 180 seconds of continued failure.
+ */
+#define SDK_DEFAULT_MAX_HEARTBEAT_FAILURE_INTERVALS 3
+
 //+------------------------------------------------------------------+
 //| Error Codes (matching API contract)                               |
 //+------------------------------------------------------------------+

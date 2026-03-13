@@ -31,6 +31,7 @@ private:
     bool m_enable_config_change_requests;
     bool m_enable_symbol_change_requests;
     int  m_token_refresh_threshold_seconds;
+    int  m_max_heartbeat_failure_intervals;
 
 public:
     CSDKOptions();
@@ -50,6 +51,9 @@ public:
     void set_token_refresh_threshold_seconds(int seconds);
     int get_token_refresh_threshold_seconds() const;
     
+    void set_max_heartbeat_failure_intervals(int intervals);
+    int get_max_heartbeat_failure_intervals() const;
+    
     CSDKOptions* clone() const;
     void print_options() const;
 };
@@ -63,6 +67,7 @@ CSDKOptions::CSDKOptions()
     m_enable_config_change_requests = true;
     m_enable_symbol_change_requests = true;
     m_token_refresh_threshold_seconds = SDK_DEFAULT_REFRESH_THRESHOLD;
+    m_max_heartbeat_failure_intervals = SDK_DEFAULT_MAX_HEARTBEAT_FAILURE_INTERVALS;
 }
 
 //+------------------------------------------------------------------+
@@ -176,6 +181,24 @@ int CSDKOptions::get_token_refresh_threshold_seconds() const
 }
 
 //+------------------------------------------------------------------+
+//| Max heartbeat failure intervals (connection-lost removal)          |
+//+------------------------------------------------------------------+
+void CSDKOptions::set_max_heartbeat_failure_intervals(int intervals)
+{
+    if(intervals < 1)
+    {
+        if(SDKShouldLogWarning()) Print("SDK Warning: Max heartbeat failure intervals must be at least 1. Setting to 1.");
+        intervals = 1;
+    }
+    m_max_heartbeat_failure_intervals = intervals;
+}
+
+int CSDKOptions::get_max_heartbeat_failure_intervals() const
+{
+    return m_max_heartbeat_failure_intervals;
+}
+
+//+------------------------------------------------------------------+
 //| Clone                                                             |
 //+------------------------------------------------------------------+
 CSDKOptions* CSDKOptions::clone() const
@@ -187,6 +210,7 @@ CSDKOptions* CSDKOptions::clone() const
         copy.m_enable_config_change_requests = m_enable_config_change_requests;
         copy.m_enable_symbol_change_requests = m_enable_symbol_change_requests;
         copy.m_token_refresh_threshold_seconds = m_token_refresh_threshold_seconds;
+        copy.m_max_heartbeat_failure_intervals = m_max_heartbeat_failure_intervals;
     }
     return copy;
 }
@@ -202,6 +226,7 @@ void CSDKOptions::print_options() const
     Print("  Config change requests: ", m_enable_config_change_requests ? "ENABLED" : "DISABLED");
     Print("  Symbol change requests: ", m_enable_symbol_change_requests ? "ENABLED" : "DISABLED");
     Print("  Token refresh threshold: ", m_token_refresh_threshold_seconds, " seconds");
+    Print("  Max heartbeat failure intervals: ", m_max_heartbeat_failure_intervals, " (remove product after this many failed heartbeats)");
     Print("  Log level: ", SDKLogLevelToString(SDKGetLogLevel()));
     Print("===================");
 }

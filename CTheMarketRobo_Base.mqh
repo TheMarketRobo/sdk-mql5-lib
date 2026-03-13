@@ -90,6 +90,8 @@ public:
     // Configuration stubs (no-ops)
     void set_token_refresh_threshold(int seconds) {}
     int  get_token_refresh_threshold() const { return 0; }
+    void set_max_heartbeat_failure_intervals(int intervals) {}
+    int  get_max_heartbeat_failure_intervals() const { return SDK_DEFAULT_MAX_HEARTBEAT_FAILURE_INTERVALS; }
     void set_enable_config_change_requests(bool enable) {}
     bool is_config_change_requests_enabled() const { return false; }
     void set_enable_symbol_change_requests(bool enable) {}
@@ -170,6 +172,7 @@ protected:
     IRobotConfig*   m_robot_config;
     string          m_robot_version_uuid;
     int             m_token_refresh_threshold_seconds;
+    int             m_max_heartbeat_failure_intervals;
     bool            m_enable_config_change_requests;
     bool            m_enable_symbol_change_requests;
     string          m_indicator_short_name;   // For ChartIndicatorDelete self-removal
@@ -224,6 +227,9 @@ public:
     void set_enable_symbol_change_requests(bool enable);
     bool is_symbol_change_requests_enabled() const;
     
+    void set_max_heartbeat_failure_intervals(int intervals);
+    int  get_max_heartbeat_failure_intervals() const;
+    
     void   print_sdk_configuration() const;
     string get_robot_version_uuid() const;
     bool   is_indicator_mode() const;
@@ -260,6 +266,7 @@ CTheMarketRobo_Base::CTheMarketRobo_Base(string robot_version_uuid, IRobotConfig
     m_enable_symbol_change_requests = true;
     m_indicator_short_name = "";
     m_pending_removal = false;
+    m_max_heartbeat_failure_intervals = SDK_DEFAULT_MAX_HEARTBEAT_FAILURE_INTERVALS;
     if(SDKShouldLogInfo()) Print("SDK Info: Robot Version UUID = ", m_robot_version_uuid);
 }
 
@@ -276,6 +283,7 @@ CTheMarketRobo_Base::CTheMarketRobo_Base(string robot_version_uuid)
     m_enable_symbol_change_requests = false; // Indicators never use symbol changes
     m_indicator_short_name = "";
     m_pending_removal = false;
+    m_max_heartbeat_failure_intervals = SDK_DEFAULT_MAX_HEARTBEAT_FAILURE_INTERVALS;
     if(SDKShouldLogInfo()) Print("SDK Info: Indicator Version UUID = ", m_robot_version_uuid);
 }
 
@@ -419,6 +427,7 @@ int CTheMarketRobo_Base::init_common(string api_key, long magic_number, ENUM_SDK
     }
     
     m_sdk_context.set_token_refresh_threshold_seconds(m_token_refresh_threshold_seconds);
+    m_sdk_context.set_max_heartbeat_failure_intervals(m_max_heartbeat_failure_intervals);
     
     // Config/symbol toggle setters are no-ops for indicators (guarded in CSDKOptions)
     m_sdk_context.set_enable_config_change_requests(m_enable_config_change_requests);
@@ -608,6 +617,23 @@ int CTheMarketRobo_Base::get_token_refresh_threshold() const
     if(CheckPointer(m_sdk_context) != POINTER_INVALID)
         return m_sdk_context.get_token_refresh_threshold_seconds();
     return m_token_refresh_threshold_seconds;
+}
+
+//+------------------------------------------------------------------+
+//| Max heartbeat failure intervals (connection-lost removal)        |
+//+------------------------------------------------------------------+
+void CTheMarketRobo_Base::set_max_heartbeat_failure_intervals(int intervals)
+{
+    m_max_heartbeat_failure_intervals = intervals;
+    if(CheckPointer(m_sdk_context) != POINTER_INVALID)
+        m_sdk_context.set_max_heartbeat_failure_intervals(intervals);
+}
+
+int CTheMarketRobo_Base::get_max_heartbeat_failure_intervals() const
+{
+    if(CheckPointer(m_sdk_context) != POINTER_INVALID)
+        return m_sdk_context.get_max_heartbeat_failure_intervals();
+    return m_max_heartbeat_failure_intervals;
 }
 
 //+------------------------------------------------------------------+

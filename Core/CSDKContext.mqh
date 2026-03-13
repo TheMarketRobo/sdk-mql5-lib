@@ -18,6 +18,7 @@
 #include "../Services/CHttpService.mqh"
 #include "../Services/CDataCollectorService.mqh"
 #include "../Interfaces/IRobotConfig.mqh"
+#include "../Utils/CSDK_Events.mqh"
 
 /**
  * @class CSDKContext
@@ -65,6 +66,9 @@ public:
     void set_enable_symbol_change_requests(bool enable);
     bool is_symbol_change_requests_enabled() const;
     
+    void set_max_heartbeat_failure_intervals(int intervals);
+    int  get_max_heartbeat_failure_intervals() const;
+    
     CSDKOptions* get_options() const;
     void print_configuration() const;
     
@@ -74,6 +78,7 @@ public:
 
 private:
     string get_state_filename() const;
+    int   m_consecutive_heartbeat_failures;
 };
 
 //+------------------------------------------------------------------+
@@ -91,6 +96,8 @@ CSDKContext::CSDKContext(string api_key, string robot_version_uuid, long magic_n
     http_service          = NULL;
     data_collector        = NULL;
     robot_config          = NULL;
+
+    m_consecutive_heartbeat_failures = 0;
 
     if(SDKShouldLogInfo()) Print("SDK Info: TheMarketRobo SDK v", SDK_VERSION);
     if(SDKShouldLogInfo()) Print("SDK Info: API Base URL = ", SDK_API_BASE_URL);
@@ -344,11 +351,27 @@ void CSDKContext::on_timer()
     if(CheckPointer(response) == POINTER_INVALID)
     {
         Print("SDK Error: Heartbeat request failed - NULL response");
+        m_consecutive_heartbeat_failures++;
+        if(m_consecutive_heartbeat_failures >= m_options.get_max_heartbeat_failure_intervals())
+        {
+            Print("SDK Error: Connection lost — ", m_consecutive_heartbeat_failures,
+                  " consecutive heartbeat failures (max ", m_options.get_max_heartbeat_failure_intervals(),
+                  "). Removing product from chart.");
+            string reason = "Connection lost: maximum heartbeat failure intervals (" +
+                            IntegerToString(m_options.get_max_heartbeat_failure_intervals()) + ") exceeded.";
+            terminate(reason);
+            CJAVal event_json(JA_OBJECT);
+            CJAVal* reason_val = new CJAVal();
+            reason_val.set_string(reason);
+            event_json.Add("reason", reason_val);
+            Fire_Termination_Requested_Event(0, event_json.to_string());
+        }
         return;
     }
     
     if(response.code == 200)
     {
+        m_consecutive_heartbeat_failures = 0;
         if(SDKShouldLogInfo()) Print("SDK Info: Heartbeat sent successfully (HTTP 200)");
         heartbeat_manager.process_heartbeat_response(response.json_body);
     }
@@ -380,10 +403,28 @@ void CSDKContext::on_timer()
         Print("SDK Error: Heartbeat failed with HTTP code: ", response.code);
         Print("SDK Error: Response body: ", response.body);
         
+        m_consecutive_heartbeat_failures++;
+        if(m_consecutive_heartbeat_failures >= m_options.get_max_heartbeat_failure_intervals())
+        {
+            Print("SDK Error: Connection lost — ", m_consecutive_heartbeat_failures,
+                  " consecutive heartbeat failures (max ", m_options.get_max_heartbeat_failure_intervals(),
+                  "). Removing product from chart.");
+            string reason = "Connection lost: maximum heartbeat failure intervals (" +
+                            IntegerToString(m_options.get_max_heartbeat_failure_intervals()) + ") exceeded.";
+            terminate(reason);
+            CJAVal event_json(JA_OBJECT);
+            CJAVal* reason_val = new CJAVal();
+            reason_val.set_string(reason);
+            event_json.Add("reason", reason_val);
+            Fire_Termination_Requested_Event(0, event_json.to_string());
+            delete response;
+            return;
+        }
+        
         // For transient errors (5xx, network issues), reset state to allow retry
         if(response.code >= 500 || response.code == 0)
         {
-            if(SDKShouldLogInfo()) Print("SDK Info: Transient error, will retry heartbeat");
+            if(SDKShouldLogInfo()) Print("SDK Info: Transient error, will retry heartbeat (failure count: ", m_consecutive_heartbeat_failures, "/", m_options.get_max_heartbeat_failure_intervals(), ")");
             heartbeat_manager.reset_confirmation_state();
         }
     }
@@ -454,6 +495,22 @@ bool CSDKContext::is_symbol_change_requests_enabled() const
     if(CheckPointer(m_options) != POINTER_INVALID)
         return m_options.is_symbol_change_requests_enabled();
     return true;
+}
+
+//+------------------------------------------------------------------+
+//| Max heartbeat failure intervals (connection-lost removal)         |
+//+------------------------------------------------------------------+
+void CSDKContext::set_max_heartbeat_failure_intervals(int intervals)
+{
+    if(CheckPointer(m_options) != POINTER_INVALID)
+        m_options.set_max_heartbeat_failure_intervals(intervals);
+}
+
+int CSDKContext::get_max_heartbeat_failure_intervals() const
+{
+    if(CheckPointer(m_options) != POINTER_INVALID)
+        return m_options.get_max_heartbeat_failure_intervals();
+    return SDK_DEFAULT_MAX_HEARTBEAT_FAILURE_INTERVALS;
 }
 
 //+------------------------------------------------------------------+
