@@ -12,6 +12,7 @@ The SDK is heavily documented. Whether you are building an Expert Advisor or a C
 4. 📚 **[API Reference](docs/API_REFERENCE.md)** - Raw documentation on the `CTheMarketRobo_Base` class and its lifecycle hooks.
 5. 🏗️ **[Architecture Overview](docs/README.md)** - Deep dive into how the SDK structures its state and syncs with the server.
 6. ⚖️ **[Programmer Obligations](PROGRAMMER_OBLIGATIONS.md)** - Legal obligations and prohibited conduct when using the SDK and distributing products via The Market Robo.
+7. ✅ **[Indicator Integration Checklist](docs/INDICATOR_INTEGRATION_CHECKLIST.md)** - **Indicators only.** Pre-release checklist: code structure, programmer obligations, and testing all server-connection scenarios with a test license.
 
 For advanced developers looking to understand the underlying HTTP calls and JWT session management, check the [API Flow Docs](docs/api/important-notes.md).
 
