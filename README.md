@@ -1,6 +1,6 @@
-# TheMarketRobo SDK for MQL5
+# TheMarketRobo SDK for MQL4/MQL5
 
-This directory contains `TheMarketRobo` MQL5 C++ Software Development Kit (SDK). It provides an object-oriented, clean interface to interact with TheMarketRobo ecosystem securely and reliably from within the MetaTrader 5 terminal.
+This directory contains `TheMarketRobo` MQL4/MQL5 Software Development Kit (SDK). It provides an object-oriented, clean interface to interact with TheMarketRobo ecosystem securely and reliably from within the MetaTrader 4 (build 600+) or MetaTrader 5 terminal.
 
 ## Integration Documentation
 
@@ -13,12 +13,13 @@ The SDK is heavily documented. Whether you are building an Expert Advisor or a C
 5. 🏗️ **[Architecture Overview](docs/README.md)** - Deep dive into how the SDK structures its state and syncs with the server.
 6. ⚖️ **[Programmer Obligations](PROGRAMMER_OBLIGATIONS.md)** - Legal obligations and prohibited conduct when using the SDK and distributing products via The Market Robo.
 7. ✅ **[Indicator Integration Checklist](docs/INDICATOR_INTEGRATION_CHECKLIST.md)** - **Indicators only.** Pre-release checklist: code structure, programmer obligations, and testing all server-connection scenarios with a test license.
+8. 🔄 **[MQL4 Cross-Platform & Indicator Security](docs/MQL4_CROSS_PLATFORM.md)** - How the SDK supports both MQL4 and MQL5 from a single codebase: sentinel pattern, platform differences, and the 3-layer secure indicator termination model.
 
 For advanced developers looking to understand the underlying HTTP calls and JWT session management, check the [API Flow Docs](docs/api/important-notes.md).
 
 ## Core Capabilities
 
-By inheriting from `CTheMarketRobo_Base`, your MQL5 application gains:
+By inheriting from `CTheMarketRobo_Base`, your MQL4/MQL5 application gains:
 - **Licensing & Telemetry:** Establishes secure JWT sessions and reports live account margin, PnL, and drawdown without exposing private trade histories.
 - **Remote Configuration (EA):** Defines local variable schemas that sync directly with the web platform, allowing realtime hot-swapping of parameters without recompiling. Robot config **MUST** follow the [Robot Config Component Schema](docs/schemas/robot_config_component_schema/README.md); the Vendor Portal validates it at submission.
 - **Symbol Control (EA):** Fetches the active pairs allowed by the web interface.
@@ -33,7 +34,7 @@ By inheriting from `CTheMarketRobo_Base`, your MQL5 application gains:
 
 ## DLL Usage (Indicators Only)
 
-Custom Indicators cannot use the built-in `WebRequest()` function (MQL5 error 4014). The SDK works around this by using Windows DLLs for HTTP communication **only when running as an indicator**:
+Custom Indicators cannot use the built-in `WebRequest()` function (error 4014 on MQL5, similar restriction on MQL4). The SDK works around this by using Windows DLLs for HTTP communication **only when running as an indicator**:
 
 | DLL | Purpose |
 |-----|---------|
@@ -44,7 +45,7 @@ Custom Indicators cannot use the built-in `WebRequest()` function (MQL5 error 40
 
 ### Indicator Setup Requirement
 
-To use the SDK in an indicator, the end user must enable **"Allow DLL imports"** in MetaTrader 5:
+To use the SDK in an indicator, the end user must enable **"Allow DLL imports"** in MetaTrader 4/5:
 1. Right-click the indicator on the chart → **Properties** → **Common** tab
 2. Check **"Allow DLL imports"**
 

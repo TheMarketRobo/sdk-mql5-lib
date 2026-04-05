@@ -1,16 +1,18 @@
 # TheMarketRobo SDK — AI Agent Integration Prompt
 
-**Purpose:** This prompt is for an AI agent that will **read and understand the full TheMarketRobo SDK** and **integrate it into a given MQL5 Custom Indicator**. The agent will receive:
+**Purpose:** This prompt is for an AI agent that will **read and understand the full TheMarketRobo SDK** and **integrate it into a given MQL4 or MQL5 Custom Indicator**. The agent will receive:
 1. **The SDK root folder:** `Include/themarketrobo`
-2. **The indicator source:** one or more `.mq5` / `.mqh` files (the Custom Indicator to integrate)
+2. **The indicator source:** one or more `.mq4` / `.mq5` / `.mqh` files (the Custom Indicator to integrate)
 
 The agent must fully understand the SDK from the provided folder and docs, then implement a correct, minimal integration without breaking existing indicator logic.
+
+> **Platform support:** The SDK works on both MetaTrader 4 (build 600+) and MetaTrader 5. The class code, event handlers, and SDK lifecycle methods are identical. The only platform-specific code is indicator buffer setup syntax.
 
 ---
 
 ## Your task
 
-Integrate the **TheMarketRobo SDK** into the provided **MQL5 Custom Indicator** so that the indicator:
+Integrate the **TheMarketRobo SDK** into the provided **MQL4 or MQL5 Custom Indicator** so that the indicator:
 - Registers a session with TheMarketRobo and sends heartbeats (licensing/telemetry).
 - Complies with SDK contracts and programmer obligations.
 

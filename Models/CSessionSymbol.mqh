@@ -8,6 +8,7 @@
 
 #include <Object.mqh>
 #include "../Services/Json.mqh"
+#include "../TMR_Platform.mqh"
 
 /**
  * @class CSessionSymbol
@@ -119,25 +120,36 @@ void CSessionSymbol::populate_data()
     }
 
     double margin;
-    if(OrderCalcMargin(ORDER_TYPE_BUY, m_symbol, 1.0, last_tick.ask, margin))
+    if(TMR_OrderCalcMargin(ORDER_TYPE_BUY, m_symbol, 1.0, last_tick.ask, margin))
     {
         m_margin_required = margin;
     }
-    
-    m_symbol_country = SymbolInfoString(m_symbol, SYMBOL_COUNTRY);
-    m_symbol_category = SymbolInfoString(m_symbol, SYMBOL_CATEGORY);
-    m_symbol_basis = SymbolInfoString(m_symbol, SYMBOL_BASIS);
-    m_symbol_isin = SymbolInfoString(m_symbol, SYMBOL_ISIN);
-    m_symbol_page = SymbolInfoString(m_symbol, SYMBOL_PAGE);
+
+    // Symbol string properties — some are MQL5-only; TMR_IsSymbolStringPropertyAvailable guards them
+    if(TMR_IsSymbolStringPropertyAvailable(SYMBOL_COUNTRY))
+        m_symbol_country = SymbolInfoString(m_symbol, SYMBOL_COUNTRY);
+    if(TMR_IsSymbolStringPropertyAvailable(SYMBOL_CATEGORY))
+        m_symbol_category = SymbolInfoString(m_symbol, SYMBOL_CATEGORY);
+    if(TMR_IsSymbolStringPropertyAvailable(SYMBOL_BASIS))
+        m_symbol_basis = SymbolInfoString(m_symbol, SYMBOL_BASIS);
+    if(TMR_IsSymbolStringPropertyAvailable(SYMBOL_ISIN))
+        m_symbol_isin = SymbolInfoString(m_symbol, SYMBOL_ISIN);
+    if(TMR_IsSymbolStringPropertyAvailable(SYMBOL_PAGE))
+        m_symbol_page = SymbolInfoString(m_symbol, SYMBOL_PAGE);
     m_symbol_path = SymbolInfoString(m_symbol, SYMBOL_PATH);
     m_symbol_currency_profit = SymbolInfoString(m_symbol, SYMBOL_CURRENCY_PROFIT);
     m_symbol_currency_margin = SymbolInfoString(m_symbol, SYMBOL_CURRENCY_MARGIN);
     m_symbol_description = SymbolInfoString(m_symbol, SYMBOL_DESCRIPTION);
-    m_symbol_exchange = SymbolInfoString(m_symbol, SYMBOL_EXCHANGE);
-    m_symbol_formula = SymbolInfoString(m_symbol, SYMBOL_FORMULA);
-    m_symbol_sector_name = SymbolInfoString(m_symbol, SYMBOL_SECTOR_NAME);
-    m_symbol_industry_name = SymbolInfoString(m_symbol, SYMBOL_INDUSTRY_NAME);
-    m_symbol_bank = SymbolInfoString(m_symbol, SYMBOL_BANK);
+    if(TMR_IsSymbolStringPropertyAvailable(SYMBOL_EXCHANGE))
+        m_symbol_exchange = SymbolInfoString(m_symbol, SYMBOL_EXCHANGE);
+    if(TMR_IsSymbolStringPropertyAvailable(SYMBOL_FORMULA))
+        m_symbol_formula = SymbolInfoString(m_symbol, SYMBOL_FORMULA);
+    if(TMR_IsSymbolStringPropertyAvailable(SYMBOL_SECTOR_NAME))
+        m_symbol_sector_name = SymbolInfoString(m_symbol, SYMBOL_SECTOR_NAME);
+    if(TMR_IsSymbolStringPropertyAvailable(SYMBOL_INDUSTRY_NAME))
+        m_symbol_industry_name = SymbolInfoString(m_symbol, SYMBOL_INDUSTRY_NAME);
+    if(TMR_IsSymbolStringPropertyAvailable(SYMBOL_BANK))
+        m_symbol_bank = SymbolInfoString(m_symbol, SYMBOL_BANK);
 }
 
 //+------------------------------------------------------------------+

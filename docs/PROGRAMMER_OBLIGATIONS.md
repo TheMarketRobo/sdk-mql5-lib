@@ -14,9 +14,9 @@ By using the SDK and/or distributing a Product (as defined below) via the Platfo
 
 ## 2. Definitions
 
-- **Product** means any Expert Advisor (EA), Custom Indicator, or other MQL5 program that is built with, incorporates, or is distributed in connection with the SDK, including any version thereof distributed to end users ("**Customers**").
+- **Product** means any Expert Advisor (EA), Custom Indicator, or other MQL4/MQL5 program that is built with, incorporates, or is distributed in connection with the SDK, including any version thereof distributed to end users ("**Customers**").
 - **Platform** means The Market Robo, the trading tools marketplace and associated services operated by the Company, including the official website **https://www.themarketrobo.com/** and the TheMarketRobo API and Vendor Portal.
-- **SDK** means the TheMarketRobo MQL5 Software Development Kit and all related header files, source code, documentation, and materials provided by the Company.
+- **SDK** means the TheMarketRobo MQL4/MQL5 Software Development Kit and all related header files, source code, documentation, and materials provided by the Company.
 - **Customer** means any end user who obtains, uses, or accesses a Product (whether through the Platform or otherwise in connection with the Platform).
 
 ---

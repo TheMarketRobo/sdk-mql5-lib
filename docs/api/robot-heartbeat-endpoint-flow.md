@@ -506,7 +506,7 @@ The SDK maintains an internal cache to handle token expiration scenarios:
    - Ensure no data loss during token transitions
 
 2. **Heartbeat Data Collection**
-   - Collect account information using MQL5 AccountInfo
+   - Collect account information using MQL4/MQL5 AccountInfo functions
    - Calculate performance metrics (profit, drawdown) via `CDataCollectorService.get_dynamic_data()`
    - For **Robots only**: gather any pending config_change_results and symbols_change_results; **Indicators** omit both
 

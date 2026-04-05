@@ -103,6 +103,9 @@
 // SDK Constants — always included (contains SDK_ENABLED toggle)
 #include "Core/CSDKConstants.mqh"
 
+// Platform compatibility — MQL4/MQL5 abstraction layer
+#include "TMR_Platform.mqh"
+
 // ----- Always compiled (pure data structures, no network/DLL code) -----
 
 // JSON parser

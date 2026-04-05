@@ -2,7 +2,7 @@
 
 ## Overview
 
-TheMarketRobo SDK is a comprehensive framework for building MQL5 **Expert Advisors (EAs)** and **Custom Indicators** with built-in authentication, session management, and real-time configuration updates. The SDK supports both product types through a single base class (`CTheMarketRobo_Base`). Indicator support is included alongside EA support; indicators use the same session and heartbeat flow but do not use remote configuration or symbol change requests. **Config change support and symbol change support are not mandatory** — vendors can enable them only when needed; if disabled (or left unimplemented), the SDK simply ignores incoming change requests. The SDK simplifies development by handling authentication flows, session lifecycle, and event management behind the scenes.
+TheMarketRobo SDK is a comprehensive framework for building MQL4/MQL5 **Expert Advisors (EAs)** and **Custom Indicators** with built-in authentication, session management, and real-time configuration updates. The SDK supports both **MetaTrader 4** (build 600+) and **MetaTrader 5** through a single codebase with conditional compilation (`TMR_Platform.mqh`). Both product types are supported through a single base class (`CTheMarketRobo_Base`). Indicator support is included alongside EA support; indicators use the same session and heartbeat flow but do not use remote configuration or symbol change requests. **Config change support and symbol change support are not mandatory** — vendors can enable them only when needed; if disabled (or left unimplemented), the SDK simply ignores incoming change requests. The SDK simplifies development by handling authentication flows, session lifecycle, and event management behind the scenes.
 
 **Robot configuration schema:** The configuration options you define for your robot **MUST** follow the [Robot Config Component Schema](schemas/robot_config_component_schema/README.md). The Vendor Portal validates your schema (and `default_config`) before allowing submission. See that document and its [examples](schemas/robot_config_component_schema/examples/) for the full contract.
 
@@ -21,7 +21,7 @@ The SDK follows a clean architecture pattern with the following key components:
 ### Directory Structure
 
 ```
-themarketrobo/                    # SDK root (e.g. MQL5/Include/themarketrobo/)
+themarketrobo/                    # SDK root (e.g. MQL5/Include/themarketrobo/ or MQL4/Include/themarketrobo/)
 ├── docs/                         # Documentation
 ├── Interfaces/                   # Abstract interfaces (IRobotConfig)
 ├── Core/                         # Core SDK components
@@ -44,6 +44,7 @@ themarketrobo/                    # SDK root (e.g. MQL5/Include/themarketrobo/)
 │   └── CFinalStats.mqh          # Session statistics
 ├── Utils/                        # Utility classes
 │   └── CSDK_Events.mqh          # Event definitions
+├── TMR_Platform.mqh              # MQL4/MQL5 platform compatibility layer
 ├── CTheMarketRobo_Base.mqh       # Unified base class (EAs and Indicators)
 ├── CTheMarketRobo_Bot_Base.mqh  # Backwards-compat alias for CTheMarketRobo_Base
 └── TheMarketRobo_SDK.mqh         # Main include file
@@ -169,7 +170,9 @@ public:
 };
 ```
 
-### 5. Setup MQL5 Entry Points
+### 5. Setup MQL4/MQL5 Entry Points
+
+The event handler names (`OnInit`, `OnDeinit`, `OnTick`, `OnTimer`, `OnChartEvent`) are the same in both MQL4 (build 600+) and MQL5. The code below works on both platforms without changes.
 
 ```cpp
 CMyRobot* robot = NULL;
@@ -177,12 +180,12 @@ CMyRobot* robot = NULL;
 int OnInit()
 {
     robot = new CMyRobot();
-    
+
     // Optional: Configure SDK features before init
     robot.set_enable_config_change_requests(true);
     robot.set_enable_symbol_change_requests(true);
     robot.set_token_refresh_threshold(300);  // 5 minutes
-    
+
     // Initialize with customer-provided inputs
     return robot.on_init(InpApiKey, InpMagicNumber);
 }
@@ -246,9 +249,11 @@ public:
 };
 ```
 
-### 3. Setup MQL5 Entry Points
+### 3. Setup MQL4/MQL5 Entry Points
 
-For indicators, set up your indicator buffers (e.g. `SetIndexBuffer`, `IndicatorSetInteger`) in `OnInit` as usual; create your indicator instance and call `on_init(InpApiKey)`. Forward `OnCalculate`, `OnTimer`, and `OnChartEvent` to the SDK instance so heartbeats and termination work.
+For indicators, set up your indicator buffers in `OnInit` as usual; create your indicator instance and call `on_init(InpApiKey)`. Forward `OnCalculate`, `OnTimer`, and `OnChartEvent` to the SDK instance so heartbeats and termination work.
+
+> **MQL4 note:** Indicator buffer setup syntax differs between platforms. MQL5 uses `SetIndexBuffer(idx, buf, INDICATOR_DATA)` and `IndicatorSetInteger()`; MQL4 uses `SetIndexBuffer(idx, buf)` and `SetIndexStyle()` / `IndicatorDigits()` / `IndicatorShortName()`. See the MQL4 sample indicator for the exact pattern.
 
 ```cpp
 CMyIndicator* indicator = NULL;
@@ -301,7 +306,7 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
 
 ### Customer-Provided (Input Parameters)
 - **api_key**: API key from TheMarketRobo platform. **For local testing**, generate a new **test license** from your Vendor Portal and use its API key with the staging API.
-- **magic_number**: MT5 magic number for trade identification (Expert Advisors only; indicators omit this)
+- **magic_number**: MT4/MT5 magic number for trade identification (Expert Advisors only; indicators omit this)
 
 ### SDK Constants (Hardcoded in SDK)
 - **base_url**: API endpoint (SDK_API_BASE_URL in CSDKConstants.mqh)
@@ -328,7 +333,7 @@ The SDK log level controls how much is written to the Experts tab (`SDK_LOG_ALL`
 
 ## Event Handling
 
-The SDK uses MQL5 Chart Events for communication:
+The SDK uses MQL4/MQL5 Chart Events for communication (`CHARTEVENT_CUSTOM` and `EventChartCustom` exist on both platforms since MQL4 build 600+):
 
 | Event ID | Description |
 |----------|-------------|
@@ -383,8 +388,8 @@ CTheMarketRobo_Base(string indicator_version_uuid)   // One argument only; no co
 - `on_init(string api_key, long magic_number)` — Initialize SDK for **Robot** (returns INIT_SUCCEEDED/INIT_FAILED)
 - `on_init(string api_key)` — Initialize SDK for **Indicator** (no magic number)
 - `on_deinit(int reason)` — Cleanup resources
-- `on_timer()` — Handle timer events (heartbeats; must be forwarded from MQL5 `OnTimer`)
-- `on_chart_event(...)` — Handle chart events (must be forwarded from MQL5 `OnChartEvent`)
+- `on_timer()` — Handle timer events (heartbeats; must be forwarded from MQL4/MQL5 `OnTimer`)
+- `on_chart_event(...)` — Handle chart events (must be forwarded from MQL4/MQL5 `OnChartEvent`)
 
 #### Feature Configuration
 - `set_token_refresh_threshold(int seconds)` - Set proactive token refresh
@@ -481,7 +486,7 @@ By using this SDK you agree to the [Programmer Obligations and Prohibited Conduc
 
 ## DLL Usage (Indicators Only)
 
-Custom Indicators in MQL5 cannot use the built-in `WebRequest()` function (runtime error 4014). To work around this, the SDK uses Windows DLLs for HTTP communication **only when the program is a Custom Indicator**:
+Custom Indicators in MQL4/MQL5 cannot use the built-in `WebRequest()` function (runtime error 4014). To work around this, the SDK uses Windows DLLs for HTTP communication **only when the program is a Custom Indicator**:
 
 | DLL | Functions Used | Purpose |
 |-----|---------------|---------|
@@ -490,11 +495,11 @@ Custom Indicators in MQL5 cannot use the built-in `WebRequest()` function (runti
 
 These imports are defined in [`Services/CWinINetHttpService.mqh`](../Services/CWinINetHttpService.mqh).
 
-**Expert Advisors (EAs/Robots) do NOT use any DLLs** — they use the built-in MQL5 `WebRequest()` function.
+**Expert Advisors (EAs/Robots) do NOT use any DLLs** — they use the built-in MQL4/MQL5 `WebRequest()` function.
 
 ### Indicator Setup Requirement
 
-End users must enable **"Allow DLL imports"** in MetaTrader 5 for any indicator that uses the SDK:
+End users must enable **"Allow DLL imports"** in MetaTrader 4 or MetaTrader 5 for any indicator that uses the SDK:
 
 1. When attaching the indicator, in the **Common** tab, check **"Allow DLL imports"**
 2. Or: Right-click an already-running indicator → **Properties** → **Common** tab → check **"Allow DLL imports"**
@@ -552,9 +557,49 @@ public:
 ### Security
 
 This is a **compile-time** exclusion, not a runtime boolean. When `SDK_ENABLED` is not defined:
-- The MQL5 compiler strips all SDK code from the binary
-- No API URLs, DLL references, or authentication logic exist in the compiled `.ex5` file
+- The MQL4/MQL5 compiler strips all SDK code from the binary
+- No API URLs, DLL references, or authentication logic exist in the compiled `.ex4`/`.ex5` file
 - There is nothing to reverse-engineer or decompile
+
+## MQL4 Platform Notes
+
+The SDK supports both MetaTrader 4 (build 600+) and MetaTrader 5 from a single codebase. The `TMR_Platform.mqh` header handles all platform differences automatically.
+
+### What works identically on both platforms
+- Session registration, heartbeats, termination
+- JWT authentication and token refresh
+- Remote configuration and symbol change handling (EAs)
+- JSON serialization, HTTP communication, timer management
+- All OOP patterns (classes, inheritance, virtual functions)
+- Event handlers: `OnInit`, `OnDeinit`, `OnTick`, `OnTimer`, `OnChartEvent`, `OnCalculate`
+
+### MQL4 limitations (handled gracefully)
+
+> For a complete reference on MQL4/MQL5 platform differences, sentinel values, and the indicator security model, see **[MQL4 Cross-Platform & Indicator Security](MQL4_CROSS_PLATFORM.md)**.
+| Feature | MQL4 Behavior |
+|---------|--------------|
+| **Indicator self-removal** | MQL4 has `ChartIndicatorDelete()` but restricts chart operations to EAs/scripts. The SDK uses 3-layer secure termination: (1) tries `ChartIndicatorDelete` (works for self-deletion on many MT4 builds), (2) functional death — hides all draws and blocks calculation, (3) persistent kill file — blocks restart on timeframe change. |
+| **Some symbol metadata** | Properties like `SYMBOL_COUNTRY`, `SYMBOL_SECTOR_NAME`, `SYMBOL_INDUSTRY_NAME` are MQL5-only. These fields are omitted from the session payload on MQL4. |
+| **OrderCalcMargin** | MQL4 has no equivalent. Margin data is reported as 0 (unavailable) on MQL4. |
+| **Some account properties** | `ACCOUNT_MARGIN_MODE`, `ACCOUNT_CURRENCY_DIGITS`, `ACCOUNT_FIFO_CLOSE`, `ACCOUNT_HEDGE_ALLOWED` are MQL5-only and omitted on MQL4. Most `TERMINAL_*` properties exist on both platforms; only `TERMINAL_X64` is MQL5-exclusive. |
+
+### Indicator buffer setup (MQL4 vs MQL5)
+The indicator buffer setup syntax differs between platforms. This affects **sample code only**, not the SDK core:
+
+**MQL5:**
+```cpp
+SetIndexBuffer(0, Buffer, INDICATOR_DATA);
+IndicatorSetInteger(INDICATOR_DIGITS, _Digits);
+IndicatorSetString(INDICATOR_SHORTNAME, "MyIndicator");
+```
+
+**MQL4:**
+```cpp
+SetIndexBuffer(0, Buffer);
+SetIndexStyle(0, DRAW_LINE);
+IndicatorDigits(Digits);
+IndicatorShortName("MyIndicator");
+```
 
 ## Support
 
@@ -565,5 +610,5 @@ For additional support:
 ---
 
 *Last updated: 2026*
-*SDK Version: 1.00*
+*SDK Version: 1.00 (MQL4/MQL5)*
 

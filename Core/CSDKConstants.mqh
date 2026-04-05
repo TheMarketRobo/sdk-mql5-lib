@@ -146,7 +146,7 @@ enum ENUM_SDK_HEARTBEAT_STATE
 //| Product Types                                                     |
 //+------------------------------------------------------------------+
 /**
- * Determines which MQL5 program type is using the SDK.
+ * Determines which MQL4/MQL5 program type is using the SDK.
  * - PRODUCT_TYPE_ROBOT:     Expert Advisor — can trade, uses magic_number,
  *                           supports remote config and symbol change requests.
  * - PRODUCT_TYPE_INDICATOR: Custom Indicator — read-only, no magic_number,

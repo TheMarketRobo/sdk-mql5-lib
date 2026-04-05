@@ -14,6 +14,7 @@
 
 #include "../Core/CSDKConstants.mqh"
 #include "../Utils/CSDKLogger.mqh"
+#include "../TMR_Platform.mqh"
 
 #ifdef SDK_ENABLED
 
@@ -202,6 +203,7 @@ int WinINetPost(const string host,
         attempts++;
         if(attempts >= 3)
             return _sdkWinINetErr("HttpSendRequestEx", session, connection, request);
+        // Note: Sleep() is a no-op in indicator context; retries will be immediate.
         Sleep(500);
     }
 

@@ -54,6 +54,9 @@ public:
     bool try_restore_session();
     void save_session_state();
     void clear_session_state();
+    void write_kill_file();
+    bool check_kill_file() const;
+    void clear_kill_file();
     void on_timer();
     void terminate(string reason);
     
@@ -78,6 +81,7 @@ public:
 
 private:
     string get_state_filename() const;
+    string get_kill_filename() const;
     int   m_consecutive_heartbeat_failures;
 };
 
@@ -284,6 +288,56 @@ void CSDKContext::clear_session_state()
     string fname = get_state_filename();
     if(FileIsExist(fname))
         FileDelete(fname);
+}
+
+//+------------------------------------------------------------------+
+//| Build the kill filename (same pattern as session state file)       |
+//+------------------------------------------------------------------+
+string CSDKContext::get_kill_filename() const
+{
+    string api_key = "";
+    if(CheckPointer(session_manager) != POINTER_INVALID)
+        api_key = session_manager.get_api_key();
+    string key_prefix = StringSubstr(api_key, 0, 8);
+    return "TMR_killed_" + IntegerToString(ChartID()) + "_" + key_prefix + ".dat";
+}
+
+//+------------------------------------------------------------------+
+//| Write a persistent kill file — blocks indicator restart after      |
+//| timeframe change. Deleted only on destructive deinit (user removes |
+//| indicator from chart) to allow a fresh session later.              |
+//+------------------------------------------------------------------+
+void CSDKContext::write_kill_file()
+{
+    string fname = get_kill_filename();
+    int handle = FileOpen(fname, FILE_WRITE | FILE_TXT | FILE_ANSI);
+    if(handle != INVALID_HANDLE)
+    {
+        FileWriteString(handle, "KILLED:" + TimeToString(TimeLocal()));
+        FileClose(handle);
+        if(SDKShouldLogInfo()) Print("SDK Security: Kill file written — indicator blocked from restart.");
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Check if a kill file exists (indicator was previously terminated)  |
+//+------------------------------------------------------------------+
+bool CSDKContext::check_kill_file() const
+{
+    return FileIsExist(get_kill_filename());
+}
+
+//+------------------------------------------------------------------+
+//| Delete the kill file (destructive deinit — allow fresh start)      |
+//+------------------------------------------------------------------+
+void CSDKContext::clear_kill_file()
+{
+    string fname = get_kill_filename();
+    if(FileIsExist(fname))
+    {
+        FileDelete(fname);
+        if(SDKShouldLogInfo()) Print("SDK Info: Kill file cleared — fresh session allowed.");
+    }
 }
 
 //+------------------------------------------------------------------+

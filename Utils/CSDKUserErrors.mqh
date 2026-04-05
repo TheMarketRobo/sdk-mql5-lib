@@ -11,6 +11,7 @@
 #define CSDK_USER_ERRORS_MQH
 
 #include "CSDKLogger.mqh"
+#include "../TMR_Platform.mqh"
 
 //+------------------------------------------------------------------+
 //| SDK User-Facing Error Utility                                     |
@@ -120,10 +121,10 @@ bool SDKRemoveIndicatorFromChart(string indicator_short_name)
         return false;
     }
 
-    int sub_window = ChartWindowFind(0, indicator_short_name);
+    int sub_window = TMR_ChartWindowFind(0, indicator_short_name);
     if(sub_window >= 0)
     {
-        bool removed = ChartIndicatorDelete(0, sub_window, indicator_short_name);
+        bool removed = TMR_ChartIndicatorDelete(0, sub_window, indicator_short_name);
         if(removed)
         {
             if(SDKShouldLogInfo()) Print("SDK Info: Indicator '", indicator_short_name,
@@ -134,15 +135,17 @@ bool SDKRemoveIndicatorFromChart(string indicator_short_name)
 
     // Fallback: scan every subwindow to find and remove the indicator.
     // Handles chart-window indicators where ChartWindowFind may return -1.
-    int total_windows = (int)ChartGetInteger(0, CHART_WINDOWS_TOTAL);
+    // On MQL4, TMR_ChartWindowFind returns -1 and TMR_ChartIndicatorsTotal returns 0
+    // so this block is effectively a no-op.
+    int total_windows = (int)TMR_ChartGetInteger(0, CHART_WINDOWS_TOTAL);
     for(int w = 0; w < total_windows; w++)
     {
-        int total_ind = ChartIndicatorsTotal(0, w);
+        int total_ind = TMR_ChartIndicatorsTotal(0, w);
         for(int i = total_ind - 1; i >= 0; i--)
         {
-            if(ChartIndicatorName(0, w, i) == indicator_short_name)
+            if(TMR_ChartIndicatorName(0, w, i) == indicator_short_name)
             {
-                bool removed = ChartIndicatorDelete(0, w, indicator_short_name);
+                bool removed = TMR_ChartIndicatorDelete(0, w, indicator_short_name);
                 if(removed)
                 {
                     if(SDKShouldLogInfo()) Print("SDK Info: Indicator '", indicator_short_name,

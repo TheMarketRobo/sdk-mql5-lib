@@ -177,6 +177,8 @@ protected:
     bool            m_enable_symbol_change_requests;
     string          m_indicator_short_name;   // For ChartIndicatorDelete self-removal
     bool            m_pending_removal;        // Deferred removal flag (set during init, executed on first tick/timer)
+    bool            m_killed;                 // Indicator functionally dead (security: all output cleared, calc blocked)
+    int             m_indicator_buffer_count; // Number of indicator buffers (for kill_indicator draw clearing)
 
 public:
     // Robot constructor — requires config object
@@ -239,6 +241,11 @@ public:
     void   set_indicator_short_name(string short_name);
     bool   is_pending_removal() const;
 
+    // Indicator buffer count — call during OnInit() after SetIndexBuffer() calls.
+    // Used by kill_indicator() to hide all draw styles on termination.
+    void   set_indicator_buffer_count(int count);
+    bool   is_killed() const;
+
     // Log level control — set before or after on_init()
     void   set_log_level(ENUM_SDK_LOG_LEVEL level);
     ENUM_SDK_LOG_LEVEL get_log_level() const;
@@ -246,6 +253,7 @@ public:
 protected:
     void   remove_indicator_from_chart();
     bool   check_pending_removal();
+    void   kill_indicator();
     void handle_termination_event(string event_json);
     void handle_termination_requested_event(string event_json);
     void handle_token_refresh_event(string event_json);
@@ -266,6 +274,8 @@ CTheMarketRobo_Base::CTheMarketRobo_Base(string robot_version_uuid, IRobotConfig
     m_enable_symbol_change_requests = true;
     m_indicator_short_name = "";
     m_pending_removal = false;
+    m_killed = false;
+    m_indicator_buffer_count = 0;
     m_max_heartbeat_failure_intervals = SDK_DEFAULT_MAX_HEARTBEAT_FAILURE_INTERVALS;
     if(SDKShouldLogInfo()) Print("SDK Info: Robot Version UUID = ", m_robot_version_uuid);
 }
@@ -283,6 +293,8 @@ CTheMarketRobo_Base::CTheMarketRobo_Base(string robot_version_uuid)
     m_enable_symbol_change_requests = false; // Indicators never use symbol changes
     m_indicator_short_name = "";
     m_pending_removal = false;
+    m_killed = false;
+    m_indicator_buffer_count = 0;
     m_max_heartbeat_failure_intervals = SDK_DEFAULT_MAX_HEARTBEAT_FAILURE_INTERVALS;
     if(SDKShouldLogInfo()) Print("SDK Info: Indicator Version UUID = ", m_robot_version_uuid);
 }
@@ -337,7 +349,14 @@ void CTheMarketRobo_Base::remove_indicator_from_chart()
     EventKillTimer();
     if(m_indicator_short_name != "")
     {
-        SDKRemoveIndicatorFromChart(m_indicator_short_name);
+        if(!SDKRemoveIndicatorFromChart(m_indicator_short_name))
+        {
+            // ChartIndicatorDelete failed (common on MQL4) — apply functional death
+            kill_indicator();
+            // Write persistent kill file so indicator can't restart on timeframe change
+            if(CheckPointer(m_sdk_context) != POINTER_INVALID)
+                m_sdk_context.write_kill_file();
+        }
     }
     else
     {
@@ -345,6 +364,9 @@ void CTheMarketRobo_Base::remove_indicator_from_chart()
               "The programmer MUST call set_indicator_short_name() during OnInit(). "
               "Without it, server-side termination cannot remove the indicator.");
         Alert("TheMarketRobo: CRITICAL — indicator could not be removed. Please remove it manually.");
+        kill_indicator();  // Still kill functionality even without short name
+        if(CheckPointer(m_sdk_context) != POINTER_INVALID)
+            m_sdk_context.write_kill_file();
     }
 }
 
@@ -360,6 +382,47 @@ bool CTheMarketRobo_Base::check_pending_removal()
         return true;
     }
     return false;
+}
+
+//+------------------------------------------------------------------+
+//| Set indicator buffer count — call during OnInit() after           |
+//| SetIndexBuffer() calls. Used by kill_indicator() to hide draws.   |
+//+------------------------------------------------------------------+
+void CTheMarketRobo_Base::set_indicator_buffer_count(int count)
+{
+    m_indicator_buffer_count = count;
+}
+
+//+------------------------------------------------------------------+
+//| Returns true if indicator has been functionally killed             |
+//+------------------------------------------------------------------+
+bool CTheMarketRobo_Base::is_killed() const
+{
+    return m_killed;
+}
+
+//+------------------------------------------------------------------+
+//| Functionally kill the indicator — clear all visual output,        |
+//| block all future calculation, and mark as dead.                   |
+//| This is the security fallback when ChartIndicatorDelete fails.    |
+//+------------------------------------------------------------------+
+void CTheMarketRobo_Base::kill_indicator()
+{
+    if(m_killed) return;  // Already dead
+    m_killed = true;
+    EventKillTimer();
+
+    // Hide all indicator draw styles — lines/arrows/histograms disappear
+    for(int i = 0; i < m_indicator_buffer_count; i++)
+        SetIndexStyle(i, DRAW_NONE);
+
+    // Blank the indicator name in chart's indicator list
+    IndicatorShortName("TMR: DISABLED");
+
+    // Force visual update so cleared draws take effect immediately
+    ChartRedraw(0);
+
+    Print("SDK Security: Indicator functionally killed — all output cleared, calculation blocked.");
 }
 
 //+------------------------------------------------------------------+
@@ -434,6 +497,16 @@ int CTheMarketRobo_Base::init_common(string api_key, long magic_number, ENUM_SDK
     m_sdk_context.set_enable_symbol_change_requests(m_enable_symbol_change_requests);
     
     print_sdk_configuration();
+
+    // Security: check if this indicator was previously killed (terminated by server).
+    // The kill file persists across timeframe changes to prevent session restart.
+    if(is_ind && m_sdk_context.check_kill_file())
+    {
+        SDKUserError("This indicator session was terminated. Please remove it from the chart.");
+        m_killed = true;
+        EventSetTimer(1);  // Timer fires → on_timer returns immediately due to m_killed
+        return INIT_SUCCEEDED;
+    }
 
     // For indicators: try to resume a previously saved session (from a
     // non-destructive deinit like chart change / parameter change).
@@ -528,6 +601,7 @@ void CTheMarketRobo_Base::on_deinit(const int reason)
     else
     {
         // Destructive deinit (or robot mode): terminate the session normally.
+        m_sdk_context.clear_kill_file();  // User explicitly removed — allow fresh start later
         m_sdk_context.terminate(label + " Shutdown: reason " + (string)reason);
         m_sdk_context.clear_session_state();
     }
@@ -540,6 +614,9 @@ void CTheMarketRobo_Base::on_deinit(const int reason)
 //+------------------------------------------------------------------+
 void CTheMarketRobo_Base::on_timer()
 {
+    // Security: indicator was killed — no processing allowed
+    if(m_killed) return;
+
     // Deferred removal check — remove indicator if init failed
     if(is_indicator_mode() && check_pending_removal())
         return;

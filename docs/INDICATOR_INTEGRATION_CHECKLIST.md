@@ -2,7 +2,7 @@
 
 **Pre-release verification for Custom Indicators**
 
-This checklist is for programmers who have integrated the TheMarketRobo SDK into a **Custom Indicator** (e.g. with AI assistance) and need to verify the integration before release. It covers code correctness, programmer obligations, and **full testing of server connection scenarios using a test license**. It applies **only to indicators**, not to Expert Advisors.
+This checklist is for programmers who have integrated the TheMarketRobo SDK into a **Custom Indicator** (e.g. with AI assistance) and need to verify the integration before release. It covers code correctness, programmer obligations, and **full testing of server connection scenarios using a test license**. It applies **only to indicators**, not to Expert Advisors. The SDK supports both **MetaTrader 4** (build 600+) and **MetaTrader 5**.
 
 ---
 
@@ -51,9 +51,11 @@ Use this section to confirm the integration matches the SDK contract for indicat
 - [ ] **OnChartEvent**  
   Implemented and forwards to `indicator.on_chart_event(id, lparam, dparam, sparam)`.
 
-- [ ] **OnCalculate**  
-  Forwards to `indicator.on_calculate(...)` and returns its result (e.g. `rates_total`).  
-  Indicator buffers (e.g. `SetIndexBuffer`, `IndicatorSetInteger`) are set in `OnInit` as usual.
+- [ ] **OnCalculate**
+  Forwards to `indicator.on_calculate(...)` and returns its result (e.g. `rates_total`).
+  Indicator buffers are set in `OnInit` as usual.
+  **MQL5:** `SetIndexBuffer(idx, buf, INDICATOR_DATA)`, `IndicatorSetInteger()`, `IndicatorSetString()`.
+  **MQL4:** `SetIndexBuffer(idx, buf)`, `SetIndexStyle()`, `IndicatorDigits()`, `IndicatorShortName()`.
 
 - [ ] **Pointer checks**  
   Before every call to the indicator instance, use `CheckPointer(indicator) != POINTER_INVALID` (or equivalent).
@@ -99,15 +101,15 @@ Must be satisfied before distributing the indicator to customers.
 
 ---
 
-## Part 3 — DLL and MT5 setup (indicators only)
+## Part 3 — DLL and MT4/MT5 setup (indicators only)
 
 Indicators use Windows DLLs for HTTP; EAs do not.
 
-- [ ] **Allow DLL imports**  
-  Documented or communicated to the user: for the indicator to connect, **“Allow DLL imports”** must be checked in MetaTrader 5 (indicator **Properties → Common** tab).  
+- [ ] **Allow DLL imports**
+  Documented or communicated to the user: for the indicator to connect, **”Allow DLL imports”** must be checked in MetaTrader 4 or MetaTrader 5 (indicator **Properties → Common** tab).
   Verified that when unchecked, the failure is clear (e.g. session does not start; Experts tab shows relevant error).
 
-- [ ] **DLLs used**  
+- [ ] **DLLs used**
   Acknowledged that the SDK uses `kernel32.dll` and `wininet.dll` only when running as an indicator (see [README](../README.md), [SDK_INTEGRATION_BOOKLET.md §17](SDK_INTEGRATION_BOOKLET.md)).
 
 ---
@@ -220,12 +222,16 @@ Test each scenario with the indicator attached and **Allow DLL imports** enabled
 
 | Item              | Indicator                         | EA (for reference only)        |
 |-------------------|-----------------------------------|--------------------------------|
+| Platforms         | MT4 (build 600+) and MT5          | MT4 (build 600+) and MT5      |
 | Constructor       | `CTheMarketRobo_Base(uuid)`        | `CTheMarketRobo_Base(uuid, config)` |
 | Init              | `on_init(api_key)`                | `on_init(api_key, magic)`      |
 | HTTP              | Via DLL (wininet)                 | `WebRequest()`                 |
 | DLL imports       | Must be allowed                   | Not used                       |
 | Config/symbol     | Not used                          | Optional                       |
-| On termination    | Timer stopped, user removes       | `ExpertRemove()`               |
+| On termination (MT5) | `ChartIndicatorDelete()` auto-removal | `ExpertRemove()`          |
+| On termination (MT4) | 3-layer: try `ChartIndicatorDelete` → functional death → kill file | `ExpertRemove()` |
+| Buffer setup (MT5)   | `SetIndexBuffer(idx,buf,INDICATOR_DATA)` | N/A                  |
+| Buffer setup (MT4)   | `SetIndexBuffer(idx,buf)` + `SetIndexStyle()` | N/A             |
 
 ---
 

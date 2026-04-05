@@ -9,7 +9,7 @@ Server ↔ SDK ↔ Robot/Indicator (Developer's EA or Custom Indicator Code)
 ```
 
 - **Server ↔ SDK**: HTTP/JSON communication with JWT authentication over endpoints under `SDK_API_BASE_URL` (e.g. `https://api.staging.themarketrobo.com`)
-- **SDK ↔ Robot/Indicator**: Internal MQL5 callbacks and method calls
+- **SDK ↔ Robot/Indicator**: Internal MQL4/MQL5 callbacks and method calls
 - **Robot/Indicator**: Developer's EA or Custom Indicator code; Robots use configuration objects (`IRobotConfig`), Indicators do not
 
 ---
@@ -79,7 +79,7 @@ The SDK sends requests to the following paths **relative to the base URL** (no l
 | `/robot/start` payload | Sends magic_number, session_symbols, full static_fields | Omits magic_number and session_symbols; static_fields with expert_magic 0 |
 | robot_config | Validated on start; receives change requests | Not used |
 | Heartbeat | Sends config_change_results, symbols_change_results when pending | Omits both; no change requests |
-| Termination | Calls `ExpertRemove()` on session end / server request | No self-removal; stops timer and alerts user to remove indicator |
+| Termination | Calls `ExpertRemove()` on session end / server request | 3-layer secure termination: tries `ChartIndicatorDelete`, then functional death (hides draws, blocks calc), then persistent kill file |
 | Callbacks | `on_config_changed()`, `on_symbol_changed()` | Not used |
 
 ---
@@ -88,7 +88,7 @@ The SDK sends requests to the following paths **relative to the base URL** (no l
 
 ### On `/robot/start`:
 1. (Optional) Wait for account data (`wait_for_account_data` up to 10 seconds) so balance/equity are non-zero when available
-2. Collect static fields using MQL5 `AccountInfo*()`, `TerminalInfo*()`, `MQLInfo*()`; for Indicators use magic 0 in static_fields
+2. Collect static fields using MQL4/MQL5 `AccountInfo*()`, `TerminalInfo*()` functions (the few MQL5-only properties — `ACCOUNT_MARGIN_MODE`, `TERMINAL_X64`, certain `SYMBOL_*` strings — are gracefully omitted on MQL4 via `TMR_Platform.mqh`); for Indicators use magic 0 in static_fields
 3. Build payload: api_key, robot_version_uuid, (magic_number and session_symbols for Robots only), account_currency, initial_balance, initial_equity, static_fields
 4. Send POST to `/robot/start` with API key in body and special Authorization header
 5. On success: store session_id (string or number), JWT, expires_in; for Robots validate initial robot_config; for Indicators mark session active immediately
@@ -148,7 +148,7 @@ Indicators have these effectively disabled by default (config/symbol managers di
 
 ## Naming Conventions
 
-The SDK follows MQL5 style:
+The SDK follows MQL4/MQL5 style:
 - Classes: `CClassName` (e.g., `CTheMarketRobo_Base`, `CSDKContext`)
 - Interfaces: `IInterfaceName` (e.g., `IRobotConfig`)
 - Methods: `snake_case` (e.g., `on_init`, `on_config_changed`, `get_token`)

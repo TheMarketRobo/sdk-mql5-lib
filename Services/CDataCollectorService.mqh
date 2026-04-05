@@ -10,6 +10,7 @@
 #include "Json.mqh"
 #include "../Models/CSessionSymbol.mqh"
 #include "../Utils/CSDKLogger.mqh"
+#include "../TMR_Platform.mqh"
 
 /**
  * @class CDataCollectorService
@@ -106,7 +107,8 @@ bool CDataCollectorService::wait_for_account_data(int timeout_seconds)
             return false;
         }
         
-        // Sleep for 100ms and check again
+        // Note: Sleep() is a no-op in custom indicator context (both MQL4/MQL5).
+        // In that case this becomes a busy-wait, but TimeLocal() timeout ensures termination.
         Sleep(100);
         wait_count++;
         
@@ -156,17 +158,21 @@ CJAVal* CDataCollectorService::get_static_fields(long expert_magic_number)
                     get_account_margin_so_mode_string((int)AccountInfoInteger(ACCOUNT_MARGIN_SO_MODE)));
     add_json_bool(static_fields, "account_trade_allowed", (bool)AccountInfoInteger(ACCOUNT_TRADE_ALLOWED));
     add_json_bool(static_fields, "account_trade_expert", (bool)AccountInfoInteger(ACCOUNT_TRADE_EXPERT));
-    add_json_string(static_fields, "account_margin_mode",
-                    get_account_margin_mode_string((int)AccountInfoInteger(ACCOUNT_MARGIN_MODE)));
-    add_json_long(static_fields, "account_currency_digits", AccountInfoInteger(ACCOUNT_CURRENCY_DIGITS));
-    add_json_bool(static_fields, "account_fifo_close", (bool)AccountInfoInteger(ACCOUNT_FIFO_CLOSE));
-    add_json_bool(static_fields, "account_hedge_allowed", (bool)AccountInfoInteger(ACCOUNT_HEDGE_ALLOWED));
+    if(TMR_IsAccountPropertyAvailable(ACCOUNT_MARGIN_MODE))
+        add_json_string(static_fields, "account_margin_mode",
+                        get_account_margin_mode_string((int)AccountInfoInteger(ACCOUNT_MARGIN_MODE)));
+    if(TMR_IsAccountPropertyAvailable(ACCOUNT_CURRENCY_DIGITS))
+        add_json_long(static_fields, "account_currency_digits", AccountInfoInteger(ACCOUNT_CURRENCY_DIGITS));
+    if(TMR_IsAccountPropertyAvailable(ACCOUNT_FIFO_CLOSE))
+        add_json_bool(static_fields, "account_fifo_close", (bool)AccountInfoInteger(ACCOUNT_FIFO_CLOSE));
+    if(TMR_IsAccountPropertyAvailable(ACCOUNT_HEDGE_ALLOWED))
+        add_json_bool(static_fields, "account_hedge_allowed", (bool)AccountInfoInteger(ACCOUNT_HEDGE_ALLOWED));
     add_json_string(static_fields, "account_name", AccountInfoString(ACCOUNT_NAME));
     add_json_string(static_fields, "account_server", AccountInfoString(ACCOUNT_SERVER));
     add_json_string(static_fields, "account_currency", AccountInfoString(ACCOUNT_CURRENCY));
     add_json_string(static_fields, "account_company", AccountInfoString(ACCOUNT_COMPANY));
 
-    // Terminal Information
+    // Terminal Information (all properties exist in both MQL4 and MQL5 except TERMINAL_X64)
     add_json_long(static_fields, "terminal_build", TerminalInfoInteger(TERMINAL_BUILD));
     add_json_bool(static_fields, "terminal_community_account", (bool)TerminalInfoInteger(TERMINAL_COMMUNITY_ACCOUNT));
     add_json_bool(static_fields, "terminal_community_connection", (bool)TerminalInfoInteger(TERMINAL_COMMUNITY_CONNECTION));
@@ -184,19 +190,23 @@ CJAVal* CDataCollectorService::get_static_fields(long expert_magic_number)
     add_json_long(static_fields, "terminal_memory_total", TerminalInfoInteger(TERMINAL_MEMORY_TOTAL));
     add_json_long(static_fields, "terminal_memory_available", TerminalInfoInteger(TERMINAL_MEMORY_AVAILABLE));
     add_json_long(static_fields, "terminal_memory_used", TerminalInfoInteger(TERMINAL_MEMORY_USED));
-    add_json_bool(static_fields, "terminal_x64", (bool)TerminalInfoInteger(TERMINAL_X64));
+    if(TMR_IsTerminalPropertyAvailable(TERMINAL_X64))
+        add_json_bool(static_fields, "terminal_x64", (bool)TerminalInfoInteger(TERMINAL_X64));
     add_json_string(static_fields, "terminal_path", TerminalInfoString(TERMINAL_PATH));
     add_json_string(static_fields, "terminal_data_path", TerminalInfoString(TERMINAL_DATA_PATH));
     add_json_string(static_fields, "terminal_commondata_path", TerminalInfoString(TERMINAL_COMMONDATA_PATH));
     add_json_string(static_fields, "terminal_name", TerminalInfoString(TERMINAL_NAME));
     add_json_string(static_fields, "terminal_language", TerminalInfoString(TERMINAL_LANGUAGE));
 
+    // Platform identifier (mt4 or mt5)
+    add_json_string(static_fields, "platform", TMR_PLATFORM);
+
     // MQL Program Information
-    add_json_string(static_fields, "mql_program_name", MQLInfoString(MQL_PROGRAM_NAME));
-    add_json_int(static_fields, "mql_program_type", (int)MQLInfoInteger(MQL_PROGRAM_TYPE));
-    add_json_string(static_fields, "mql_program_path", MQLInfoString(MQL_PROGRAM_PATH));
-    add_json_int(static_fields, "mql_trade_allowed", (int)MQLInfoInteger(MQL_TRADE_ALLOWED));
-    add_json_int(static_fields, "mql_optimization", (int)MQLInfoInteger(MQL_OPTIMIZATION));
+    add_json_string(static_fields, "mql_program_name", TMR_MQLInfoString(MQL_PROGRAM_NAME));
+    add_json_int(static_fields, "mql_program_type", TMR_MQLInfoInteger(MQL_PROGRAM_TYPE));
+    add_json_string(static_fields, "mql_program_path", TMR_MQLInfoString(MQL_PROGRAM_PATH));
+    add_json_int(static_fields, "mql_trade_allowed", TMR_MQLInfoInteger(MQL_TRADE_ALLOWED));
+    add_json_int(static_fields, "mql_optimization", TMR_MQLInfoInteger(MQL_OPTIMIZATION));
     add_json_int(static_fields, "expert_magic", (int)expert_magic_number);
 
     return static_fields;

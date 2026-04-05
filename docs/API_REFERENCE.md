@@ -1,8 +1,10 @@
 # SDK API Reference
 
+> **Platform support:** This API reference applies to both MQL4 (build 600+) and MQL5. The SDK uses a single codebase; the `TMR_Platform.mqh` compatibility header handles all platform differences internally.
+
 ## CTheMarketRobo_Bot_Base / CTheMarketRobo_Base
 
-The main abstract base class for creating trading robots (Expert Advisors) and Custom Indicators.
+The main abstract base class for creating trading robots (Expert Advisors) and Custom Indicators on both MQL4 and MQL5.
 Note: While `CTheMarketRobo_Bot_Base` acts as an alias, `CTheMarketRobo_Base` is the unified parent class.
 
 ### Constructor — Expert Advisor (Robot)
@@ -46,11 +48,11 @@ virtual int on_init(string api_key)
 
 **Parameters:**
 - `api_key`: Customer-provided API key from TheMarketRobo platform (input parameter)
-- `magic_number`: (Robots only) Customer-provided MT5 magic number for trade identification (input parameter)
+- `magic_number`: (Robots only) Customer-provided MT4/MT5 magic number for trade identification (input parameter)
 
 **Returns:** `INIT_SUCCEEDED` or `INIT_FAILED`
 
-**Description:** Initializes the SDK, establishes session with server, and starts the timer. Indicators automatically have `PRODUCT_TYPE_INDICATOR` set, bypass magic numbers, and disable config/symbol change requests.
+**Description:** Initializes the SDK, establishes session with server, and starts the timer. Indicators automatically have `PRODUCT_TYPE_INDICATOR` set, bypass magic numbers, and disable config/symbol change requests. Works identically on MQL4 (build 600+) and MQL5.
 
 **Note:** The API base URL is now hardcoded in the SDK (`SDK_API_BASE_URL` constant). Robot configuration must follow the [Robot Config Component Schema](schemas/robot_config_component_schema/README.md); the Vendor Portal validates it at submission.
 
@@ -63,7 +65,7 @@ virtual void on_deinit(const int reason)
 ```
 
 **Parameters:**
-- `reason`: MQL5 deinitialization reason code
+- `reason`: MQL4/MQL5 deinitialization reason code
 
 **Description:** Terminates the session gracefully and cleans up SDK resources.
 
@@ -168,6 +170,42 @@ ENUM_SDK_LOG_LEVEL get_log_level() const
 
 ---
 
+#### set_indicator_short_name
+
+```cpp
+void set_indicator_short_name(string short_name)
+```
+
+**Parameters:** `short_name` — The indicator's short name set via `IndicatorShortName()`.
+
+**Description:** **Required for indicators.** Must be called during `OnInit()` before `on_init()`. The SDK uses this name for `ChartIndicatorDelete()` self-removal on termination. If not set, the SDK cannot auto-remove the indicator and logs a security warning.
+
+---
+
+#### set_indicator_buffer_count
+
+```cpp
+void set_indicator_buffer_count(int count)
+```
+
+**Parameters:** `count` — Number of indicator buffers registered with `SetIndexBuffer()`.
+
+**Description:** **Required for indicators.** Call during `OnInit()` after `SetIndexBuffer()` calls. Used by the SDK's secure termination to hide all indicator draw styles (`SetIndexStyle(i, DRAW_NONE)`) when the indicator is killed. Without this, terminated indicators may still display stale visual output.
+
+---
+
+#### is_killed
+
+```cpp
+bool is_killed() const
+```
+
+**Returns:** `true` if the indicator has been functionally killed (server termination, auth failure, or kill file detected).
+
+**Description:** Check this at the top of `OnCalculate()` in your indicator code. If `true`, return `rates_total` immediately to skip all calculation. The SDK base class checks this in `on_timer()` automatically, but `OnCalculate()` is called by MetaTrader directly before the SDK can intercept it.
+
+---
+
 #### print_sdk_configuration
 
 ```cpp
@@ -238,7 +276,7 @@ virtual void on_termination_requested(string event_json);
 
 **Parameters:** `event_json` — JSON string with a `reason` field (server-requested termination).
 
-**Description:** Called when the server requested session termination (e.g. from heartbeat response). Default behavior: Alert the user; for Robots call `ExpertRemove()`; for Indicators call `EventKillTimer()` and print a message. Override to customize behavior.
+**Description:** Called when the server requested session termination (e.g. from heartbeat response or customer "End Session" button). Default behavior: Alert the user; for Robots call `ExpertRemove()`; for Indicators apply 3-layer secure termination (try `ChartIndicatorDelete` → functional death → persistent kill file). Override to customize behavior.
 
 ---
 
@@ -505,7 +543,7 @@ string to_json_string()     // Returns JSON string
 
 ## SDK Events
 
-Defined in `Utils/CSDK_Events.mqh`. Event IDs are based on `CHARTEVENT_CUSTOM` so they do not collide with MQL5 built-in events.
+Defined in `Utils/CSDK_Events.mqh`. Event IDs are based on `CHARTEVENT_CUSTOM` so they do not collide with MQL4/MQL5 built-in events.
 
 ### Event Constants
 
@@ -597,6 +635,7 @@ Defined in `Core/CSDKConstants.mqh`:
 #define SDK_DEFAULT_TOKEN_REFRESH_THRESHOLD 60   // Seconds before token expiry to refresh
 #define SDK_DEFAULT_HEARTBEAT_INTERVAL 60       // Fallback heartbeat interval (seconds)
 #define SDK_MAX_HEARTBEAT_INTERVAL 300          // Max heartbeat interval (seconds)
+#define SDK_DEFAULT_MAX_HEARTBEAT_FAILURE_INTERVALS 3  // Consecutive failures before removal
 
 // HTTP
 #define SDK_HTTP_TIMEOUT 5000  // 5 seconds
@@ -680,7 +719,8 @@ enum ENUM_SDK_HEARTBEAT_STATE
 ### Runtime Errors
 
 - **Robots:** Authentication failures trigger automatic EA removal (`ExpertRemove()`). Token expiration triggers proactive refresh (threshold from `SDK_DEFAULT_TOKEN_REFRESH_THRESHOLD` or `set_token_refresh_threshold`).
-- **Indicators:** On auth failure or token refresh failure the SDK stops the timer (`EventKillTimer()`) and alerts the user to remove the indicator; there is no self-removal API for indicators.
+- **Indicators (MQL5):** On auth failure or token refresh failure the SDK removes the indicator from the chart using `ChartIndicatorDelete()`.
+- **Indicators (MQL4):** On auth failure or token refresh failure the SDK applies a 3-layer secure termination: (1) tries `ChartIndicatorDelete` — works for self-deletion on many MT4 builds; (2) if removal fails, functionally kills the indicator — hides all draws, blocks `OnCalculate`, renames to "TMR: DISABLED"; (3) writes a persistent kill file so the indicator cannot restart on timeframe change. The user must manually remove the dead indicator from the chart.
 - Network issues are handled with retry logic (e.g. heartbeat 409 sequence sync).
 - Invalid configurations are rejected with detailed messages; session may not become active if initial config validation fails (Robots only).
 
@@ -691,6 +731,7 @@ enum ENUM_SDK_HEARTBEAT_STATE
 3. For local testing, generate a new **test license** from your Vendor Portal and use its API key with the staging API
 4. Handle `on_config_changed` and `on_symbol_changed` callbacks
 5. Monitor Expert Advisor logs for SDK messages
+6. For MQL4: ensure MetaTrader 4 is build 600+ (required for OOP support)
 
 ---
 

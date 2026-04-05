@@ -1,6 +1,6 @@
 # TheMarketRobo SDK — Developer Integration Booklet
 
-**A Step-by-Step Guide for MQL5 Programmers**
+**A Step-by-Step Guide for MQL4/MQL5 Programmers**
 
 > Version 1.0 · February 2026
 > Copyright © 2024-2026, The Market Robo Inc.
@@ -34,12 +34,14 @@
 
 ## 1. Welcome
 
-Welcome to TheMarketRobo SDK integration guide! This booklet will teach you, step by step, how to integrate MQL5 **Expert Advisors (EAs)** and **Custom Indicators** with TheMarketRobo platform.
+Welcome to TheMarketRobo SDK integration guide! This booklet will teach you, step by step, how to integrate MQL4/MQL5 **Expert Advisors (EAs)** and **Custom Indicators** with TheMarketRobo platform.
 
 **Who is this for?**
-- MQL5 developers who have (or want to build) an EA or Custom Indicator
+- MQL4 or MQL5 developers who have (or want to build) an EA or Custom Indicator
 - Beginner to intermediate programmers who want to connect their robot or indicator to TheMarketRobo cloud dashboard
 - Vendors who want to distribute their robots or indicators through TheMarketRobo marketplace
+
+> **Platform support:** The SDK works on both MetaTrader 4 (build 600+) and MetaTrader 5 from a single codebase. All class code, event handlers, and SDK lifecycle methods are identical on both platforms. The only differences are indicator buffer setup syntax (MQL4 vs MQL5 style) — see the MQL4 sample indicator for the exact pattern.
 
 **What you will learn:**
 - How to install the SDK files
@@ -62,7 +64,11 @@ The SDK handles all of that for you. You just need to tell it **what your settin
 
 ## 2. What Is TheMarketRobo SDK?
 
-TheMarketRobo SDK is a **library** that you include in your MQL5 **Expert Advisor or Custom Indicator**. It creates a **live connection** between your program running on MetaTrader 5 and TheMarketRobo cloud platform.
+TheMarketRobo SDK is a **library** that you include in your MQL4 or MQL5 **Expert Advisor or Custom Indicator**. It creates a **live connection** between your program running on MetaTrader 4 or MetaTrader 5 and TheMarketRobo cloud platform.
+
+**Supported platforms:**
+- **MetaTrader 5** — Any version
+- **MetaTrader 4** — Build 600+ (required for OOP support)
 
 **Supported product types:**
 - **Expert Advisor (Robot)** — Full integration: config schema, magic number, session symbols, remote config and symbol changes.
@@ -76,7 +82,7 @@ This connection allows:
 | **Symbol Management** | Customers can enable/disable trading symbols remotely |
 | **Session Monitoring** | Real-time heartbeats report account balance, equity, drawdown, and profit |
 | **Authentication** | Secure JWT-based authentication with automatic token refresh |
-| **Graceful Shutdown** | Server can request the EA/Indicator to stop; the EA reports final stats; Indicators stop the timer and alert the user (no self-removal API) |
+| **Graceful Shutdown** | Server can request the EA/Indicator to stop; the EA reports final stats; Indicators apply 3-layer secure termination (try removal → functional death → kill file) |
 
 ```
 ┌─────────────────────┐         ┌──────────────────────────┐
@@ -88,6 +94,7 @@ This connection allows:
 │  │  + SDK        │  │         │                          │
 │  └───────────────┘  │         │                          │
 └─────────────────────┘         └──────────────────────────┘
+(Works with both MT4 build 600+ and MT5)
 ```
 
 ---
@@ -96,7 +103,7 @@ This connection allows:
 
 Before starting, make sure you have:
 
-- [x] **MetaTrader 5** installed and running
+- [x] **MetaTrader 5** or **MetaTrader 4** (build 600+) installed and running
 - [x] **MetaEditor** for writing MQL5 code
 - [x] **An existing EA or Custom Indicator** that you want to integrate (or a new project)
 - [x] **API Key** from TheMarketRobo platform (you'll get this after registration)
@@ -1145,7 +1152,7 @@ Call these **before** `on_init()`.
 
 ### 8.7 — on_termination_requested() — Optional Override
 
-By default, when the server requests the EA to stop, the SDK shows an alert and calls `ExpertRemove()`. For **Custom Indicators**, the default is to stop the timer (`EventKillTimer()`) and print a message asking the user to remove the indicator (indicators have no self-removal API). You can override this for custom cleanup:
+By default, when the server requests the EA to stop, the SDK shows an alert and calls `ExpertRemove()`. For **Custom Indicators**, the SDK applies a 3-layer secure termination: (1) tries `ChartIndicatorDelete` — works on MQL5 and for self-deletion on many MQL4 builds; (2) if removal fails, functionally kills the indicator — hides all draws via `SetIndexStyle(DRAW_NONE)`, blocks `OnCalculate`, renames to "TMR: DISABLED"; (3) writes a persistent kill file so the indicator cannot restart on timeframe change. You can override this for custom cleanup:
 
 ```mql5
 virtual void on_termination_requested(string event_json) override
@@ -1160,7 +1167,7 @@ virtual void on_termination_requested(string event_json) override
     // Close all open positions first (EA only)
     // ... your cleanup logic ...
 
-    // Then remove the EA (or for Indicator: just stop timer; user removes manually)
+    // Then remove the EA (or for Indicator: SDK handles 3-layer secure termination automatically)
     Alert("Shutting down as requested by server.");
     ExpertRemove();
 }
@@ -1168,9 +1175,9 @@ virtual void on_termination_requested(string event_json) override
 
 ---
 
-## 9. Step-by-Step: Wiring Up the MQL5 Event Handlers
+## 9. Step-by-Step: Wiring Up the MQL4/MQL5 Event Handlers
 
-MQL5 uses specific event handler functions that MetaTrader calls automatically. You need to connect five of them to your robot:
+MQL4/MQL5 use specific event handler functions that MetaTrader calls automatically. You need to connect five of them to your robot:
 
 ### 9.1 — Global Variable
 
@@ -1835,7 +1842,7 @@ void OnChartEvent(const int id,
 **A:** The SDK collects and reports **account-level** data (balance, equity, margin, drawdown) during heartbeats. It does **not** access individual trade history, order details, or trading strategies.
 
 ### Q: Why do Indicators not require a magic number or config class?
-**A:** Indicators are used for chart analysis and do not place orders, so no magic number is needed for trade identification. The platform supports remote configuration and symbol tracking for **Expert Advisors**; Custom Indicators use the same SDK for session registration and heartbeats only, with a **one-argument constructor** (indicator version UUID). On server-requested termination or token failure, the SDK stops the timer and alerts the user to remove the indicator (there is no self-removal API for indicators).
+**A:** Indicators are used for chart analysis and do not place orders, so no magic number is needed for trade identification. The platform supports remote configuration and symbol tracking for **Expert Advisors**; Custom Indicators use the same SDK for session registration and heartbeats only, with a **one-argument constructor** (indicator version UUID). On server-requested termination or token failure, the SDK applies a 3-layer secure termination: tries `ChartIndicatorDelete`, then functional death (hides all draws, blocks calculation), then writes a persistent kill file to prevent restart.
 
 ---
 

@@ -6,11 +6,11 @@ This guide will help you create your first trading robot using TheMarketRobo SDK
 
 ### Prerequisites
 
-- MetaTrader 5 installed
+- **MetaTrader 5** or **MetaTrader 4** (build 600+) installed
 - Valid TheMarketRobo API key
 - Robot version UUID from TheMarketRobo platform
-- Basic MQL5 knowledge
-- **Indicators only:** "Allow DLL imports" must be enabled in MT5 (the SDK uses `kernel32.dll` and `wininet.dll` for HTTP communication in indicators; EAs use the built-in `WebRequest()` instead)
+- Basic MQL4 or MQL5 knowledge
+- **Indicators only:** "Allow DLL imports" must be enabled in MT4/MT5 (the SDK uses `kernel32.dll` and `wininet.dll` for HTTP communication in indicators; EAs use the built-in `WebRequest()` instead)
 
 > **Programmer obligations (required)**  
 > You must not include any name, link, or address that redirects customers to the vendor or any third party. The product must always be identified as **The Market Robo** with the sole URL **https://www.themarketrobo.com/**. You must not implement any function or behaviour that triggers after a certain time or condition (e.g. alerts or messages) that introduce or promote third parties or other programmers. See [PROGRAMMER_OBLIGATIONS.md](../PROGRAMMER_OBLIGATIONS.md) for the full list and legal effect.
@@ -152,7 +152,7 @@ public:
 
 ### Step 2: Create Your Trading Robot
 
-Create a new file `MyTradingBot.mq5`:
+Create a new file `MyTradingBot.mq5` (or `MyTradingBot.mq4` for MetaTrader 4 — the class code is identical):
 
 ```cpp
 #include "MyBotConfig.mqh"
@@ -225,19 +225,19 @@ private:
 };
 
 //+------------------------------------------------------------------+
-//| MQL5 Entry Points                                                |
+//| MQL4/MQL5 Entry Points (identical on both platforms)             |
 //+------------------------------------------------------------------+
 int OnInit()
 {
     robot = new CMyRobot();
     if(CheckPointer(robot) == POINTER_INVALID)
         return INIT_FAILED;
-    
+
     // Optional: Configure SDK features (config/symbol change support are optional)
     robot.set_enable_config_change_requests(true);   // set false to ignore remote config changes
     robot.set_enable_symbol_change_requests(true);  // set false to ignore remote symbol changes
     robot.set_token_refresh_threshold(300);
-    
+
     // Initialize with customer inputs
     return robot.on_init(InpApiKey, InpMagicNumber);
 }
@@ -248,6 +248,7 @@ void OnDeinit(const int reason)
     {
         robot.on_deinit(reason);
         delete robot;
+        robot = NULL;
     }
 }
 
@@ -332,7 +333,7 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
 
 **"Failed to start SDK session"**
 - Check your API key is correct
-- **For local testing:** Use an API key from a **test license** generated in your Vendor Portal, and ensure the staging URL (`https://api.staging.themarketrobo.com`) is in MT5's Allow WebRequest list
+- **For local testing:** Use an API key from a **test license** generated in your Vendor Portal, and ensure the staging URL (`https://api.staging.themarketrobo.com`) is in MT4/MT5's Allow WebRequest list
 - Verify internet connection
 
 **"Schema not initialized"**
@@ -350,7 +351,9 @@ If you are building a Custom Indicator instead of an Expert Advisor, the process
 
 ### Step 1: Create Your Indicator
 
-Create a new file `MyIndicator.mq5`:
+Create a new file `MyIndicator.mq5` (or `MyIndicator.mq4` for MQL4 — the class code is identical; only buffer setup syntax differs):
+
+> **MQL4 note:** Replace `SetIndexBuffer(idx, buf, INDICATOR_DATA)` with `SetIndexBuffer(idx, buf)` and `SetIndexStyle(idx, ...)`. Replace `IndicatorSetInteger(INDICATOR_DIGITS, ...)` with `IndicatorDigits(...)` and `IndicatorSetString(INDICATOR_SHORTNAME, ...)` with `IndicatorShortName(...)`. See the MQL4 sample indicator for the complete pattern.
 
 ```cpp
 #include <themarketrobo/TheMarketRobo_SDK.mqh>
@@ -392,15 +395,15 @@ public:
 };
 
 //+------------------------------------------------------------------+
-//| MQL5 Entry Points                                                |
+//| MQL4/MQL5 Entry Points (identical on both platforms)             |
 //+------------------------------------------------------------------+
 int OnInit()
 {
     indicator = new CMyIndicator();
     if(CheckPointer(indicator) == POINTER_INVALID)
         return INIT_FAILED;
-    
-    // For chart indicators: call SetIndexBuffer(), IndicatorSetInteger(), etc. here if needed, before or after init.
+
+    // Set up indicator buffers here (syntax differs between MQL4 and MQL5)
     // Initialize with customer inputs (Indicators do not use magic numbers)
     return indicator.on_init(InpApiKey);
 }
@@ -445,7 +448,7 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
 
 ### DLL Imports for Indicators
 
-The SDK uses `kernel32.dll` and `wininet.dll` for HTTP communication in Custom Indicators (since `WebRequest()` is not available). Ensure **"Allow DLL imports"** is checked when attaching the indicator to a chart. Expert Advisors (Robots) do NOT require DLL imports.
+The SDK uses `kernel32.dll` and `wininet.dll` for HTTP communication in Custom Indicators (since `WebRequest()` is not available in indicators). Ensure **"Allow DLL imports"** is checked when attaching the indicator to a chart in MT4 or MT5. Expert Advisors (Robots) do NOT require DLL imports.
 
 ### Running Without the SDK (`SDK_ENABLED`)
 

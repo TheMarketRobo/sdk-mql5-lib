@@ -112,7 +112,7 @@ The SDK sends comprehensive static information about the trading account and ter
 
 #### Session Symbols Array (Robots only)
 The SDK generates this array **only for Expert Advisors**. For Custom Indicators, the SDK omits `session_symbols` from the start payload. For EAs:
-1. Retrieving symbols from the **Market Watch** (Watchlist) using MQL5 `SymbolsTotal(true)` and `SymbolName(i, true)`
+1. Retrieving symbols from the **Market Watch** (Watchlist) using MQL4/MQL5 `SymbolsTotal(true)` and `SymbolName(i, true)`
 2. Checking watchlist status — symbols in watchlist get `active_to_trade: true`
 3. Collecting symbol specifications using `SymbolInfoDouble()` and `SymbolInfoInteger()`
 
@@ -493,21 +493,21 @@ Future requests: Server validates via cache lookup
 ### Three-Layer Architecture
 The SDK acts as middleware between Server and Robot:
 - **Server ↔ SDK**: HTTP/JSON communication with authentication
-- **SDK ↔ Robot**: Internal MQL5 function calls and callbacks
+- **SDK ↔ Robot**: Internal MQL4/MQL5 function calls and callbacks
 - **Robot**: Developer's EA code with configuration objects
 
 ### Initialization Phase
 
 **SDK Internal Process:**
 
-1. **Account data wait (optional)**  
+1. **Account data wait (optional)**
    SDK waits for account data to be available (e.g. up to 10 seconds) so balance/equity are non-zero when possible; if timeout, proceeds with 0 and logs a warning.
 
-2. **Configuration Object Processing (Expert Advisors only)**  
+2. **Configuration Object Processing (Expert Advisors only)**
    For EAs: receive developer's configuration object, store reference, convert to JSON for validation; validate that all required methods are implemented. For Indicators: no config object; config manager is disabled.
 
-3. **Static Data Collection**  
-   Use MQL5 AccountInfo, MQLInfo, TerminalInfo; store in internal structures. For Indicators, `expert_magic` in static_fields is 0.
+3. **Static Data Collection**
+   Use MQL4/MQL5 AccountInfo, TerminalInfo functions; store in internal structures. For Indicators, `expert_magic` in static_fields is 0. The `TMR_Platform.mqh` compatibility layer handles the few MQL5-only properties — certain `ACCOUNT_*` values (e.g. `ACCOUNT_MARGIN_MODE`), `TERMINAL_X64`, and several `SYMBOL_*` string properties are omitted on MQL4. Most terminal and account properties exist on both platforms. A `platform` field (`"mt4"` or `"mt5"`) is included in static_fields.
 
 4. **Session Symbols Array Generation (Expert Advisors only)**  
    For EAs: iterate Market Watch symbols, collect specifications, set `active_to_trade` by watchlist. For Indicators: omit `session_symbols` entirely.
