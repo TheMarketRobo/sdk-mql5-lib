@@ -4,6 +4,8 @@
 
 This guide will help you create your first trading robot using TheMarketRobo SDK.
 
+> **Prefer automatic integration?** The Vendor Portal includes an **SDK Integration Tool** that can automatically integrate the SDK into your existing source code. Upload your `.mq5`/`.mq4` file, select your Version UUID, and get a fully integrated file back — no manual coding required. The tool handles config schema generation, event handler wiring, and all boilerplate. Use it from the **SDK Integration** page or within the **Submission** workflow.
+
 ### Prerequisites
 
 - **MetaTrader 5** or **MetaTrader 4** (build 600+) installed

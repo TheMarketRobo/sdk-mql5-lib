@@ -1,5 +1,7 @@
 # TheMarketRobo SDK — AI Agent Integration Prompt
 
+> **Note:** This prompt is the reference document used by the **SDK Integration Tool** in the Vendor Portal. Vendors can use the tool directly instead of following this prompt manually — it automates the entire process for both indicators and EAs.
+
 **Purpose:** This prompt is for an AI agent that will **read and understand the full TheMarketRobo SDK** and **integrate it into a given MQL4 or MQL5 Custom Indicator**. The agent will receive:
 1. **The SDK root folder:** `Include/themarketrobo`
 2. **The indicator source:** one or more `.mq4` / `.mq5` / `.mqh` files (the Custom Indicator to integrate)

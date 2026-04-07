@@ -116,6 +116,16 @@ Contract schemas live in `aws/contracts/schemas/static_data/v1.json` and `aws/co
 
 MQL4 sessions omit 5 MQL5-only fields (`account_margin_mode`, `account_currency_digits`, `account_fifo_close`, `account_hedge_allowed`, `terminal_x64`). These are optional in the schema. The `platform` field (`"mt4"` or `"mt5"`) is also sent.
 
+## SDK Integration Tool
+
+The backend (`aws/src/endpoints/common/sdk-integrator/`) provides an automated SDK integration service accessible from the Vendor Portal. It parses vendor MQL source code and produces SDK-integrated output:
+
+- **Template path** (simple indicators): Deterministic code generation, ~200ms, free
+- **Deterministic mapper** (large EAs with 30+ inputs): Heuristic-based config schema, instant, free
+- **LLM path** (complex indicators, small EAs): AI-powered via Anthropic Claude API for semantic understanding
+
+The tool uses the same SDK patterns documented here. When modifying SDK classes or methods, the integration tool's prompts and validators should also be updated (`aws/src/endpoints/common/sdk-integrator/src/lib/`).
+
 ## Key Things to Know
 
 - **Log level for production**: Final products must set `SDK_LOG_ERROR` before `on_init()`. Debug/info logging is for development only.

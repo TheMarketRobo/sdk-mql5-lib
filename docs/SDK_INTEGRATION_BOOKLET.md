@@ -38,6 +38,8 @@ Welcome to TheMarketRobo SDK integration guide! This booklet will teach you, ste
 
 **Who is this for?**
 - MQL4 or MQL5 developers who have (or want to build) an EA or Custom Indicator
+
+> **Automatic integration available:** If you prefer not to follow these manual steps, the Vendor Portal provides an **SDK Integration Tool** that can do this automatically. Upload your source file, select your Version UUID, and get fully integrated code back. The tool generates the config schema, wires event handlers, and follows all best practices from this booklet. Access it from the **SDK Integration** page or during the **Submission** workflow.
 - Beginner to intermediate programmers who want to connect their robot or indicator to TheMarketRobo cloud dashboard
 - Vendors who want to distribute their robots or indicators through TheMarketRobo marketplace
 

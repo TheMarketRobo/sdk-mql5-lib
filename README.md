@@ -2,6 +2,25 @@
 
 This directory contains `TheMarketRobo` MQL4/MQL5 Software Development Kit (SDK). It provides an object-oriented, clean interface to interact with TheMarketRobo ecosystem securely and reliably from within the MetaTrader 4 (build 600+) or MetaTrader 5 terminal.
 
+## Automatic SDK Integration Tool
+
+**New:** TheMarketRobo provides an **AI-powered SDK Integration Tool** in the Vendor Portal that can automatically integrate the SDK into your existing MQL4/MQL5 source code.
+
+Instead of manually adding the SDK boilerplate, you can:
+1. Go to the **SDK Integration** page in the Vendor Portal (or use it within the Submission workflow)
+2. Upload your `.mq5` or `.mq4` source file
+3. Select your reserved Version UUID
+4. Click **Integrate SDK** — the tool parses your code, generates the config schema, and produces the fully integrated source file
+
+The tool handles:
+- **Simple indicators** — integrated instantly using a deterministic template (free, ~200ms)
+- **Complex indicators** — AI-assisted integration for indicators with class hierarchies, custom timers, etc.
+- **Expert Advisors** — automatically maps your `input` parameters to the config schema, generates the `IRobotConfig` class, and wires up all event handlers
+
+> **Tip:** For EAs with many input parameters (30+), the tool uses a deterministic mapper that produces results instantly with zero API cost. For smaller EAs (<30 inputs), it uses AI for better semantic labels and grouping.
+
+The generated code follows all SDK best practices documented below. You can review and customize the output before compiling in MetaEditor.
+
 ## Integration Documentation
 
 The SDK is heavily documented. Whether you are building an Expert Advisor or a Custom Indicator, you can find start-to-finish guides in the `docs/` folder:
