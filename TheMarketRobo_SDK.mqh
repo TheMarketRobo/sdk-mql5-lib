@@ -155,6 +155,11 @@
 // Backwards-compatibility alias — existing robots using CTheMarketRobo_Bot_Base compile unchanged
 #include "CTheMarketRobo_Bot_Base.mqh"
 
+// Boilerplate-elimination macros (TMR_DECLARE_ROBOT, TMR_DECLARE_INDICATOR,
+// TMR_FORWARD_*) — let vendors collapse ~80 lines of OnInit/OnDeinit/OnTimer/
+// OnTick/OnChartEvent boilerplate into a single macro call.
+#include "TMR_AutoWire.mqh"
+
 #endif // THEMARKETROBO_SDK_MQH
 //+------------------------------------------------------------------+
 
