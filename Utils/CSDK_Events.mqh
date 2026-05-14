@@ -50,7 +50,7 @@ struct SConfig_Change_Event
  */
 struct SSymbol_Change_Event
 {
-    string symbol;
+    string tmkr_symbol;
     bool active_to_trade;
     
     /**
@@ -59,7 +59,7 @@ struct SSymbol_Change_Event
     string to_json()
     {
         return StringFormat("{\"type\":\"symbol_change\",\"symbol\":\"%s\",\"active_to_trade\":%s}",
-                          symbol, active_to_trade ? "true" : "false");
+                          tmkr_symbol, active_to_trade ? "true" : "false");
     }
 };
 
@@ -69,9 +69,9 @@ struct SSymbol_Change_Event
  */
 struct STermination_Event
 {
-    string reason;
+    string tmkr_reason;
     bool success;
-    string message;
+    string tmkr_message;
     ulong session_id;
     
     /**
@@ -80,7 +80,7 @@ struct STermination_Event
     string to_json()
     {
         return StringFormat("{\"type\":\"termination\",\"reason\":\"%s\",\"success\":%s,\"message\":\"%s\",\"session_id\":%s}",
-                          reason, success ? "true" : "false", message,
+                          tmkr_reason, success ? "true" : "false", tmkr_message,
                           IntegerToString(session_id));
     }
 };
@@ -92,7 +92,7 @@ struct STermination_Event
 struct SToken_Refresh_Event
 {
     bool success;
-    string message;
+    string tmkr_message;
     
     /**
      * @brief Converts the event data to JSON string for sparam
@@ -100,7 +100,7 @@ struct SToken_Refresh_Event
     string to_json()
     {
         return StringFormat("{\"type\":\"token_refresh\",\"success\":%s,\"message\":\"%s\"}",
-                          success ? "true" : "false", message);
+                          success ? "true" : "false", tmkr_message);
     }
 };
 

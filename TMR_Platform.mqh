@@ -104,7 +104,7 @@ int TMR_MQLInfoInteger(int property_id)   { return (int)MQLInfoInteger(property_
 //| backend treats 0 as "not available").                              |
 //+------------------------------------------------------------------+
 #ifdef __MQL4__
-   bool TMR_OrderCalcMargin(int order_type, string symbol, double volume, double price, double &margin)
+   bool TMR_OrderCalcMargin(int order_type, string tmkr_symbol, double tmkr_volume, double tmkr_price, double &margin)
    {
       // MQL4 has no OrderCalcMargin equivalent.
       // AccountFreeMarginCheck gives partial info but not per-lot margin.
@@ -113,9 +113,9 @@ int TMR_MQLInfoInteger(int property_id)   { return (int)MQLInfoInteger(property_
       return false;
    }
 #else
-   bool TMR_OrderCalcMargin(int order_type, string symbol, double volume, double price, double &margin)
+   bool TMR_OrderCalcMargin(int order_type, string tmkr_symbol, double tmkr_volume, double tmkr_price, double &margin)
    {
-      return OrderCalcMargin((ENUM_ORDER_TYPE)order_type, symbol, volume, price, margin);
+      return OrderCalcMargin((ENUM_ORDER_TYPE)order_type, tmkr_symbol, tmkr_volume, tmkr_price, margin);
    }
 #endif
 
@@ -136,8 +136,8 @@ int TMR_MQLInfoInteger(int property_id)   { return (int)MQLInfoInteger(property_
       // ChartIndicatorDelete works for self-deletion on many MT4 builds because
       // the command is asynchronous (queued, executes after current handler returns).
       // Try the real function first; if it fails, caller falls through to functional death.
-      bool result = ChartIndicatorDelete(chart_id, sub_window, indicator_name);
-      if(result)
+      bool tmkr_result = ChartIndicatorDelete(chart_id, sub_window, indicator_name);
+      if(tmkr_result)
       {
          ChartRedraw(chart_id);
          return true;
@@ -154,12 +154,12 @@ int TMR_MQLInfoInteger(int property_id)   { return (int)MQLInfoInteger(property_
       return ChartIndicatorsTotal(chart_id, sub_window);
    }
 
-   string TMR_ChartIndicatorName(long chart_id, int sub_window, int idx)
+   string TMR_ChartIndicatorName(long chart_id, int sub_window, int tmkr_idx)
    {
       // Param renamed from `index` to `idx` to avoid shadow warnings — see
       // Services/Json.mqh. Try the real function — needed for the fallback
       // scan in SDKRemoveIndicatorFromChart.
-      return ChartIndicatorName(chart_id, sub_window, idx);
+      return ChartIndicatorName(chart_id, sub_window, tmkr_idx);
    }
 #else
    bool TMR_ChartIndicatorDelete(long chart_id, int sub_window, string indicator_name)
@@ -172,10 +172,10 @@ int TMR_MQLInfoInteger(int property_id)   { return (int)MQLInfoInteger(property_
       return ChartIndicatorsTotal(chart_id, sub_window);
    }
 
-   string TMR_ChartIndicatorName(long chart_id, int sub_window, int idx)
+   string TMR_ChartIndicatorName(long chart_id, int sub_window, int tmkr_idx)
    {
       // Param renamed from `index` to `idx` — see comment on the MQL5 branch above.
-      return ChartIndicatorName(chart_id, sub_window, idx);
+      return ChartIndicatorName(chart_id, sub_window, tmkr_idx);
    }
 #endif
 

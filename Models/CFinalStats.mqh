@@ -40,7 +40,7 @@ public:
     void set_max_drawdown(double max_drawdown);
     void set_session_duration_minutes(int duration);
     void set_last_error(string last_error);
-    void set_shutdown_reason(string reason);
+    void set_shutdown_reason(string tmkr_reason);
 
     CJAVal* to_json();
 };
@@ -77,7 +77,7 @@ void CFinalStats::set_total_pnl(double total_pnl) { m_total_pnl = total_pnl; }
 void CFinalStats::set_max_drawdown(double max_drawdown) { m_max_drawdown = max_drawdown; }
 void CFinalStats::set_session_duration_minutes(int duration) { m_session_duration_minutes = duration; }
 void CFinalStats::set_last_error(string last_error) { m_last_error = last_error; }
-void CFinalStats::set_shutdown_reason(string reason) { m_shutdown_reason = reason; }
+void CFinalStats::set_shutdown_reason(string tmkr_reason) { m_shutdown_reason = tmkr_reason; }
 
 //+------------------------------------------------------------------+
 //| Convert to JSON                                                   |

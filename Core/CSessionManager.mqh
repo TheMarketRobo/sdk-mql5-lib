@@ -33,7 +33,7 @@ public:
 
     bool start_session();
     bool resume_session(ulong session_id);
-    bool end_session(string reason, CFinalStats* final_stats);
+    bool end_session(string tmkr_reason, CFinalStats* final_stats);
     bool refresh_token();
     
     bool is_session_active() const;
@@ -170,10 +170,10 @@ bool CSessionManager::start_session()
         CJAVal* symbols_array = new CJAVal(JA_ARRAY);
         if(symbols_list != NULL && symbols_array != NULL)
         {
-            for(int i = 0; i < symbols_list.Total(); i++)
+            for(int tmkr_i = 0; tmkr_i < symbols_list.Total(); tmkr_i++)
             {
-                CSessionSymbol* symbol = symbols_list.At(i);
-                symbols_array.Add(symbol.to_json());
+                CSessionSymbol* tmkr_symbol = symbols_list.At(tmkr_i);
+                symbols_array.Add(tmkr_symbol.to_json());
             }
             payload.Add("session_symbols", symbols_array);
             m_context.symbol_manager.set_initial_symbols(symbols_list);
@@ -273,12 +273,12 @@ bool CSessionManager::start_session()
 //+------------------------------------------------------------------+
 //| End the current session                                           |
 //+------------------------------------------------------------------+
-bool CSessionManager::end_session(string reason, CFinalStats* final_stats)
+bool CSessionManager::end_session(string tmkr_reason, CFinalStats* final_stats)
 {
     if(!m_is_active) return false;
     
     STermination_Event start_event;
-    start_event.reason = reason;
+    start_event.reason = tmkr_reason;
     start_event.success = false;
     start_event.message = "Termination started";
     start_event.session_id = m_session_id;
@@ -292,7 +292,7 @@ bool CSessionManager::end_session(string reason, CFinalStats* final_stats)
     payload.Add("session_id", session_id_val);
 
     CJAVal* reason_val = new CJAVal();
-    reason_val.set_string(reason);
+    reason_val.set_string(tmkr_reason);
     payload.Add("reason", reason_val);
 
     if(CheckPointer(final_stats) != POINTER_INVALID)
@@ -305,27 +305,27 @@ bool CSessionManager::end_session(string reason, CFinalStats* final_stats)
     delete payload;
 
     bool success = false;
-    string message = "";
+    string tmkr_message = "";
     
     if(CheckPointer(response) != POINTER_INVALID && response.code == 200)
     {
         m_is_active = false;
         success = true;
-        message = "Session terminated successfully.";
-        if(SDKShouldLogInfo()) Print("SDK Info: ", message);
+        tmkr_message = "Session terminated successfully.";
+        if(SDKShouldLogInfo()) Print("SDK Info: ", tmkr_message);
         delete response;
     }
     else
     {
-        message = "End session failed. Code: " + (string)response.code + ", Body: " + response.body;
-        Print("SDK Error: ", message);
+        tmkr_message = "End session failed. Code: " + (string)response.code + ", Body: " + response.body;
+        Print("SDK Error: ", tmkr_message);
         if(response != NULL) delete response;
     }
     
     STermination_Event end_event;
-    end_event.reason = reason;
+    end_event.reason = tmkr_reason;
     end_event.success = success;
-    end_event.message = message;
+    end_event.message = tmkr_message;
     end_event.session_id = m_session_id;
     Fire_Termination_End_Event(0, end_event);
     
@@ -350,24 +350,24 @@ bool CSessionManager::refresh_token()
     delete payload;
     
     bool success = false;
-    string message = "";
+    string tmkr_message = "";
     
     if(CheckPointer(response) != POINTER_INVALID && response.code == 200)
     {
         m_context.token_manager.set_token(response.json_body["jwt"].get_string());
         success = true;
-        message = "Token refreshed successfully";
+        tmkr_message = "Token refreshed successfully";
         delete response;
     }
     else
     {
-        message = "Token refresh failed. Code: " + (string)response.code + ", Body: " + response.body;
+        tmkr_message = "Token refresh failed. Code: " + (string)response.code + ", Body: " + response.body;
         delete response;
     }
     
     SToken_Refresh_Event event_data;
     event_data.success = success;
-    event_data.message = message;
+    event_data.message = tmkr_message;
     Fire_Token_Refresh_Event(0, event_data);
     
     return success;

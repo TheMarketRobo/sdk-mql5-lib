@@ -47,7 +47,7 @@ public:
     void clear_pending_results();
     
     int get_symbol_count() const;
-    CSessionSymbol* get_symbol(int idx);
+    CSessionSymbol* get_symbol(int tmkr_idx);
     CSessionSymbol* find_symbol(string symbol_name);
 };
 
@@ -120,11 +120,11 @@ int CSymbolManager::get_symbol_count() const
 //| Get symbol by index                                               |
 //+------------------------------------------------------------------+
 // Param renamed from `index` to `idx` — see notes in Services/Json.mqh.
-CSessionSymbol* CSymbolManager::get_symbol(int idx)
+CSessionSymbol* CSymbolManager::get_symbol(int tmkr_idx)
 {
     if(CheckPointer(m_session_symbols) == POINTER_INVALID) return NULL;
-    if(idx < 0 || idx >= m_session_symbols.Total()) return NULL;
-    return m_session_symbols.At(idx);
+    if(tmkr_idx < 0 || tmkr_idx >= m_session_symbols.Total()) return NULL;
+    return m_session_symbols.At(tmkr_idx);
 }
 
 //+------------------------------------------------------------------+
@@ -134,11 +134,11 @@ CSessionSymbol* CSymbolManager::find_symbol(string symbol_name)
 {
     if(CheckPointer(m_session_symbols) == POINTER_INVALID) return NULL;
     
-    for(int i = 0; i < m_session_symbols.Total(); i++)
+    for(int tmkr_i = 0; tmkr_i < m_session_symbols.Total(); tmkr_i++)
     {
-        CSessionSymbol* symbol = m_session_symbols.At(i);
-        if(symbol != NULL && symbol.get_symbol_name() == symbol_name)
-            return symbol;
+        CSessionSymbol* tmkr_symbol = m_session_symbols.At(tmkr_i);
+        if(tmkr_symbol != NULL && tmkr_symbol.get_symbol_name() == symbol_name)
+            return tmkr_symbol;
     }
     return NULL;
 }
@@ -204,13 +204,13 @@ void CSymbolManager::process_change_request(const CJAVal &change_request)
     
     if(is_array)
     {
-        for(int i = 0; i < count; i++)
+        for(int tmkr_i = 0; tmkr_i < count; tmkr_i++)
         {
-            CJAVal* item = use_direct ? change_request[i] : request_array[i];
-            if(CheckPointer(item) == POINTER_INVALID) continue;
+            CJAVal* tmkr_item = use_direct ? change_request[tmkr_i] : request_array[tmkr_i];
+            if(CheckPointer(tmkr_item) == POINTER_INVALID) continue;
             
-            CJAVal* symbol_node = item["symbol"];
-            CJAVal* active_node = item["active_to_trade"];
+            CJAVal* symbol_node = tmkr_item["symbol"];
+            CJAVal* active_node = tmkr_item["active_to_trade"];
             
             if(CheckPointer(symbol_node) == POINTER_INVALID) continue;
             
@@ -232,15 +232,15 @@ void CSymbolManager::process_change_request(const CJAVal &change_request)
             rat_val.set_bool(requested_active);
             result_item.Add("requested_active_to_trade", rat_val);
             
-            CSessionSymbol* symbol = find_symbol(symbol_name);
+            CSessionSymbol* tmkr_symbol = find_symbol(symbol_name);
             
-            if(symbol != NULL)
+            if(tmkr_symbol != NULL)
             {
                 bool select_result = SymbolSelect(symbol_name, requested_active);
                 
                 if(select_result)
                 {
-                    symbol.set_active_to_trade(requested_active);
+                    tmkr_symbol.set_active_to_trade(requested_active);
                     
                     // accepted: true
                     CJAVal* acc_val = new CJAVal();

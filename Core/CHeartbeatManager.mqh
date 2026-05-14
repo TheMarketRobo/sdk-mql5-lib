@@ -141,11 +141,11 @@ bool CHeartbeatManager::is_time_to_send()
 //+------------------------------------------------------------------+
 string CHeartbeatManager::get_iso_timestamp()
 {
-    datetime current = TimeCurrent();
+    datetime tmkr_current = TimeCurrent();
     // Renamed from `dt` to avoid shadowing vendor globals — MQL EAs commonly
     // declare `datetime dt = 0;` at file scope for per-bar timestamp tracking.
     MqlDateTime ts_parts;
-    TimeToStruct(current, ts_parts);
+    TimeToStruct(tmkr_current, ts_parts);
 
     return StringFormat("%04d-%02d-%02dT%02d:%02d:%02d.000Z",
                         ts_parts.year, ts_parts.mon, ts_parts.day,
@@ -258,24 +258,24 @@ void CHeartbeatManager::process_heartbeat_response(const CJAVal &response)
     CJAVal* status_node = response["status"];
     if(CheckPointer(status_node) != POINTER_INVALID)
     {
-        string status = status_node.get_string();
-        if(status == "termination_requested")
+        string tmkr_status = status_node.get_string();
+        if(tmkr_status == "termination_requested")
         {
-            string reason = "Server requested termination";
+            string tmkr_reason = "Server requested termination";
             CJAVal* reason_node = response["termination_reason"];
             if(CheckPointer(reason_node) != POINTER_INVALID)
             {
-                reason = reason_node.get_string();
+                tmkr_reason = reason_node.get_string();
             }
             
             string product_label = m_context.is_indicator() ? "Indicator" : "Expert Advisor";
             if(SDKShouldLogWarning())
-                Print("SDK Warning: Server requested ", product_label, " session termination. Reason: ", reason);
+                Print("SDK Warning: Server requested ", product_label, " session termination. Reason: ", tmkr_reason);
             
             // Fire termination event — the program should handle this
             CJAVal event_json(JA_OBJECT);
             CJAVal* reason_val = new CJAVal();
-            reason_val.set_string(reason);
+            reason_val.set_string(tmkr_reason);
             event_json.Add("reason", reason_val);
             
             string event_str = event_json.to_string();
@@ -284,7 +284,7 @@ void CHeartbeatManager::process_heartbeat_response(const CJAVal &response)
             // Also terminate the SDK session
             if(SDKShouldLogInfo())
                 Print("SDK Info: Initiating session termination...");
-            m_context.terminate(reason);
+            m_context.terminate(tmkr_reason);
             
             return; // Don't process other fields if terminating
         }

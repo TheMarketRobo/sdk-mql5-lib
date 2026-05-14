@@ -37,7 +37,7 @@ public:
     CSDKOptions();
     ~CSDKOptions();
     
-    void set_product_type(ENUM_SDK_PRODUCT_TYPE type);
+    void set_product_type(ENUM_SDK_PRODUCT_TYPE tmkr_type);
     ENUM_SDK_PRODUCT_TYPE get_product_type() const;
     bool is_indicator() const;
     bool is_robot() const;
@@ -80,10 +80,10 @@ CSDKOptions::~CSDKOptions()
 //+------------------------------------------------------------------+
 //| Product type                                                      |
 //+------------------------------------------------------------------+
-void CSDKOptions::set_product_type(ENUM_SDK_PRODUCT_TYPE type)
+void CSDKOptions::set_product_type(ENUM_SDK_PRODUCT_TYPE tmkr_type)
 {
-    m_product_type = type;
-    if(type == PRODUCT_TYPE_INDICATOR)
+    m_product_type = tmkr_type;
+    if(tmkr_type == PRODUCT_TYPE_INDICATOR)
     {
         // Indicators never support remote config or symbol changes — enforce immediately.
         m_enable_config_change_requests = false;

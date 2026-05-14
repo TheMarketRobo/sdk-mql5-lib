@@ -40,9 +40,9 @@ bool SDKShouldLogWarning(void) { return (g_sdk_log_level <= SDK_LOG_WARNING); }
 //+------------------------------------------------------------------+
 //| Getter / Setter                                                   |
 //+------------------------------------------------------------------+
-void SDKSetLogLevel(ENUM_SDK_LOG_LEVEL level)
+void SDKSetLogLevel(ENUM_SDK_LOG_LEVEL tmkr_level)
 {
-    g_sdk_log_level = level;
+    g_sdk_log_level = tmkr_level;
 }
 
 ENUM_SDK_LOG_LEVEL SDKGetLogLevel(void)
@@ -53,9 +53,9 @@ ENUM_SDK_LOG_LEVEL SDKGetLogLevel(void)
 //+------------------------------------------------------------------+
 //| Human-readable label for the current level                        |
 //+------------------------------------------------------------------+
-string SDKLogLevelToString(ENUM_SDK_LOG_LEVEL level)
+string SDKLogLevelToString(ENUM_SDK_LOG_LEVEL tmkr_level)
 {
-    switch(level)
+    switch(tmkr_level)
     {
         case SDK_LOG_ALL:     return "ALL";
         case SDK_LOG_INFO:    return "INFO";

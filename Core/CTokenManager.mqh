@@ -54,7 +54,7 @@ public:
 private:
     bool   decode_token_payload(string jwt);
     string base64_url_decode(const string &encoded_string);
-    int    base64_char_to_value(uchar c);
+    int    base64_char_to_value(uchar tmkr_c);
 };
 
 //+------------------------------------------------------------------+
@@ -275,13 +275,13 @@ bool CTokenManager::decode_token_payload(string jwt)
 //+------------------------------------------------------------------+
 //| Converts a Base64/Base64URL character to its 6-bit value          |
 //+------------------------------------------------------------------+
-int CTokenManager::base64_char_to_value(uchar c)
+int CTokenManager::base64_char_to_value(uchar tmkr_c)
 {
-    if(c >= 'A' && c <= 'Z') return c - 'A';
-    if(c >= 'a' && c <= 'z') return c - 'a' + 26;
-    if(c >= '0' && c <= '9') return c - '0' + 52;
-    if(c == '+' || c == '-') return 62;
-    if(c == '/' || c == '_') return 63;
+    if(tmkr_c >= 'A' && tmkr_c <= 'Z') return tmkr_c - 'A';
+    if(tmkr_c >= 'a' && tmkr_c <= 'z') return tmkr_c - 'a' + 26;
+    if(tmkr_c >= '0' && tmkr_c <= '9') return tmkr_c - '0' + 52;
+    if(tmkr_c == '+' || tmkr_c == '-') return 62;
+    if(tmkr_c == '/' || tmkr_c == '_') return 63;
     return -1;
 }
 
@@ -301,7 +301,7 @@ string CTokenManager::base64_url_decode(const string &encoded_string)
     int padding = 4 - (StringLen(str_input) % 4);
     if(padding != 4)
     {
-        for(int p = 0; p < padding; p++)
+        for(int tmkr_p = 0; tmkr_p < padding; tmkr_p++)
             str_input += "=";
     }
     
@@ -320,12 +320,12 @@ string CTokenManager::base64_url_decode(const string &encoded_string)
     
     int output_index = 0;
     
-    for(int i = 0; i < input_len; i += 4)
+    for(int tmkr_i = 0; tmkr_i < input_len; tmkr_i += 4)
     {
-        uchar c0 = (uchar)StringGetCharacter(str_input, i);
-        uchar c1 = (uchar)StringGetCharacter(str_input, i + 1);
-        uchar c2 = (i + 2 < input_len) ? (uchar)StringGetCharacter(str_input, i + 2) : '=';
-        uchar c3 = (i + 3 < input_len) ? (uchar)StringGetCharacter(str_input, i + 3) : '=';
+        uchar c0 = (uchar)StringGetCharacter(str_input, tmkr_i);
+        uchar c1 = (uchar)StringGetCharacter(str_input, tmkr_i + 1);
+        uchar c2 = (tmkr_i + 2 < input_len) ? (uchar)StringGetCharacter(str_input, tmkr_i + 2) : '=';
+        uchar c3 = (tmkr_i + 3 < input_len) ? (uchar)StringGetCharacter(str_input, tmkr_i + 3) : '=';
         
         int v0 = base64_char_to_value(c0);
         int v1 = base64_char_to_value(c1);
@@ -348,8 +348,8 @@ string CTokenManager::base64_url_decode(const string &encoded_string)
             output_bytes[output_index++] = (uchar)(combined & 0xFF);
     }
     
-    string result = CharArrayToString(output_bytes, 0, output_index, CP_UTF8);
-    return result;
+    string tmkr_result = CharArrayToString(output_bytes, 0, output_index, CP_UTF8);
+    return tmkr_result;
 }
 
 #endif

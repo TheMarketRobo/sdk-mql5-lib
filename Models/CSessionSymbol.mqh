@@ -43,7 +43,7 @@ private:
     string m_symbol_bank;
 
 public:
-    CSessionSymbol(string symbol);
+    CSessionSymbol(string tmkr_symbol);
     ~CSessionSymbol();
 
     void populate_data();
@@ -54,15 +54,15 @@ public:
     void   set_active_to_trade(bool active);
     
 private:
-    void add_json_string(CJAVal* json, string key, string value);
-    void add_json_bool(CJAVal* json, string key, bool value);
-    void add_json_double(CJAVal* json, string key, double value);
+    void add_json_string(CJAVal* json, string tmkr_key, string tmkr_value);
+    void add_json_bool(CJAVal* json, string tmkr_key, bool tmkr_value);
+    void add_json_double(CJAVal* json, string tmkr_key, double tmkr_value);
 };
 
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CSessionSymbol::CSessionSymbol(string symbol) : m_symbol(symbol)
+CSessionSymbol::CSessionSymbol(string tmkr_symbol) : m_symbol(tmkr_symbol)
 {
     m_active_to_trade = false;
     m_spread = 0.0;
@@ -189,28 +189,28 @@ CJAVal* CSessionSymbol::to_json()
 //+------------------------------------------------------------------+
 //| Private Helper Implementations                                   |
 //+------------------------------------------------------------------+
-void CSessionSymbol::add_json_string(CJAVal* json, string key, string value)
+void CSessionSymbol::add_json_string(CJAVal* json, string tmkr_key, string tmkr_value)
 {
-    CJAVal* val = new CJAVal();
-    if(val == NULL) return;
-    val.set_string(value);
-    json.Add(key, val);
+    CJAVal* tmkr_val = new CJAVal();
+    if(tmkr_val == NULL) return;
+    tmkr_val.set_string(tmkr_value);
+    json.Add(tmkr_key, tmkr_val);
 }
 
-void CSessionSymbol::add_json_bool(CJAVal* json, string key, bool value)
+void CSessionSymbol::add_json_bool(CJAVal* json, string tmkr_key, bool tmkr_value)
 {
-    CJAVal* val = new CJAVal();
-    if(val == NULL) return;
-    val.set_bool(value);
-    json.Add(key, val);
+    CJAVal* tmkr_val = new CJAVal();
+    if(tmkr_val == NULL) return;
+    tmkr_val.set_bool(tmkr_value);
+    json.Add(tmkr_key, tmkr_val);
 }
 
-void CSessionSymbol::add_json_double(CJAVal* json, string key, double value)
+void CSessionSymbol::add_json_double(CJAVal* json, string tmkr_key, double tmkr_value)
 {
-    CJAVal* val = new CJAVal();
-    if(val == NULL) return;
-    val.set_double(value);
-    json.Add(key, val);
+    CJAVal* tmkr_val = new CJAVal();
+    if(tmkr_val == NULL) return;
+    tmkr_val.set_double(tmkr_value);
+    json.Add(tmkr_key, tmkr_val);
 }
 
 #endif

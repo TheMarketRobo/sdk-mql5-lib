@@ -58,7 +58,7 @@ public:
     bool check_kill_file() const;
     void clear_kill_file();
     void on_timer();
-    void terminate(string reason);
+    void terminate(string tmkr_reason);
     
     void set_token_refresh_threshold_seconds(int seconds);
     int  get_token_refresh_threshold_seconds() const;
@@ -202,12 +202,12 @@ void CSDKContext::save_session_state()
     string api_key = session_manager.get_api_key();
 
     // Format: session_id|expires_in|expiration_ts|api_key|jwt (jwt last because it contains no '|')
-    string line = IntegerToString(sid) + "|"
+    string tmkr_line = IntegerToString(sid) + "|"
                 + IntegerToString(expires_in) + "|"
                 + IntegerToString(exp_ts) + "|"
                 + api_key + "|"
                 + jwt;
-    FileWriteString(handle, line);
+    FileWriteString(handle, tmkr_line);
     FileClose(handle);
 
     if(SDKShouldLogInfo()) Print("SDK Info: Session state saved for resumption (session ", sid, ").");
@@ -231,16 +231,16 @@ bool CSDKContext::try_restore_session()
         return false;
     }
 
-    string line = FileReadString(handle);
+    string tmkr_line = FileReadString(handle);
     FileClose(handle);
     FileDelete(fname);
 
-    if(line == "")
+    if(tmkr_line == "")
         return false;
 
     // Parse: session_id|expires_in|expiration_ts|api_key|jwt
     string parts[];
-    int count = StringSplit(line, '|', parts);
+    int count = StringSplit(tmkr_line, '|', parts);
     if(count < 5)
     {
         if(SDKShouldLogWarning()) Print("SDK Warning: Corrupt session state file (expected 5 fields, got ", count, ").");
@@ -411,12 +411,12 @@ void CSDKContext::on_timer()
             Print("SDK Error: Connection lost — ", m_consecutive_heartbeat_failures,
                   " consecutive heartbeat failures (max ", m_options.get_max_heartbeat_failure_intervals(),
                   "). Removing product from chart.");
-            string reason = "Connection lost: maximum heartbeat failure intervals (" +
+            string tmkr_reason = "Connection lost: maximum heartbeat failure intervals (" +
                             IntegerToString(m_options.get_max_heartbeat_failure_intervals()) + ") exceeded.";
-            terminate(reason);
+            terminate(tmkr_reason);
             CJAVal event_json(JA_OBJECT);
             CJAVal* reason_val = new CJAVal();
-            reason_val.set_string(reason);
+            reason_val.set_string(tmkr_reason);
             event_json.Add("reason", reason_val);
             Fire_Termination_Requested_Event(0, event_json.to_string());
         }
@@ -463,12 +463,12 @@ void CSDKContext::on_timer()
             Print("SDK Error: Connection lost — ", m_consecutive_heartbeat_failures,
                   " consecutive heartbeat failures (max ", m_options.get_max_heartbeat_failure_intervals(),
                   "). Removing product from chart.");
-            string reason = "Connection lost: maximum heartbeat failure intervals (" +
+            string tmkr_reason = "Connection lost: maximum heartbeat failure intervals (" +
                             IntegerToString(m_options.get_max_heartbeat_failure_intervals()) + ") exceeded.";
-            terminate(reason);
+            terminate(tmkr_reason);
             CJAVal event_json(JA_OBJECT);
             CJAVal* reason_val = new CJAVal();
-            reason_val.set_string(reason);
+            reason_val.set_string(tmkr_reason);
             event_json.Add("reason", reason_val);
             Fire_Termination_Requested_Event(0, event_json.to_string());
             delete response;
@@ -489,12 +489,12 @@ void CSDKContext::on_timer()
 //+------------------------------------------------------------------+
 //| Terminate session                                                 |
 //+------------------------------------------------------------------+
-void CSDKContext::terminate(string reason)
+void CSDKContext::terminate(string tmkr_reason)
 {
     if(CheckPointer(session_manager) != POINTER_INVALID && session_manager.is_session_active())
     {
         CFinalStats* stats = new CFinalStats();
-        session_manager.end_session(reason, stats);
+        session_manager.end_session(tmkr_reason, stats);
         delete stats;
     }
 }

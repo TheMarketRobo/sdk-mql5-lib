@@ -35,15 +35,15 @@ private:
     double m_peak_equity;
     bool   m_initialized;
 
-    void add_json_string(CJAVal* json, string key, string value);
-    void add_json_long(CJAVal* json, string key, long value);
-    void add_json_int(CJAVal* json, string key, int value);
-    void add_json_bool(CJAVal* json, string key, bool value);
-    void add_json_double(CJAVal* json, string key, double value);
+    void add_json_string(CJAVal* json, string tmkr_key, string tmkr_value);
+    void add_json_long(CJAVal* json, string tmkr_key, long tmkr_value);
+    void add_json_int(CJAVal* json, string tmkr_key, int tmkr_value);
+    void add_json_bool(CJAVal* json, string tmkr_key, bool tmkr_value);
+    void add_json_double(CJAVal* json, string tmkr_key, double tmkr_value);
     
-    string get_account_trade_mode_string(int mode);
-    string get_account_margin_so_mode_string(int mode);
-    string get_account_margin_mode_string(int mode);
+    string get_account_trade_mode_string(int tmkr_mode);
+    string get_account_margin_so_mode_string(int tmkr_mode);
+    string get_account_margin_mode_string(int tmkr_mode);
 
 public:
     CDataCollectorService();
@@ -215,9 +215,9 @@ CJAVal* CDataCollectorService::get_static_fields(long expert_magic_number)
 //+------------------------------------------------------------------+
 //| Enum conversion helpers                                           |
 //+------------------------------------------------------------------+
-string CDataCollectorService::get_account_trade_mode_string(int mode)
+string CDataCollectorService::get_account_trade_mode_string(int tmkr_mode)
 {
-    switch(mode)
+    switch(tmkr_mode)
     {
         case ACCOUNT_TRADE_MODE_REAL:    return "REAL";
         case ACCOUNT_TRADE_MODE_DEMO:    return "DEMO";
@@ -226,9 +226,9 @@ string CDataCollectorService::get_account_trade_mode_string(int mode)
     }
 }
 
-string CDataCollectorService::get_account_margin_so_mode_string(int mode)
+string CDataCollectorService::get_account_margin_so_mode_string(int tmkr_mode)
 {
-    switch(mode)
+    switch(tmkr_mode)
     {
         case ACCOUNT_STOPOUT_MODE_PERCENT: return "PERCENT";
         case ACCOUNT_STOPOUT_MODE_MONEY:   return "MONEY";
@@ -236,9 +236,9 @@ string CDataCollectorService::get_account_margin_so_mode_string(int mode)
     }
 }
 
-string CDataCollectorService::get_account_margin_mode_string(int mode)
+string CDataCollectorService::get_account_margin_mode_string(int tmkr_mode)
 {
-    switch(mode)
+    switch(tmkr_mode)
     {
         case ACCOUNT_MARGIN_MODE_RETAIL_NETTING: return "NETTING";
         case ACCOUNT_MARGIN_MODE_RETAIL_HEDGING: return "HEDGING";
@@ -261,15 +261,15 @@ CArrayObj* CDataCollectorService::get_session_symbols()
     // causing massive payload size and timeout issues.
     int total_symbols = SymbolsTotal(true);
     if(SDKShouldLogDebug()) Print("SDK Debug: Found ", total_symbols, " symbols in Market Watch (Watchlist).");
-    for(int i = 0; i < total_symbols; i++)
+    for(int tmkr_i = 0; tmkr_i < total_symbols; tmkr_i++)
     {
-        if(i % 100 == 0 && SDKShouldLogDebug()) Print("SDK Debug: Processing watchlist symbol ", i, " / ", total_symbols);
-        string symbol_name = SymbolName(i, true);
-        CSessionSymbol* symbol = new CSessionSymbol(symbol_name);
-        if(symbol != NULL)
+        if(tmkr_i % 100 == 0 && SDKShouldLogDebug()) Print("SDK Debug: Processing watchlist symbol ", tmkr_i, " / ", total_symbols);
+        string symbol_name = SymbolName(tmkr_i, true);
+        CSessionSymbol* tmkr_symbol = new CSessionSymbol(symbol_name);
+        if(tmkr_symbol != NULL)
         {
-            symbol.populate_data();
-            symbols_list.Add(symbol);
+            tmkr_symbol.populate_data();
+            symbols_list.Add(tmkr_symbol);
         }
     }
     return symbols_list;
@@ -376,44 +376,44 @@ CJAVal* CDataCollectorService::get_dynamic_data()
 //+------------------------------------------------------------------+
 //| Private Helper Implementations                                   |
 //+------------------------------------------------------------------+
-void CDataCollectorService::add_json_string(CJAVal* json, string key, string value)
+void CDataCollectorService::add_json_string(CJAVal* json, string tmkr_key, string tmkr_value)
 {
-    CJAVal* val = new CJAVal();
-    if(val == NULL) return;
-    val.set_string(value);
-    json.Add(key, val);
+    CJAVal* tmkr_val = new CJAVal();
+    if(tmkr_val == NULL) return;
+    tmkr_val.set_string(tmkr_value);
+    json.Add(tmkr_key, tmkr_val);
 }
 
-void CDataCollectorService::add_json_long(CJAVal* json, string key, long value)
+void CDataCollectorService::add_json_long(CJAVal* json, string tmkr_key, long tmkr_value)
 {
-    CJAVal* val = new CJAVal();
-    if(val == NULL) return;
-    val.set_long(value);
-    json.Add(key, val);
+    CJAVal* tmkr_val = new CJAVal();
+    if(tmkr_val == NULL) return;
+    tmkr_val.set_long(tmkr_value);
+    json.Add(tmkr_key, tmkr_val);
 }
 
-void CDataCollectorService::add_json_int(CJAVal* json, string key, int value)
+void CDataCollectorService::add_json_int(CJAVal* json, string tmkr_key, int tmkr_value)
 {
-    CJAVal* val = new CJAVal();
-    if(val == NULL) return;
-    val.set_long((long)value);
-    json.Add(key, val);
+    CJAVal* tmkr_val = new CJAVal();
+    if(tmkr_val == NULL) return;
+    tmkr_val.set_long((long)tmkr_value);
+    json.Add(tmkr_key, tmkr_val);
 }
 
-void CDataCollectorService::add_json_bool(CJAVal* json, string key, bool value)
+void CDataCollectorService::add_json_bool(CJAVal* json, string tmkr_key, bool tmkr_value)
 {
-    CJAVal* val = new CJAVal();
-    if(val == NULL) return;
-    val.set_bool(value);
-    json.Add(key, val);
+    CJAVal* tmkr_val = new CJAVal();
+    if(tmkr_val == NULL) return;
+    tmkr_val.set_bool(tmkr_value);
+    json.Add(tmkr_key, tmkr_val);
 }
 
-void CDataCollectorService::add_json_double(CJAVal* json, string key, double value)
+void CDataCollectorService::add_json_double(CJAVal* json, string tmkr_key, double tmkr_value)
 {
-    CJAVal* val = new CJAVal();
-    if(val == NULL) return;
-    val.set_double(value);
-    json.Add(key, val);
+    CJAVal* tmkr_val = new CJAVal();
+    if(tmkr_val == NULL) return;
+    tmkr_val.set_double(tmkr_value);
+    json.Add(tmkr_key, tmkr_val);
 }
 
 #endif

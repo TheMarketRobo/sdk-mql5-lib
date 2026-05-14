@@ -151,13 +151,13 @@ void CConfigurationManager::process_change_request(const CJAVal &change_request)
     
     if(is_array)
     {
-        for(int i = 0; i < count; i++)
+        for(int tmkr_i = 0; tmkr_i < count; tmkr_i++)
         {
-            CJAVal* item = use_direct ? change_request[i] : request_array[i];
-            if(CheckPointer(item) == POINTER_INVALID) continue;
+            CJAVal* tmkr_item = use_direct ? change_request[tmkr_i] : request_array[tmkr_i];
+            if(CheckPointer(tmkr_item) == POINTER_INVALID) continue;
             
-            CJAVal* field_node = item["field_name"];
-            CJAVal* value_node = item["new_value"];
+            CJAVal* field_node = tmkr_item["field_name"];
+            CJAVal* value_node = tmkr_item["new_value"];
             
             if(CheckPointer(field_node) == POINTER_INVALID) continue;
             
@@ -186,8 +186,8 @@ void CConfigurationManager::process_change_request(const CJAVal &change_request)
             rv_val.set_string(new_value_str);
             result_item.Add("requested_value", rv_val);
             
-            string reason = "";
-            if(m_robot_config.validate_field(field_name, new_value_str, reason))
+            string tmkr_reason = "";
+            if(m_robot_config.validate_field(field_name, new_value_str, tmkr_reason))
             {
                 m_robot_config.update_field(field_name, new_value_str);
                 
@@ -218,11 +218,11 @@ void CConfigurationManager::process_change_request(const CJAVal &change_request)
                 
                 // error_message
                 CJAVal* em_val = new CJAVal();
-                em_val.set_string(reason);
+                em_val.set_string(tmkr_reason);
                 result_item.Add("error_message", em_val);
                 
                 rejected_count++;
-                if(SDKShouldLogWarning()) Print("SDK Warning: Config field '", field_name, "' rejected. Reason: ", reason);
+                if(SDKShouldLogWarning()) Print("SDK Warning: Config field '", field_name, "' rejected. Reason: ", tmkr_reason);
             }
             
             results_array.Add(result_item);

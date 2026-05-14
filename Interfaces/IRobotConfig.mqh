@@ -41,7 +41,7 @@ public:
     // CONFIGURATION VALIDATION (SDK uses these)
     //==========================================================================
     
-    virtual bool validate_field(string field_name, string new_value, string &reason);
+    virtual bool validate_field(string field_name, string new_value, string &tmkr_reason);
     virtual string to_json() = 0;
     virtual bool update_from_json(const CJAVal &config_json) = 0;
     virtual bool update_field(string field_name, string new_value) = 0;
@@ -54,7 +54,7 @@ public:
     
     CConfigSchema* get_schema();
     string get_schema_json();
-    CConfigField* get_field_definition(string key);
+    CConfigField* get_field_definition(string tmkr_key);
 };
 
 //+------------------------------------------------------------------+
@@ -85,18 +85,18 @@ CConfigSchema* IRobotConfig::get_schema()
 //+------------------------------------------------------------------+
 //| Validate field using schema                                       |
 //+------------------------------------------------------------------+
-bool IRobotConfig::validate_field(string field_name, string new_value, string &reason)
+bool IRobotConfig::validate_field(string field_name, string new_value, string &tmkr_reason)
 {
     if(CheckPointer(m_schema) == POINTER_INVALID)
     {
-        reason = "Schema not initialized";
+        tmkr_reason = "Schema not initialized";
         return false;
     }
     
     CConfigField* field = m_schema.get_field(field_name);
     if(field == NULL)
     {
-        reason = "Field not found: " + field_name;
+        tmkr_reason = "Field not found: " + field_name;
         return false;
     }
     
@@ -104,22 +104,22 @@ bool IRobotConfig::validate_field(string field_name, string new_value, string &r
     {
         case CONFIG_FIELD_INTEGER:
         {
-            int value = (int)StringToInteger(new_value);
-            return field.validate_value(value, reason);
+            int tmkr_value = (int)StringToInteger(new_value);
+            return field.validate_value(tmkr_value, tmkr_reason);
         }
         case CONFIG_FIELD_DECIMAL:
         {
-            double value = StringToDouble(new_value);
-            return field.validate_value(value, reason);
+            double tmkr_value = StringToDouble(new_value);
+            return field.validate_value(tmkr_value, tmkr_reason);
         }
         case CONFIG_FIELD_BOOLEAN:
         {
-            bool value = (new_value == "true" || new_value == "1");
-            return field.validate_value(value, reason);
+            bool tmkr_value = (new_value == "true" || new_value == "1");
+            return field.validate_value(tmkr_value, tmkr_reason);
         }
         case CONFIG_FIELD_RADIO:
         {
-            return field.validate_value(new_value, reason);
+            return field.validate_value(new_value, tmkr_reason);
         }
         case CONFIG_FIELD_MULTIPLE:
         {
@@ -156,11 +156,11 @@ string IRobotConfig::get_schema_json()
 //+------------------------------------------------------------------+
 //| Get field definition                                              |
 //+------------------------------------------------------------------+
-CConfigField* IRobotConfig::get_field_definition(string key)
+CConfigField* IRobotConfig::get_field_definition(string tmkr_key)
 {
     if(CheckPointer(m_schema) != POINTER_INVALID)
     {
-        return m_schema.get_field(key);
+        return m_schema.get_field(tmkr_key);
     }
     return NULL;
 }

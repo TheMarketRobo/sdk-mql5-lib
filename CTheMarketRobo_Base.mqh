@@ -63,9 +63,9 @@ public:
         return INIT_SUCCEEDED;
     }
 
-    virtual void on_deinit(const int reason) {}
+    virtual void on_deinit(const int tmkr_reason) {}
     virtual void on_timer() {}
-    virtual void on_chart_event(const int id, const long &lparam, const double &dparam, const string &sparam) {}
+    virtual void on_chart_event(const int tmkr_id, const long &lparam, const double &dparam, const string &sparam) {}
 
     // Robot callbacks (override in EA)
     virtual void on_tick() {}
@@ -75,14 +75,14 @@ public:
     // Indicator callback (override in indicator)
     virtual int on_calculate(const int rates_total,
                               const int prev_calculated,
-                              const datetime &time[],
+                              const datetime &tmkr_time[],
                               const double   &open[],
                               const double   &high[],
                               const double   &low[],
                               const double   &close[],
                               const long     &tick_volume[],
-                              const long     &volume[],
-                              const int      &spread[]) { return rates_total; }
+                              const long     &tmkr_volume[],
+                              const int      &tmkr_spread[]) { return rates_total; }
 
     // Shared callback
     virtual void on_termination_requested(string event_json) {}
@@ -102,7 +102,7 @@ public:
     bool is_robot_mode() const { return true; }
     void set_indicator_short_name(string short_name) {}
     bool is_pending_removal() const { return false; }
-    void set_log_level(ENUM_SDK_LOG_LEVEL level) { SDKSetLogLevel(level); }
+    void set_log_level(ENUM_SDK_LOG_LEVEL tmkr_level) { SDKSetLogLevel(tmkr_level); }
     ENUM_SDK_LOG_LEVEL get_log_level() const { return SDKGetLogLevel(); }
 };
 
@@ -195,9 +195,9 @@ public:
     // Indicator init: no magic_number; product type is set to INDICATOR automatically
     virtual int  on_init(string api_key);
     
-    virtual void on_deinit(const int reason);
+    virtual void on_deinit(const int tmkr_reason);
     virtual void on_timer();
-    virtual void on_chart_event(const int id, const long &lparam, const double &dparam, const string &sparam);
+    virtual void on_chart_event(const int tmkr_id, const long &lparam, const double &dparam, const string &sparam);
 
     // --- Robot callbacks (override in EA) ---
     virtual void on_tick() {}
@@ -207,14 +207,14 @@ public:
     // --- Indicator callback (override in indicator) ---
     virtual int  on_calculate(const int rates_total,
                               const int prev_calculated,
-                              const datetime &time[],
+                              const datetime &tmkr_time[],
                               const double   &open[],
                               const double   &high[],
                               const double   &low[],
                               const double   &close[],
                               const long     &tick_volume[],
-                              const long     &volume[],
-                              const int      &spread[]) { return rates_total; }
+                              const long     &tmkr_volume[],
+                              const int      &tmkr_spread[]) { return rates_total; }
 
     // --- Shared callback ---
     // Default: robots call ExpertRemove(), indicators stop the timer and alert the user.
@@ -247,7 +247,7 @@ public:
     bool   is_killed() const;
 
     // Log level control — set before or after on_init()
-    void   set_log_level(ENUM_SDK_LOG_LEVEL level);
+    void   set_log_level(ENUM_SDK_LOG_LEVEL tmkr_level);
     ENUM_SDK_LOG_LEVEL get_log_level() const;
 
 protected:
@@ -413,8 +413,8 @@ void CTheMarketRobo_Base::kill_indicator()
     EventKillTimer();
 
     // Hide all indicator draw styles — lines/arrows/histograms disappear
-    for(int i = 0; i < m_indicator_buffer_count; i++)
-        SetIndexStyle(i, DRAW_NONE);
+    for(int tmkr_i = 0; tmkr_i < m_indicator_buffer_count; tmkr_i++)
+        SetIndexStyle(tmkr_i, DRAW_NONE);
 
     // Blank the indicator name in chart's indicator list
     IndicatorShortName("TMR: DISABLED");
@@ -561,9 +561,9 @@ int CTheMarketRobo_Base::on_init(string api_key)
 //| indicator (chart change, parameter change, recompile, etc.).      |
 //| The session should be preserved, not terminated.                   |
 //+------------------------------------------------------------------+
-bool IsNonDestructiveDeinit(int reason)
+bool IsNonDestructiveDeinit(int tmkr_reason)
 {
-    switch(reason)
+    switch(tmkr_reason)
     {
         case REASON_CHARTCHANGE:   // 3 — symbol or period changed
         case REASON_PARAMETERS:    // 5 — input parameters changed
@@ -579,10 +579,10 @@ bool IsNonDestructiveDeinit(int reason)
 //+------------------------------------------------------------------+
 //| Deinitialize                                                      |
 //+------------------------------------------------------------------+
-void CTheMarketRobo_Base::on_deinit(const int reason)
+void CTheMarketRobo_Base::on_deinit(const int tmkr_reason)
 {
-    string label = is_indicator_mode() ? "Indicator" : "EA";
-    if(SDKShouldLogInfo()) Print("SDK Info: Deinitializing ", label, " SDK (reason=", reason, ")...");
+    string tmkr_label = is_indicator_mode() ? "Indicator" : "EA";
+    if(SDKShouldLogInfo()) Print("SDK Info: Deinitializing ", tmkr_label, " SDK (reason=", tmkr_reason, ")...");
 
     if(CheckPointer(m_sdk_context) == POINTER_INVALID)
     {
@@ -592,9 +592,9 @@ void CTheMarketRobo_Base::on_deinit(const int reason)
 
     // For indicators: non-destructive deinit means MT5 will reinit immediately.
     // Save session state so the new instance can resume without a new /robot/start.
-    if(is_indicator_mode() && IsNonDestructiveDeinit(reason))
+    if(is_indicator_mode() && IsNonDestructiveDeinit(tmkr_reason))
     {
-        if(SDKShouldLogInfo()) Print("SDK Info: Non-destructive deinit (reason ", reason,
+        if(SDKShouldLogInfo()) Print("SDK Info: Non-destructive deinit (reason ", tmkr_reason,
               ") — saving session for resumption.");
         m_sdk_context.save_session_state();
     }
@@ -602,7 +602,7 @@ void CTheMarketRobo_Base::on_deinit(const int reason)
     {
         // Destructive deinit (or robot mode): terminate the session normally.
         m_sdk_context.clear_kill_file();  // User explicitly removed — allow fresh start later
-        m_sdk_context.terminate(label + " Shutdown: reason " + (string)reason);
+        m_sdk_context.terminate(tmkr_label + " Shutdown: reason " + (string)tmkr_reason);
         m_sdk_context.clear_session_state();
     }
 
@@ -628,9 +628,9 @@ void CTheMarketRobo_Base::on_timer()
 //+------------------------------------------------------------------+
 //| Chart event                                                       |
 //+------------------------------------------------------------------+
-void CTheMarketRobo_Base::on_chart_event(const int id, const long &lparam, const double &dparam, const string &sparam)
+void CTheMarketRobo_Base::on_chart_event(const int tmkr_id, const long &lparam, const double &dparam, const string &sparam)
 {
-    switch(id)
+    switch(tmkr_id)
     {
         case SDK_EVENT_CONFIG_CHANGED:
             if(is_robot_mode())
@@ -777,20 +777,20 @@ void CTheMarketRobo_Base::handle_termination_event(string event_json)
     CJAVal event_data;
     if(!event_data.parse(event_json)) return;
 
-    string reason = event_data["reason"].get_string();
+    string tmkr_reason = event_data["reason"].get_string();
     
     if(is_robot_mode())
     {
-        string message = "Session terminated by server. Reason: " + reason;
-        Print(message);
-        Alert(message);
+        string tmkr_message = "Session terminated by server. Reason: " + tmkr_reason;
+        Print(tmkr_message);
+        Alert(tmkr_message);
         ExpertRemove();
     }
     else
     {
         SDKUserErrorWithDetails(
             "Session ended. The indicator will be removed from the chart.",
-            "Server termination reason: " + reason);
+            "Server termination reason: " + tmkr_reason);
         remove_indicator_from_chart();
     }
 }
@@ -803,9 +803,9 @@ void CTheMarketRobo_Base::handle_termination_requested_event(string event_json)
     CJAVal event_data;
     if(!event_data.parse(event_json)) return;
 
-    string reason = event_data["reason"].get_string();
+    string tmkr_reason = event_data["reason"].get_string();
     
-    Print("SDK Error: SERVER REQUESTED SESSION TERMINATION. Reason: ", reason,
+    Print("SDK Error: SERVER REQUESTED SESSION TERMINATION. Reason: ", tmkr_reason,
           ". ", (is_robot_mode() ? "The Expert Advisor will now terminate..." 
                                   : "The Indicator session will now terminate..."));
     
@@ -818,21 +818,21 @@ void CTheMarketRobo_Base::handle_termination_requested_event(string event_json)
 void CTheMarketRobo_Base::on_termination_requested(string event_json)
 {
     CJAVal event_data;
-    string reason = "Server requested termination";
+    string tmkr_reason = "Server requested termination";
     
     if(event_data.parse(event_json))
-        reason = event_data["reason"].get_string();
+        tmkr_reason = event_data["reason"].get_string();
     
     if(is_robot_mode())
     {
-        Alert("TheMarketRobo: Server requested termination: " + reason);
+        Alert("TheMarketRobo: Server requested termination: " + tmkr_reason);
         ExpertRemove();
     }
     else
     {
         SDKUserErrorWithDetails(
             "Session stopped by server. The indicator will be removed from the chart.",
-            "Termination reason: " + reason);
+            "Termination reason: " + tmkr_reason);
         remove_indicator_from_chart();
     }
 }
@@ -850,9 +850,9 @@ void CTheMarketRobo_Base::handle_token_refresh_event(string event_json)
     {
         if(is_robot_mode())
         {
-            string message = "TheMarketRobo: Authentication failed. The robot will be removed to prevent an unauthorized session.";
-            Print(message);
-            Alert(message);
+            string tmkr_message = "TheMarketRobo: Authentication failed. The robot will be removed to prevent an unauthorized session.";
+            Print(tmkr_message);
+            Alert(tmkr_message);
             ExpertRemove();
         }
         else
@@ -870,9 +870,9 @@ void CTheMarketRobo_Base::handle_token_refresh_event(string event_json)
 //+------------------------------------------------------------------+
 //| Log level                                                         |
 //+------------------------------------------------------------------+
-void CTheMarketRobo_Base::set_log_level(ENUM_SDK_LOG_LEVEL level)
+void CTheMarketRobo_Base::set_log_level(ENUM_SDK_LOG_LEVEL tmkr_level)
 {
-    SDKSetLogLevel(level);
+    SDKSetLogLevel(tmkr_level);
 }
 
 ENUM_SDK_LOG_LEVEL CTheMarketRobo_Base::get_log_level() const

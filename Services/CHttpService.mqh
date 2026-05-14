@@ -21,7 +21,7 @@
 class CHttpResponse : public CObject
 {
 public:
-    int code;
+    int tmkr_code;
     string body;
     CJAVal* json_body;
 
@@ -55,14 +55,14 @@ private:
     string m_wininet_base_path;
     int    m_wininet_port;
 
-    CHttpResponse* post_webrequest(string endpoint, string jwt_token, string &data);
-    CHttpResponse* post_wininet(string endpoint, string jwt_token, string &data);
+    CHttpResponse* post_webrequest(string endpoint, string jwt_token, string &tmkr_data);
+    CHttpResponse* post_wininet(string endpoint, string jwt_token, string &tmkr_data);
 
 public:
     CHttpService(ENUM_SDK_PRODUCT_TYPE product_type = PRODUCT_TYPE_ROBOT);
     ~CHttpService();
 
-    CHttpResponse* post(string endpoint, string jwt_token, string &data);
+    CHttpResponse* post(string endpoint, string jwt_token, string &tmkr_data);
     string get_base_url() const;
     void set_logging(bool enable);
 };
@@ -121,20 +121,20 @@ void CHttpService::set_logging(bool enable)
 //+------------------------------------------------------------------+
 //| Send POST request — dispatches to WebRequest or WinINet          |
 //+------------------------------------------------------------------+
-CHttpResponse* CHttpService::post(string endpoint, string jwt_token, string &data)
+CHttpResponse* CHttpService::post(string endpoint, string jwt_token, string &tmkr_data)
 {
     if(m_product_type == PRODUCT_TYPE_INDICATOR)
-        return post_wininet(endpoint, jwt_token, data);
-    return post_webrequest(endpoint, jwt_token, data);
+        return post_wininet(endpoint, jwt_token, tmkr_data);
+    return post_webrequest(endpoint, jwt_token, tmkr_data);
 }
 
 //+------------------------------------------------------------------+
 //| POST via built-in WebRequest (EAs and scripts only)              |
 //+------------------------------------------------------------------+
-CHttpResponse* CHttpService::post_webrequest(string endpoint, string jwt_token, string &data)
+CHttpResponse* CHttpService::post_webrequest(string endpoint, string jwt_token, string &tmkr_data)
 {
     char post_data[];
-    char result[];
+    char tmkr_result[];
     string headers = "Content-Type: application/json\r\n";
     string response_headers;
     
@@ -150,16 +150,16 @@ CHttpResponse* CHttpService::post_webrequest(string endpoint, string jwt_token, 
         Print("============================================================");
         Print("URL: ", m_base_url + endpoint);
         Print("Headers: \n", headers);
-        Print("Body: \n", data);
+        Print("Body: \n", tmkr_data);
         Print("============================================================");
     }
 
-    StringToCharArray(data, post_data, 0, StringLen(data), CP_UTF8);
+    StringToCharArray(tmkr_data, post_data, 0, StringLen(tmkr_data), CP_UTF8);
 
     CHttpResponse* response = new CHttpResponse();
     if(response == NULL) return NULL;
 
-    int res = WebRequest("POST", m_base_url + endpoint, headers, HTTP_TIMEOUT, post_data, result, response_headers);
+    int res = WebRequest("POST", m_base_url + endpoint, headers, HTTP_TIMEOUT, post_data, tmkr_result, response_headers);
 
     if(res == -1)
     {
@@ -177,7 +177,7 @@ CHttpResponse* CHttpService::post_webrequest(string endpoint, string jwt_token, 
     else
     {
         response.code = res;
-        response.body = CharArrayToString(result, 0, -1, CP_UTF8);
+        response.body = CharArrayToString(tmkr_result, 0, -1, CP_UTF8);
         
         if(m_enable_logging && SDKShouldLogDebug())
         {
@@ -209,7 +209,7 @@ CHttpResponse* CHttpService::post_webrequest(string endpoint, string jwt_token, 
 //+------------------------------------------------------------------+
 //| POST via WinINet.dll (works from indicators)                     |
 //+------------------------------------------------------------------+
-CHttpResponse* CHttpService::post_wininet(string endpoint, string jwt_token, string &data)
+CHttpResponse* CHttpService::post_wininet(string endpoint, string jwt_token, string &tmkr_data)
 {
     string headers_str = "Content-Type: application/json\r\n";
     if(jwt_token != "")
@@ -227,7 +227,7 @@ CHttpResponse* CHttpService::post_wininet(string endpoint, string jwt_token, str
         Print("============================================================");
         Print("URL: https://", m_wininet_host, ":", m_wininet_port, full_path);
         Print("Headers: \n", headers_str);
-        Print("Body: \n", data);
+        Print("Body: \n", tmkr_data);
         Print("============================================================");
     }
 
@@ -235,10 +235,10 @@ CHttpResponse* CHttpService::post_wininet(string endpoint, string jwt_token, str
     if(response == NULL) return NULL;
 
     string response_body = "";
-    int status = WinINetPost(m_wininet_host, full_path, m_wininet_port,
-                              headers_str, data, response_body);
+    int tmkr_status = WinINetPost(m_wininet_host, full_path, m_wininet_port,
+                              headers_str, tmkr_data, response_body);
 
-    if(status == -1)
+    if(tmkr_status == -1)
     {
         response.code = -1;
         response.body = "WinINet request failed. Check DLL imports are enabled and network connectivity.";
@@ -253,7 +253,7 @@ CHttpResponse* CHttpService::post_wininet(string endpoint, string jwt_token, str
     }
     else
     {
-        response.code = status;
+        response.code = tmkr_status;
         response.body = response_body;
 
         if(m_enable_logging && SDKShouldLogDebug())
@@ -261,7 +261,7 @@ CHttpResponse* CHttpService::post_wininet(string endpoint, string jwt_token, str
             Print("============================================================");
             Print("| HTTP RESPONSE RECEIVED (WinINet)                          |");
             Print("============================================================");
-            Print("Status Code: ", status);
+            Print("Status Code: ", tmkr_status);
             Print("Body: \n", response.body);
             Print("============================================================");
         }

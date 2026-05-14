@@ -31,7 +31,7 @@
 #define TMR_AUTOWIRE_MQH
 
 #ifndef THEMARKETROBO_SDK_MQH
-   #error "TMR_AutoWire.mqh requires TheMarketRobo_SDK.mqh — include the SDK first"
+   #tmkr_error "TMR_AutoWire.mqh requires TheMarketRobo_SDK.mqh — include the SDK first"
 #endif
 
 //+------------------------------------------------------------------+
@@ -54,11 +54,11 @@
       SDKSetLogLevel(SDK_LOG_ERROR);                                         \
       return g_tmr_robot_instance.on_init(ApiKeyInput, MagicNumberInput);    \
    }                                                                         \
-   void OnDeinit(const int reason)                                           \
+   void OnDeinit(const int tmkr_reason)                                           \
    {                                                                         \
       if(CheckPointer(g_tmr_robot_instance) != POINTER_INVALID)              \
       {                                                                      \
-         g_tmr_robot_instance.on_deinit(reason);                             \
+         g_tmr_robot_instance.on_deinit(tmkr_reason);                             \
          delete g_tmr_robot_instance;                                        \
          g_tmr_robot_instance = NULL;                                        \
       }                                                                      \
@@ -73,11 +73,11 @@
       if(CheckPointer(g_tmr_robot_instance) != POINTER_INVALID)              \
          g_tmr_robot_instance.on_tick();                                     \
    }                                                                         \
-   void OnChartEvent(const int id, const long &lparam,                       \
+   void OnChartEvent(const int tmkr_id, const long &lparam,                       \
                      const double &dparam, const string &sparam)             \
    {                                                                         \
       if(CheckPointer(g_tmr_robot_instance) != POINTER_INVALID)              \
-         g_tmr_robot_instance.on_chart_event(id, lparam, dparam, sparam);    \
+         g_tmr_robot_instance.on_chart_event(tmkr_id, lparam, dparam, sparam);    \
    }
 
 //+------------------------------------------------------------------+
@@ -136,11 +136,11 @@
       }                                                                               \
       return INIT_SUCCEEDED;                                                          \
    }                                                                                  \
-   void OnDeinit(const int reason)                                                    \
+   void OnDeinit(const int tmkr_reason)                                                    \
    {                                                                                  \
       if(CheckPointer(g_tmr_indicator_instance) != POINTER_INVALID)                   \
       {                                                                               \
-         g_tmr_indicator_instance.on_deinit(reason);                                  \
+         g_tmr_indicator_instance.on_deinit(tmkr_reason);                                  \
          delete g_tmr_indicator_instance;                                             \
          g_tmr_indicator_instance = NULL;                                             \
       }                                                                               \
@@ -156,11 +156,11 @@
       if(CheckPointer(g_tmr_indicator_instance) != POINTER_INVALID)                   \
          g_tmr_indicator_instance.on_timer();                                         \
    }                                                                                  \
-   void OnChartEvent(const int id, const long &lparam,                                \
+   void OnChartEvent(const int tmkr_id, const long &lparam,                                \
                      const double &dparam, const string &sparam)                      \
    {                                                                                  \
       if(CheckPointer(g_tmr_indicator_instance) != POINTER_INVALID)                   \
-         g_tmr_indicator_instance.on_chart_event(id, lparam, dparam, sparam);         \
+         g_tmr_indicator_instance.on_chart_event(tmkr_id, lparam, dparam, sparam);         \
    }
 
 //+------------------------------------------------------------------+
@@ -173,10 +173,10 @@
 //+------------------------------------------------------------------+
 #define TMR_FORWARD_ONCALCULATE(InstanceName)                                         \
    int OnCalculate(const int rates_total, const int prev_calculated,                  \
-                   const datetime &time[], const double &open[],                      \
+                   const datetime &tmkr_time[], const double &open[],                      \
                    const double &high[], const double &low[],                         \
                    const double &close[], const long &tick_volume[],                  \
-                   const long &volume[], const int &spread[])                         \
+                   const long &tmkr_volume[], const int &tmkr_spread[])                         \
    {                                                                                  \
       if(CheckPointer(InstanceName) != POINTER_INVALID && InstanceName.is_killed())   \
          return rates_total;                                                          \
@@ -187,8 +187,8 @@
       }                                                                               \
       if(CheckPointer(InstanceName) != POINTER_INVALID)                               \
          return InstanceName.on_calculate(rates_total, prev_calculated,               \
-                                          time, open, high, low, close,               \
-                                          tick_volume, volume, spread);               \
+                                          tmkr_time, open, high, low, close,               \
+                                          tick_volume, tmkr_volume, tmkr_spread);               \
       return rates_total;                                                             \
    }
 
@@ -200,11 +200,11 @@
 //| still wants the standard handlers without retyping them.           |
 //+------------------------------------------------------------------+
 #define TMR_FORWARD_ONDEINIT(InstanceName)                                            \
-   void OnDeinit(const int reason)                                                    \
+   void OnDeinit(const int tmkr_reason)                                                    \
    {                                                                                  \
       if(CheckPointer(InstanceName) != POINTER_INVALID)                               \
       {                                                                               \
-         InstanceName.on_deinit(reason);                                              \
+         InstanceName.on_deinit(tmkr_reason);                                              \
          delete InstanceName;                                                         \
          InstanceName = NULL;                                                         \
       }                                                                               \
@@ -225,11 +225,11 @@
    }
 
 #define TMR_FORWARD_ONCHARTEVENT(InstanceName)                                        \
-   void OnChartEvent(const int id, const long &lparam,                                \
+   void OnChartEvent(const int tmkr_id, const long &lparam,                                \
                      const double &dparam, const string &sparam)                      \
    {                                                                                  \
       if(CheckPointer(InstanceName) != POINTER_INVALID)                               \
-         InstanceName.on_chart_event(id, lparam, dparam, sparam);                     \
+         InstanceName.on_chart_event(tmkr_id, lparam, dparam, sparam);                     \
    }
 
 #endif // TMR_AUTOWIRE_MQH

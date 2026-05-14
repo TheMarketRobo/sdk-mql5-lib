@@ -35,12 +35,12 @@ public:
     string      m_key;
     CJAVal     *m_val;
 
-                CJAObj(string key, CJAVal *val);
+                CJAObj(string tmkr_key, CJAVal *tmkr_val);
                ~CJAObj();
 };
 
 //+------------------------------------------------------------------+
-CJAObj::CJAObj(string key, CJAVal *val) : m_key(key), m_val(val) {}
+CJAObj::CJAObj(string tmkr_key, CJAVal *tmkr_val) : m_key(tmkr_key), m_val(tmkr_val) {}
 
 //+------------------------------------------------------------------+
 CJAObj::~CJAObj()
@@ -63,7 +63,7 @@ private:
     CArrayObj  *m_arr;
 
 public:
-                CJAVal(ENUM_JA_TYPE type = JA_NULL);
+                CJAVal(ENUM_JA_TYPE tmkr_type = JA_NULL);
                ~CJAVal();
 
     bool        parse(string &json_string);
@@ -76,46 +76,46 @@ public:
     bool        get_bool() const;
     int         count() const;
 
-    void        set_string(const string value);
-    void        set_double(const double value);
-    void        set_long(const long value);
-    void        set_bool(const bool value);
+    void        set_string(const string tmkr_value);
+    void        set_double(const double tmkr_value);
+    void        set_long(const long tmkr_value);
+    void        set_bool(const bool tmkr_value);
 
-    bool        Add(const string key, CJAVal *value);
-    CJAVal     *operator[](const string key);
-    CJAVal     *operator[](const string key) const;
-    bool        has_key(const string key) const;
+    bool        Add(const string tmkr_key, CJAVal *tmkr_value);
+    CJAVal     *operator[](const string tmkr_key);
+    CJAVal     *operator[](const string tmkr_key) const;
+    bool        has_key(const string tmkr_key) const;
 
-    bool        Add(CJAVal *value);
-    CJAVal     *operator[](const int idx);
-    CJAVal     *operator[](const int idx) const;
+    bool        Add(CJAVal *tmkr_value);
+    CJAVal     *operator[](const int tmkr_idx);
+    CJAVal     *operator[](const int tmkr_idx) const;
     
     string      serialize();  // Alias for to_string
 
 private:
-    string      Escape(const string s);
-    string      Unescape(const string s);
-    bool        ParseValue(string &json, int &pos);
-    bool        ParseObject(string &json, int &pos);
-    bool        ParseArray(string &json, int &pos);
-    bool        ParseString(string &json, int &pos);
-    bool        ParseNumber(string &json, int &pos);
-    bool        ParseLiteral(string &json, int &pos);
-    void        SkipWhitespace(string &json, int &pos);
+    string      Escape(const string tmkr_s);
+    string      Unescape(const string tmkr_s);
+    bool        ParseValue(string &json, int &tmkr_pos);
+    bool        ParseObject(string &json, int &tmkr_pos);
+    bool        ParseArray(string &json, int &tmkr_pos);
+    bool        ParseString(string &json, int &tmkr_pos);
+    bool        ParseNumber(string &json, int &tmkr_pos);
+    bool        ParseLiteral(string &json, int &tmkr_pos);
+    void        SkipWhitespace(string &json, int &tmkr_pos);
 };
 
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CJAVal::CJAVal(ENUM_JA_TYPE type) : m_type(type), m_number(0), m_bool(false)
+CJAVal::CJAVal(ENUM_JA_TYPE tmkr_type) : m_type(tmkr_type), m_number(0), m_bool(false)
 {
     m_string = "";
-    if(type == JA_OBJECT)
+    if(tmkr_type == JA_OBJECT)
         m_obj = new CArrayObj();
     else
         m_obj = NULL;
 
-    if(type == JA_ARRAY)
+    if(tmkr_type == JA_ARRAY)
         m_arr = new CArrayObj();
     else
         m_arr = NULL;
@@ -137,8 +137,8 @@ CJAVal::~CJAVal()
 //+------------------------------------------------------------------+
 bool CJAVal::parse(string &json_string)
 {
-    int pos = 0;
-    return ParseValue(json_string, pos);
+    int tmkr_pos = 0;
+    return ParseValue(json_string, tmkr_pos);
 }
 
 //+------------------------------------------------------------------+
@@ -162,34 +162,34 @@ string CJAVal::to_string()
             return m_bool ? "true" : "false";
         case JA_OBJECT:
         {
-            string s = "{";
+            string tmkr_s = "{";
             // Renamed from `total` to avoid shadowing common vendor globals
             // (e.g. MQL4 EAs that declare `int total = 0;` at file scope).
             int json_total = m_obj.Total();
-            for(int i = 0; i < json_total; i++)
+            for(int tmkr_i = 0; tmkr_i < json_total; tmkr_i++)
             {
-                CJAObj *pair = m_obj.At(i);
-                s += "\"" + Escape(pair.m_key) + "\":" + pair.m_val.to_string();
-                if(i < json_total - 1)
-                    s += ",";
+                CJAObj *tmkr_pair = m_obj.At(tmkr_i);
+                tmkr_s += "\"" + Escape(tmkr_pair.m_key) + "\":" + tmkr_pair.m_val.to_string();
+                if(tmkr_i < json_total - 1)
+                    tmkr_s += ",";
             }
-            s += "}";
-            return s;
+            tmkr_s += "}";
+            return tmkr_s;
         }
         case JA_ARRAY:
         {
-            string s = "[";
+            string tmkr_s = "[";
             // Renamed from `total` for the same reason as above.
             int json_total = m_arr.Total();
-            for(int i = 0; i < json_total; i++)
+            for(int tmkr_i = 0; tmkr_i < json_total; tmkr_i++)
             {
-                CJAVal *val = m_arr.At(i);
-                s += val.to_string();
-                if(i < json_total - 1)
-                    s += ",";
+                CJAVal *tmkr_val = m_arr.At(tmkr_i);
+                tmkr_s += tmkr_val.to_string();
+                if(tmkr_i < json_total - 1)
+                    tmkr_s += ",";
             }
-            s += "]";
-            return s;
+            tmkr_s += "]";
+            return tmkr_s;
         }
     }
     return "";
@@ -214,58 +214,58 @@ int CJAVal::count() const
 //+------------------------------------------------------------------+
 //| Setters                                                           |
 //+------------------------------------------------------------------+
-void CJAVal::set_string(const string value)
+void CJAVal::set_string(const string tmkr_value)
 {
     m_type = JA_STRING;
-    m_string = value;
+    m_string = tmkr_value;
 }
 
-void CJAVal::set_double(const double value)
+void CJAVal::set_double(const double tmkr_value)
 {
     m_type = JA_NUMBER;
-    m_number = value;
+    m_number = tmkr_value;
 }
 
-void CJAVal::set_long(const long value)
+void CJAVal::set_long(const long tmkr_value)
 {
     m_type = JA_NUMBER;
-    m_number = (double)value;
+    m_number = (double)tmkr_value;
 }
 
-void CJAVal::set_bool(const bool value)
+void CJAVal::set_bool(const bool tmkr_value)
 {
     m_type = JA_BOOL;
-    m_bool = value;
+    m_bool = tmkr_value;
 }
 
 //+------------------------------------------------------------------+
 //| Object methods                                                    |
 //+------------------------------------------------------------------+
-bool CJAVal::Add(const string key, CJAVal* value)
+bool CJAVal::Add(const string tmkr_key, CJAVal* tmkr_value)
 {
     if(m_type != JA_OBJECT) return false;
     if(m_obj == NULL) m_obj = new CArrayObj();
-    return m_obj.Add(new CJAObj(key, value));
+    return m_obj.Add(new CJAObj(tmkr_key, tmkr_value));
 }
 
-CJAVal* CJAVal::operator[](const string key)
+CJAVal* CJAVal::operator[](const string tmkr_key)
 {
     if(m_type != JA_OBJECT || m_obj == NULL) return NULL;
-    for(int i = 0; i < m_obj.Total(); i++)
+    for(int tmkr_i = 0; tmkr_i < m_obj.Total(); tmkr_i++)
     {
-        CJAObj* pair = m_obj.At(i);
-        if(pair.m_key == key) return pair.m_val;
+        CJAObj* tmkr_pair = m_obj.At(tmkr_i);
+        if(tmkr_pair.m_key == tmkr_key) return tmkr_pair.m_val;
     }
     return NULL;
 }
 
-CJAVal* CJAVal::operator[](const string key) const
+CJAVal* CJAVal::operator[](const string tmkr_key) const
 {
     if(m_type != JA_OBJECT || m_obj == NULL) return NULL;
-    for(int i = 0; i < m_obj.Total(); i++)
+    for(int tmkr_i = 0; tmkr_i < m_obj.Total(); tmkr_i++)
     {
-        CJAObj* pair = m_obj.At(i);
-        if(pair.m_key == key) return pair.m_val;
+        CJAObj* tmkr_pair = m_obj.At(tmkr_i);
+        if(tmkr_pair.m_key == tmkr_key) return tmkr_pair.m_val;
     }
     return NULL;
 }
@@ -273,37 +273,37 @@ CJAVal* CJAVal::operator[](const string key) const
 //+------------------------------------------------------------------+
 //| Array methods                                                     |
 //+------------------------------------------------------------------+
-bool CJAVal::Add(CJAVal* value)
+bool CJAVal::Add(CJAVal* tmkr_value)
 {
     if(m_type != JA_ARRAY) return false;
     if(m_arr == NULL) m_arr = new CArrayObj();
-    return m_arr.Add(value);
+    return m_arr.Add(tmkr_value);
 }
 
 // Params renamed from `index` to `idx` to avoid shadow warnings — vendor EAs
 // sometimes declare a global `double index` (Loss Index, position index, etc.).
-CJAVal* CJAVal::operator[](const int idx)
+CJAVal* CJAVal::operator[](const int tmkr_idx)
 {
     if(m_type != JA_ARRAY || m_arr == NULL) return NULL;
-    return m_arr.At(idx);
+    return m_arr.At(tmkr_idx);
 }
 
-CJAVal* CJAVal::operator[](const int idx) const
+CJAVal* CJAVal::operator[](const int tmkr_idx) const
 {
     if(m_type != JA_ARRAY || m_arr == NULL) return NULL;
-    return m_arr.At(idx);
+    return m_arr.At(tmkr_idx);
 }
 
 //+------------------------------------------------------------------+
 //| Check if object has a key                                         |
 //+------------------------------------------------------------------+
-bool CJAVal::has_key(const string key) const
+bool CJAVal::has_key(const string tmkr_key) const
 {
     if(m_type != JA_OBJECT || m_obj == NULL) return false;
-    for(int i = 0; i < m_obj.Total(); i++)
+    for(int tmkr_i = 0; tmkr_i < m_obj.Total(); tmkr_i++)
     {
-        CJAObj* pair = m_obj.At(i);
-        if(pair.m_key == key) return true;
+        CJAObj* tmkr_pair = m_obj.At(tmkr_i);
+        if(tmkr_pair.m_key == tmkr_key) return true;
     }
     return false;
 }
@@ -319,14 +319,14 @@ string CJAVal::serialize()
 //+------------------------------------------------------------------+
 //| Skip whitespace characters                                        |
 //+------------------------------------------------------------------+
-void CJAVal::SkipWhitespace(string &json, int &pos)
+void CJAVal::SkipWhitespace(string &json, int &tmkr_pos)
 {
-    int len = StringLen(json);
-    while(pos < len)
+    int tmkr_len = StringLen(json);
+    while(tmkr_pos < tmkr_len)
     {
-        ushort c = StringGetCharacter(json, pos);
-        if(c == ' ' || c == '\t' || c == '\n' || c == '\r')
-            pos++;
+        ushort tmkr_c = StringGetCharacter(json, tmkr_pos);
+        if(tmkr_c == ' ' || tmkr_c == '\t' || tmkr_c == '\n' || tmkr_c == '\r')
+            tmkr_pos++;
         else
             break;
     }
@@ -335,25 +335,25 @@ void CJAVal::SkipWhitespace(string &json, int &pos)
 //+------------------------------------------------------------------+
 //| Parse any JSON value                                              |
 //+------------------------------------------------------------------+
-bool CJAVal::ParseValue(string &json, int &pos)
+bool CJAVal::ParseValue(string &json, int &tmkr_pos)
 {
-    SkipWhitespace(json, pos);
+    SkipWhitespace(json, tmkr_pos);
     
-    if(pos >= StringLen(json))
+    if(tmkr_pos >= StringLen(json))
         return false;
     
-    ushort c = StringGetCharacter(json, pos);
+    ushort tmkr_c = StringGetCharacter(json, tmkr_pos);
     
-    if(c == '{')
-        return ParseObject(json, pos);
-    if(c == '[')
-        return ParseArray(json, pos);
-    if(c == '"')
-        return ParseString(json, pos);
-    if(c == '-' || (c >= '0' && c <= '9'))
-        return ParseNumber(json, pos);
-    if(c == 't' || c == 'f' || c == 'n')
-        return ParseLiteral(json, pos);
+    if(tmkr_c == '{')
+        return ParseObject(json, tmkr_pos);
+    if(tmkr_c == '[')
+        return ParseArray(json, tmkr_pos);
+    if(tmkr_c == '"')
+        return ParseString(json, tmkr_pos);
+    if(tmkr_c == '-' || (tmkr_c >= '0' && tmkr_c <= '9'))
+        return ParseNumber(json, tmkr_pos);
+    if(tmkr_c == 't' || tmkr_c == 'f' || tmkr_c == 'n')
+        return ParseLiteral(json, tmkr_pos);
     
     return false;
 }
@@ -361,71 +361,71 @@ bool CJAVal::ParseValue(string &json, int &pos)
 //+------------------------------------------------------------------+
 //| Parse JSON object                                                 |
 //+------------------------------------------------------------------+
-bool CJAVal::ParseObject(string &json, int &pos)
+bool CJAVal::ParseObject(string &json, int &tmkr_pos)
 {
-    if(StringGetCharacter(json, pos) != '{')
+    if(StringGetCharacter(json, tmkr_pos) != '{')
         return false;
     
     m_type = JA_OBJECT;
     if(m_obj == NULL)
         m_obj = new CArrayObj();
     
-    pos++;
-    SkipWhitespace(json, pos);
+    tmkr_pos++;
+    SkipWhitespace(json, tmkr_pos);
     
-    if(pos < StringLen(json) && StringGetCharacter(json, pos) == '}')
+    if(tmkr_pos < StringLen(json) && StringGetCharacter(json, tmkr_pos) == '}')
     {
-        pos++;
+        tmkr_pos++;
         return true;
     }
     
-    while(pos < StringLen(json))
+    while(tmkr_pos < StringLen(json))
     {
-        SkipWhitespace(json, pos);
+        SkipWhitespace(json, tmkr_pos);
         
-        if(StringGetCharacter(json, pos) != '"')
+        if(StringGetCharacter(json, tmkr_pos) != '"')
             return false;
         
         CJAVal* keyVal = new CJAVal();
-        if(!keyVal.ParseString(json, pos))
+        if(!keyVal.ParseString(json, tmkr_pos))
         {
             delete keyVal;
             return false;
         }
-        string key = keyVal.get_string();
+        string tmkr_key = keyVal.get_string();
         delete keyVal;
         
-        SkipWhitespace(json, pos);
+        SkipWhitespace(json, tmkr_pos);
         
-        if(pos >= StringLen(json) || StringGetCharacter(json, pos) != ':')
+        if(tmkr_pos >= StringLen(json) || StringGetCharacter(json, tmkr_pos) != ':')
             return false;
-        pos++;
+        tmkr_pos++;
         
-        SkipWhitespace(json, pos);
+        SkipWhitespace(json, tmkr_pos);
         
-        CJAVal* value = new CJAVal();
-        if(!value.ParseValue(json, pos))
+        CJAVal* tmkr_value = new CJAVal();
+        if(!tmkr_value.ParseValue(json, tmkr_pos))
         {
-            delete value;
+            delete tmkr_value;
             return false;
         }
         
-        m_obj.Add(new CJAObj(key, value));
+        m_obj.Add(new CJAObj(tmkr_key, tmkr_value));
         
-        SkipWhitespace(json, pos);
+        SkipWhitespace(json, tmkr_pos);
         
-        if(pos >= StringLen(json))
+        if(tmkr_pos >= StringLen(json))
             return false;
         
-        ushort c = StringGetCharacter(json, pos);
-        if(c == '}')
+        ushort tmkr_c = StringGetCharacter(json, tmkr_pos);
+        if(tmkr_c == '}')
         {
-            pos++;
+            tmkr_pos++;
             return true;
         }
-        if(c == ',')
+        if(tmkr_c == ',')
         {
-            pos++;
+            tmkr_pos++;
             continue;
         }
         
@@ -438,51 +438,51 @@ bool CJAVal::ParseObject(string &json, int &pos)
 //+------------------------------------------------------------------+
 //| Parse JSON array                                                  |
 //+------------------------------------------------------------------+
-bool CJAVal::ParseArray(string &json, int &pos)
+bool CJAVal::ParseArray(string &json, int &tmkr_pos)
 {
-    if(StringGetCharacter(json, pos) != '[')
+    if(StringGetCharacter(json, tmkr_pos) != '[')
         return false;
     
     m_type = JA_ARRAY;
     if(m_arr == NULL)
         m_arr = new CArrayObj();
     
-    pos++;
-    SkipWhitespace(json, pos);
+    tmkr_pos++;
+    SkipWhitespace(json, tmkr_pos);
     
-    if(pos < StringLen(json) && StringGetCharacter(json, pos) == ']')
+    if(tmkr_pos < StringLen(json) && StringGetCharacter(json, tmkr_pos) == ']')
     {
-        pos++;
+        tmkr_pos++;
         return true;
     }
     
-    while(pos < StringLen(json))
+    while(tmkr_pos < StringLen(json))
     {
-        SkipWhitespace(json, pos);
+        SkipWhitespace(json, tmkr_pos);
         
-        CJAVal* value = new CJAVal();
-        if(!value.ParseValue(json, pos))
+        CJAVal* tmkr_value = new CJAVal();
+        if(!tmkr_value.ParseValue(json, tmkr_pos))
         {
-            delete value;
+            delete tmkr_value;
             return false;
         }
         
-        m_arr.Add(value);
+        m_arr.Add(tmkr_value);
         
-        SkipWhitespace(json, pos);
+        SkipWhitespace(json, tmkr_pos);
         
-        if(pos >= StringLen(json))
+        if(tmkr_pos >= StringLen(json))
             return false;
         
-        ushort c = StringGetCharacter(json, pos);
-        if(c == ']')
+        ushort tmkr_c = StringGetCharacter(json, tmkr_pos);
+        if(tmkr_c == ']')
         {
-            pos++;
+            tmkr_pos++;
             return true;
         }
-        if(c == ',')
+        if(tmkr_c == ',')
         {
-            pos++;
+            tmkr_pos++;
             continue;
         }
         
@@ -495,73 +495,73 @@ bool CJAVal::ParseArray(string &json, int &pos)
 //+------------------------------------------------------------------+
 //| Parse JSON string                                                 |
 //+------------------------------------------------------------------+
-bool CJAVal::ParseString(string &json, int &pos)
+bool CJAVal::ParseString(string &json, int &tmkr_pos)
 {
-    if(StringGetCharacter(json, pos) != '"')
+    if(StringGetCharacter(json, tmkr_pos) != '"')
         return false;
     
-    pos++;
-    string result = "";
-    int len = StringLen(json);
+    tmkr_pos++;
+    string tmkr_result = "";
+    int tmkr_len = StringLen(json);
     
-    while(pos < len)
+    while(tmkr_pos < tmkr_len)
     {
-        ushort c = StringGetCharacter(json, pos);
+        ushort tmkr_c = StringGetCharacter(json, tmkr_pos);
         
-        if(c == '"')
+        if(tmkr_c == '"')
         {
-            pos++;
+            tmkr_pos++;
             m_type = JA_STRING;
-            m_string = result;
+            m_string = tmkr_result;
             return true;
         }
         
-        if(c == '\\')
+        if(tmkr_c == '\\')
         {
-            pos++;
-            if(pos >= len)
+            tmkr_pos++;
+            if(tmkr_pos >= tmkr_len)
                 return false;
             
-            ushort escaped = StringGetCharacter(json, pos);
+            ushort escaped = StringGetCharacter(json, tmkr_pos);
             switch(escaped)
             {
-                case '"':  result += "\""; break;
-                case '\\': result += "\\"; break;
-                case '/':  result += "/"; break;
-                case 'b':  result += ShortToString(8); break;  // backspace
-                case 'f':  result += ShortToString(12); break; // form feed
-                case 'n':  result += "\n"; break;
-                case 'r':  result += "\r"; break;
-                case 't':  result += "\t"; break;
+                case '"':  tmkr_result += "\""; break;
+                case '\\': tmkr_result += "\\"; break;
+                case '/':  tmkr_result += "/"; break;
+                case 'b':  tmkr_result += ShortToString(8); break;  // backspace
+                case 'f':  tmkr_result += ShortToString(12); break; // form feed
+                case 'n':  tmkr_result += "\n"; break;
+                case 'r':  tmkr_result += "\r"; break;
+                case 't':  tmkr_result += "\t"; break;
                 case 'u':
                 {
-                    if(pos + 4 >= len)
+                    if(tmkr_pos + 4 >= tmkr_len)
                         return false;
-                    string hex = StringSubstr(json, pos + 1, 4);
-                    int code = 0;
-                    for(int i = 0; i < 4; i++)
+                    string hex = StringSubstr(json, tmkr_pos + 1, 4);
+                    int tmkr_code = 0;
+                    for(int tmkr_i = 0; tmkr_i < 4; tmkr_i++)
                     {
-                        ushort h = StringGetCharacter(hex, i);
-                        int val = 0;
-                        if(h >= '0' && h <= '9') val = h - '0';
-                        else if(h >= 'a' && h <= 'f') val = h - 'a' + 10;
-                        else if(h >= 'A' && h <= 'F') val = h - 'A' + 10;
+                        ushort tmkr_h = StringGetCharacter(hex, tmkr_i);
+                        int tmkr_val = 0;
+                        if(tmkr_h >= '0' && tmkr_h <= '9') tmkr_val = tmkr_h - '0';
+                        else if(tmkr_h >= 'a' && tmkr_h <= 'f') tmkr_val = tmkr_h - 'a' + 10;
+                        else if(tmkr_h >= 'A' && tmkr_h <= 'F') tmkr_val = tmkr_h - 'A' + 10;
                         else return false;
-                        code = code * 16 + val;
+                        tmkr_code = tmkr_code * 16 + tmkr_val;
                     }
-                    result += ShortToString((ushort)code);
-                    pos += 4;
+                    tmkr_result += ShortToString((ushort)tmkr_code);
+                    tmkr_pos += 4;
                     break;
                 }
                 default:
                     return false;
             }
-            pos++;
+            tmkr_pos++;
         }
         else
         {
-            result += ShortToString(c);
-            pos++;
+            tmkr_result += ShortToString(tmkr_c);
+            tmkr_pos++;
         }
     }
     
@@ -571,30 +571,30 @@ bool CJAVal::ParseString(string &json, int &pos)
 //+------------------------------------------------------------------+
 //| Parse JSON number                                                 |
 //+------------------------------------------------------------------+
-bool CJAVal::ParseNumber(string &json, int &pos)
+bool CJAVal::ParseNumber(string &json, int &tmkr_pos)
 {
-    int start = pos;
-    int len = StringLen(json);
+    int tmkr_start = tmkr_pos;
+    int tmkr_len = StringLen(json);
     
-    if(pos < len && StringGetCharacter(json, pos) == '-')
-        pos++;
+    if(tmkr_pos < tmkr_len && StringGetCharacter(json, tmkr_pos) == '-')
+        tmkr_pos++;
     
-    if(pos >= len)
+    if(tmkr_pos >= tmkr_len)
         return false;
     
-    ushort c = StringGetCharacter(json, pos);
-    if(c == '0')
+    ushort tmkr_c = StringGetCharacter(json, tmkr_pos);
+    if(tmkr_c == '0')
     {
-        pos++;
+        tmkr_pos++;
     }
-    else if(c >= '1' && c <= '9')
+    else if(tmkr_c >= '1' && tmkr_c <= '9')
     {
-        pos++;
-        while(pos < len)
+        tmkr_pos++;
+        while(tmkr_pos < tmkr_len)
         {
-            c = StringGetCharacter(json, pos);
-            if(c >= '0' && c <= '9')
-                pos++;
+            tmkr_c = StringGetCharacter(json, tmkr_pos);
+            if(tmkr_c >= '0' && tmkr_c <= '9')
+                tmkr_pos++;
             else
                 break;
         }
@@ -604,58 +604,58 @@ bool CJAVal::ParseNumber(string &json, int &pos)
         return false;
     }
     
-    if(pos < len && StringGetCharacter(json, pos) == '.')
+    if(tmkr_pos < tmkr_len && StringGetCharacter(json, tmkr_pos) == '.')
     {
-        pos++;
-        if(pos >= len)
+        tmkr_pos++;
+        if(tmkr_pos >= tmkr_len)
             return false;
         
-        c = StringGetCharacter(json, pos);
-        if(c < '0' || c > '9')
+        tmkr_c = StringGetCharacter(json, tmkr_pos);
+        if(tmkr_c < '0' || tmkr_c > '9')
             return false;
         
-        while(pos < len)
+        while(tmkr_pos < tmkr_len)
         {
-            c = StringGetCharacter(json, pos);
-            if(c >= '0' && c <= '9')
-                pos++;
+            tmkr_c = StringGetCharacter(json, tmkr_pos);
+            if(tmkr_c >= '0' && tmkr_c <= '9')
+                tmkr_pos++;
             else
                 break;
         }
     }
     
-    if(pos < len)
+    if(tmkr_pos < tmkr_len)
     {
-        c = StringGetCharacter(json, pos);
-        if(c == 'e' || c == 'E')
+        tmkr_c = StringGetCharacter(json, tmkr_pos);
+        if(tmkr_c == 'e' || tmkr_c == 'E')
         {
-            pos++;
-            if(pos >= len)
+            tmkr_pos++;
+            if(tmkr_pos >= tmkr_len)
                 return false;
             
-            c = StringGetCharacter(json, pos);
-            if(c == '+' || c == '-')
-                pos++;
+            tmkr_c = StringGetCharacter(json, tmkr_pos);
+            if(tmkr_c == '+' || tmkr_c == '-')
+                tmkr_pos++;
             
-            if(pos >= len)
+            if(tmkr_pos >= tmkr_len)
                 return false;
             
-            c = StringGetCharacter(json, pos);
-            if(c < '0' || c > '9')
+            tmkr_c = StringGetCharacter(json, tmkr_pos);
+            if(tmkr_c < '0' || tmkr_c > '9')
                 return false;
             
-            while(pos < len)
+            while(tmkr_pos < tmkr_len)
             {
-                c = StringGetCharacter(json, pos);
-                if(c >= '0' && c <= '9')
-                    pos++;
+                tmkr_c = StringGetCharacter(json, tmkr_pos);
+                if(tmkr_c >= '0' && tmkr_c <= '9')
+                    tmkr_pos++;
                 else
                     break;
             }
         }
     }
     
-    string numStr = StringSubstr(json, start, pos - start);
+    string numStr = StringSubstr(json, tmkr_start, tmkr_pos - tmkr_start);
     m_type = JA_NUMBER;
     m_number = StringToDouble(numStr);
     
@@ -665,30 +665,30 @@ bool CJAVal::ParseNumber(string &json, int &pos)
 //+------------------------------------------------------------------+
 //| Parse JSON literal (true, false, null)                            |
 //+------------------------------------------------------------------+
-bool CJAVal::ParseLiteral(string &json, int &pos)
+bool CJAVal::ParseLiteral(string &json, int &tmkr_pos)
 {
-    int len = StringLen(json);
+    int tmkr_len = StringLen(json);
     
-    if(pos + 4 <= len && StringSubstr(json, pos, 4) == "true")
+    if(tmkr_pos + 4 <= tmkr_len && StringSubstr(json, tmkr_pos, 4) == "true")
     {
         m_type = JA_BOOL;
         m_bool = true;
-        pos += 4;
+        tmkr_pos += 4;
         return true;
     }
     
-    if(pos + 5 <= len && StringSubstr(json, pos, 5) == "false")
+    if(tmkr_pos + 5 <= tmkr_len && StringSubstr(json, tmkr_pos, 5) == "false")
     {
         m_type = JA_BOOL;
         m_bool = false;
-        pos += 5;
+        tmkr_pos += 5;
         return true;
     }
     
-    if(pos + 4 <= len && StringSubstr(json, pos, 4) == "null")
+    if(tmkr_pos + 4 <= tmkr_len && StringSubstr(json, tmkr_pos, 4) == "null")
     {
         m_type = JA_NULL;
-        pos += 4;
+        tmkr_pos += 4;
         return true;
     }
     
@@ -698,114 +698,114 @@ bool CJAVal::ParseLiteral(string &json, int &pos)
 //+------------------------------------------------------------------+
 //| Escape special characters in string                               |
 //+------------------------------------------------------------------+
-string CJAVal::Escape(const string s)
+string CJAVal::Escape(const string tmkr_s)
 {
-    string result = "";
-    int len = StringLen(s);
+    string tmkr_result = "";
+    int tmkr_len = StringLen(tmkr_s);
     
-    for(int i = 0; i < len; i++)
+    for(int tmkr_i = 0; tmkr_i < tmkr_len; tmkr_i++)
     {
-        ushort c = StringGetCharacter(s, i);
-        switch(c)
+        ushort tmkr_c = StringGetCharacter(tmkr_s, tmkr_i);
+        switch(tmkr_c)
         {
-            case '"':  result += "\\\""; break;
-            case '\\': result += "\\\\"; break;
-            case 8:    result += "\\b"; break;  // backspace (0x08)
-            case 12:   result += "\\f"; break;  // form feed (0x0C)
-            case '\n': result += "\\n"; break;
-            case '\r': result += "\\r"; break;
-            case '\t': result += "\\t"; break;
+            case '"':  tmkr_result += "\\\""; break;
+            case '\\': tmkr_result += "\\\\"; break;
+            case 8:    tmkr_result += "\\b"; break;  // backspace (0x08)
+            case 12:   tmkr_result += "\\f"; break;  // form feed (0x0C)
+            case '\n': tmkr_result += "\\n"; break;
+            case '\r': tmkr_result += "\\r"; break;
+            case '\t': tmkr_result += "\\t"; break;
             default:
-                if(c < 32)
+                if(tmkr_c < 32)
                 {
-                    result += "\\u";
+                    tmkr_result += "\\u";
                     string hex = "";
-                    for(int j = 3; j >= 0; j--)
+                    for(int tmkr_j = 3; tmkr_j >= 0; tmkr_j--)
                     {
-                        int nibble = (c >> (j * 4)) & 0xF;
+                        int nibble = (tmkr_c >> (tmkr_j * 4)) & 0xF;
                         if(nibble < 10)
                             hex += ShortToString((ushort)('0' + nibble));
                         else
                             hex += ShortToString((ushort)('a' + nibble - 10));
                     }
-                    result += hex;
+                    tmkr_result += hex;
                 }
                 else
                 {
-                    result += ShortToString(c);
+                    tmkr_result += ShortToString(tmkr_c);
                 }
                 break;
         }
     }
     
-    return result;
+    return tmkr_result;
 }
 
 //+------------------------------------------------------------------+
 //| Unescape special characters in string                             |
 //+------------------------------------------------------------------+
-string CJAVal::Unescape(const string s)
+string CJAVal::Unescape(const string tmkr_s)
 {
-    string result = "";
-    int len = StringLen(s);
-    int i = 0;
+    string tmkr_result = "";
+    int tmkr_len = StringLen(tmkr_s);
+    int tmkr_i = 0;
     
-    while(i < len)
+    while(tmkr_i < tmkr_len)
     {
-        ushort c = StringGetCharacter(s, i);
+        ushort tmkr_c = StringGetCharacter(tmkr_s, tmkr_i);
         
-        if(c == '\\' && i + 1 < len)
+        if(tmkr_c == '\\' && tmkr_i + 1 < tmkr_len)
         {
-            ushort next = StringGetCharacter(s, i + 1);
-            switch(next)
+            ushort tmkr_next = StringGetCharacter(tmkr_s, tmkr_i + 1);
+            switch(tmkr_next)
             {
-                case '"':  result += "\""; i += 2; break;
-                case '\\': result += "\\"; i += 2; break;
-                case '/':  result += "/"; i += 2; break;
-                case 'b':  result += ShortToString(8); i += 2; break;  // backspace
-                case 'f':  result += ShortToString(12); i += 2; break; // form feed
-                case 'n':  result += "\n"; i += 2; break;
-                case 'r':  result += "\r"; i += 2; break;
-                case 't':  result += "\t"; i += 2; break;
+                case '"':  tmkr_result += "\""; tmkr_i += 2; break;
+                case '\\': tmkr_result += "\\"; tmkr_i += 2; break;
+                case '/':  tmkr_result += "/"; tmkr_i += 2; break;
+                case 'b':  tmkr_result += ShortToString(8); tmkr_i += 2; break;  // backspace
+                case 'f':  tmkr_result += ShortToString(12); tmkr_i += 2; break; // form feed
+                case 'n':  tmkr_result += "\n"; tmkr_i += 2; break;
+                case 'r':  tmkr_result += "\r"; tmkr_i += 2; break;
+                case 't':  tmkr_result += "\t"; tmkr_i += 2; break;
                 case 'u':
                 {
-                    if(i + 5 < len)
+                    if(tmkr_i + 5 < tmkr_len)
                     {
-                        string hex = StringSubstr(s, i + 2, 4);
-                        int code = 0;
-                        for(int j = 0; j < 4; j++)
+                        string hex = StringSubstr(tmkr_s, tmkr_i + 2, 4);
+                        int tmkr_code = 0;
+                        for(int tmkr_j = 0; tmkr_j < 4; tmkr_j++)
                         {
-                            ushort h = StringGetCharacter(hex, j);
-                            int val = 0;
-                            if(h >= '0' && h <= '9') val = h - '0';
-                            else if(h >= 'a' && h <= 'f') val = h - 'a' + 10;
-                            else if(h >= 'A' && h <= 'F') val = h - 'A' + 10;
-                            code = code * 16 + val;
+                            ushort tmkr_h = StringGetCharacter(hex, tmkr_j);
+                            int tmkr_val = 0;
+                            if(tmkr_h >= '0' && tmkr_h <= '9') tmkr_val = tmkr_h - '0';
+                            else if(tmkr_h >= 'a' && tmkr_h <= 'f') tmkr_val = tmkr_h - 'a' + 10;
+                            else if(tmkr_h >= 'A' && tmkr_h <= 'F') tmkr_val = tmkr_h - 'A' + 10;
+                            tmkr_code = tmkr_code * 16 + tmkr_val;
                         }
-                        result += ShortToString((ushort)code);
-                        i += 6;
+                        tmkr_result += ShortToString((ushort)tmkr_code);
+                        tmkr_i += 6;
                     }
                     else
                     {
-                        result += ShortToString(c);
-                        i++;
+                        tmkr_result += ShortToString(tmkr_c);
+                        tmkr_i++;
                     }
                     break;
                 }
                 default:
-                    result += ShortToString(c);
-                    i++;
+                    tmkr_result += ShortToString(tmkr_c);
+                    tmkr_i++;
                     break;
             }
         }
         else
         {
-            result += ShortToString(c);
-            i++;
+            tmkr_result += ShortToString(tmkr_c);
+            tmkr_i++;
         }
     }
     
-    return result;
+    return tmkr_result;
 }
 
 //+------------------------------------------------------------------+

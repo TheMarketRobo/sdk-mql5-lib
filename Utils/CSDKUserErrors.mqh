@@ -138,18 +138,18 @@ bool SDKRemoveIndicatorFromChart(string indicator_short_name)
     // On MQL4, TMR_ChartWindowFind returns -1 and TMR_ChartIndicatorsTotal returns 0
     // so this block is effectively a no-op.
     int total_windows = (int)TMR_ChartGetInteger(0, CHART_WINDOWS_TOTAL);
-    for(int w = 0; w < total_windows; w++)
+    for(int tmkr_w = 0; tmkr_w < total_windows; tmkr_w++)
     {
-        int total_ind = TMR_ChartIndicatorsTotal(0, w);
-        for(int i = total_ind - 1; i >= 0; i--)
+        int total_ind = TMR_ChartIndicatorsTotal(0, tmkr_w);
+        for(int tmkr_i = total_ind - 1; tmkr_i >= 0; tmkr_i--)
         {
-            if(TMR_ChartIndicatorName(0, w, i) == indicator_short_name)
+            if(TMR_ChartIndicatorName(0, tmkr_w, tmkr_i) == indicator_short_name)
             {
-                bool removed = TMR_ChartIndicatorDelete(0, w, indicator_short_name);
+                bool removed = TMR_ChartIndicatorDelete(0, tmkr_w, indicator_short_name);
                 if(removed)
                 {
                     if(SDKShouldLogInfo()) Print("SDK Info: Indicator '", indicator_short_name,
-                          "' removed from chart (subwindow ", w, ", fallback scan).");
+                          "' removed from chart (subwindow ", tmkr_w, ", fallback scan).");
                     return true;
                 }
             }
