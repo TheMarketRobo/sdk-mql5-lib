@@ -35,11 +35,11 @@ private:
     double m_peak_equity;
     bool   m_initialized;
 
-    void add_json_string(CJAVal* json, string key, string value);
-    void add_json_long(CJAVal* json, string key, long value);
-    void add_json_int(CJAVal* json, string key, int value);
-    void add_json_bool(CJAVal* json, string key, bool value);
-    void add_json_double(CJAVal* json, string key, double value);
+    void add_json_string(CJAVal* json, string _key, string _value);
+    void add_json_long(CJAVal* json, string _key, long _value);
+    void add_json_int(CJAVal* json, string _key, int _value);
+    void add_json_bool(CJAVal* json, string _key, bool _value);
+    void add_json_double(CJAVal* json, string _key, double _value);
     
     string get_account_trade_mode_string(int mode);
     string get_account_margin_so_mode_string(int mode);
@@ -261,10 +261,10 @@ CArrayObj* CDataCollectorService::get_session_symbols()
     // causing massive payload size and timeout issues.
     int total_symbols = SymbolsTotal(true);
     if(SDKShouldLogDebug()) Print("SDK Debug: Found ", total_symbols, " symbols in Market Watch (Watchlist).");
-    for(int i = 0; i < total_symbols; i++)
+    for(int _i = 0; _i < total_symbols; _i++)
     {
-        if(i % 100 == 0 && SDKShouldLogDebug()) Print("SDK Debug: Processing watchlist symbol ", i, " / ", total_symbols);
-        string symbol_name = SymbolName(i, true);
+        if(_i % 100 == 0 && SDKShouldLogDebug()) Print("SDK Debug: Processing watchlist symbol ", _i, " / ", total_symbols);
+        string symbol_name = SymbolName(_i, true);
         CSessionSymbol* symbol = new CSessionSymbol(symbol_name);
         if(symbol != NULL)
         {
@@ -376,44 +376,44 @@ CJAVal* CDataCollectorService::get_dynamic_data()
 //+------------------------------------------------------------------+
 //| Private Helper Implementations                                   |
 //+------------------------------------------------------------------+
-void CDataCollectorService::add_json_string(CJAVal* json, string key, string value)
+void CDataCollectorService::add_json_string(CJAVal* json, string _key, string _value)
 {
     CJAVal* val = new CJAVal();
     if(val == NULL) return;
-    val.set_string(value);
-    json.Add(key, val);
+    val.set_string(_value);
+    json.Add(_key, val);
 }
 
-void CDataCollectorService::add_json_long(CJAVal* json, string key, long value)
+void CDataCollectorService::add_json_long(CJAVal* json, string _key, long _value)
 {
     CJAVal* val = new CJAVal();
     if(val == NULL) return;
-    val.set_long(value);
-    json.Add(key, val);
+    val.set_long(_value);
+    json.Add(_key, val);
 }
 
-void CDataCollectorService::add_json_int(CJAVal* json, string key, int value)
+void CDataCollectorService::add_json_int(CJAVal* json, string _key, int _value)
 {
     CJAVal* val = new CJAVal();
     if(val == NULL) return;
-    val.set_long((long)value);
-    json.Add(key, val);
+    val.set_long((long)_value);
+    json.Add(_key, val);
 }
 
-void CDataCollectorService::add_json_bool(CJAVal* json, string key, bool value)
+void CDataCollectorService::add_json_bool(CJAVal* json, string _key, bool _value)
 {
     CJAVal* val = new CJAVal();
     if(val == NULL) return;
-    val.set_bool(value);
-    json.Add(key, val);
+    val.set_bool(_value);
+    json.Add(_key, val);
 }
 
-void CDataCollectorService::add_json_double(CJAVal* json, string key, double value)
+void CDataCollectorService::add_json_double(CJAVal* json, string _key, double _value)
 {
     CJAVal* val = new CJAVal();
     if(val == NULL) return;
-    val.set_double(value);
-    json.Add(key, val);
+    val.set_double(_value);
+    json.Add(_key, val);
 }
 
 #endif

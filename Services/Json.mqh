@@ -35,12 +35,12 @@ public:
     string      m_key;
     CJAVal     *m_val;
 
-                CJAObj(string key, CJAVal *val);
+                CJAObj(string _key, CJAVal *val);
                ~CJAObj();
 };
 
 //+------------------------------------------------------------------+
-CJAObj::CJAObj(string key, CJAVal *val) : m_key(key), m_val(val) {}
+CJAObj::CJAObj(string _key, CJAVal *val) : m_key(_key), m_val(val) {}
 
 //+------------------------------------------------------------------+
 CJAObj::~CJAObj()
@@ -74,34 +74,34 @@ public:
     double      get_double() const;
     long        get_long() const;
     bool        get_bool() const;
-    int         count() const;
+    int         _count() const;
 
-    void        set_string(const string value);
-    void        set_double(const double value);
-    void        set_long(const long value);
-    void        set_bool(const bool value);
+    void        set_string(const string _value);
+    void        set_double(const double _value);
+    void        set_long(const long _value);
+    void        set_bool(const bool _value);
 
-    bool        Add(const string key, CJAVal *value);
-    CJAVal     *operator[](const string key);
-    CJAVal     *operator[](const string key) const;
-    bool        has_key(const string key) const;
+    bool        Add(const string _key, CJAVal *_value);
+    CJAVal     *operator[](const string _key);
+    CJAVal     *operator[](const string _key) const;
+    bool        has_key(const string _key) const;
 
-    bool        Add(CJAVal *value);
-    CJAVal     *operator[](const int idx);
-    CJAVal     *operator[](const int idx) const;
+    bool        Add(CJAVal *_value);
+    CJAVal     *operator[](const int _idx);
+    CJAVal     *operator[](const int _idx) const;
     
     string      serialize();  // Alias for to_string
 
 private:
     string      Escape(const string s);
     string      Unescape(const string s);
-    bool        ParseValue(string &json, int &pos);
-    bool        ParseObject(string &json, int &pos);
-    bool        ParseArray(string &json, int &pos);
-    bool        ParseString(string &json, int &pos);
-    bool        ParseNumber(string &json, int &pos);
-    bool        ParseLiteral(string &json, int &pos);
-    void        SkipWhitespace(string &json, int &pos);
+    bool        ParseValue(string &json, int &_pos);
+    bool        ParseObject(string &json, int &_pos);
+    bool        ParseArray(string &json, int &_pos);
+    bool        ParseString(string &json, int &_pos);
+    bool        ParseNumber(string &json, int &_pos);
+    bool        ParseLiteral(string &json, int &_pos);
+    void        SkipWhitespace(string &json, int &_pos);
 };
 
 //+------------------------------------------------------------------+
@@ -137,8 +137,8 @@ CJAVal::~CJAVal()
 //+------------------------------------------------------------------+
 bool CJAVal::parse(string &json_string)
 {
-    int pos = 0;
-    return ParseValue(json_string, pos);
+    int _pos = 0;
+    return ParseValue(json_string, _pos);
 }
 
 //+------------------------------------------------------------------+
@@ -166,11 +166,11 @@ string CJAVal::to_string()
             // Renamed from `total` to avoid shadowing common vendor globals
             // (e.g. MQL4 EAs that declare `int total = 0;` at file scope).
             int json_total = m_obj.Total();
-            for(int i = 0; i < json_total; i++)
+            for(int _i = 0; _i < json_total; _i++)
             {
-                CJAObj *pair = m_obj.At(i);
+                CJAObj *pair = m_obj.At(_i);
                 s += "\"" + Escape(pair.m_key) + "\":" + pair.m_val.to_string();
-                if(i < json_total - 1)
+                if(_i < json_total - 1)
                     s += ",";
             }
             s += "}";
@@ -181,11 +181,11 @@ string CJAVal::to_string()
             string s = "[";
             // Renamed from `total` for the same reason as above.
             int json_total = m_arr.Total();
-            for(int i = 0; i < json_total; i++)
+            for(int _i = 0; _i < json_total; _i++)
             {
-                CJAVal *val = m_arr.At(i);
+                CJAVal *val = m_arr.At(_i);
                 s += val.to_string();
-                if(i < json_total - 1)
+                if(_i < json_total - 1)
                     s += ",";
             }
             s += "]";
@@ -204,7 +204,7 @@ double CJAVal::get_double() const { return m_number; }
 long CJAVal::get_long() const { return (long)m_number; }
 bool CJAVal::get_bool() const { return m_bool; }
 
-int CJAVal::count() const
+int CJAVal::_count() const
 {
     if(m_type == JA_OBJECT && m_obj != NULL) return m_obj.Total();
     if(m_type == JA_ARRAY && m_arr != NULL) return m_arr.Total();
@@ -214,58 +214,58 @@ int CJAVal::count() const
 //+------------------------------------------------------------------+
 //| Setters                                                           |
 //+------------------------------------------------------------------+
-void CJAVal::set_string(const string value)
+void CJAVal::set_string(const string _value)
 {
     m_type = JA_STRING;
-    m_string = value;
+    m_string = _value;
 }
 
-void CJAVal::set_double(const double value)
+void CJAVal::set_double(const double _value)
 {
     m_type = JA_NUMBER;
-    m_number = value;
+    m_number = _value;
 }
 
-void CJAVal::set_long(const long value)
+void CJAVal::set_long(const long _value)
 {
     m_type = JA_NUMBER;
-    m_number = (double)value;
+    m_number = (double)_value;
 }
 
-void CJAVal::set_bool(const bool value)
+void CJAVal::set_bool(const bool _value)
 {
     m_type = JA_BOOL;
-    m_bool = value;
+    m_bool = _value;
 }
 
 //+------------------------------------------------------------------+
 //| Object methods                                                    |
 //+------------------------------------------------------------------+
-bool CJAVal::Add(const string key, CJAVal* value)
+bool CJAVal::Add(const string _key, CJAVal* _value)
 {
     if(m_type != JA_OBJECT) return false;
     if(m_obj == NULL) m_obj = new CArrayObj();
-    return m_obj.Add(new CJAObj(key, value));
+    return m_obj.Add(new CJAObj(_key, _value));
 }
 
-CJAVal* CJAVal::operator[](const string key)
+CJAVal* CJAVal::operator[](const string _key)
 {
     if(m_type != JA_OBJECT || m_obj == NULL) return NULL;
-    for(int i = 0; i < m_obj.Total(); i++)
+    for(int _i = 0; _i < m_obj.Total(); _i++)
     {
-        CJAObj* pair = m_obj.At(i);
-        if(pair.m_key == key) return pair.m_val;
+        CJAObj* pair = m_obj.At(_i);
+        if(pair.m_key == _key) return pair.m_val;
     }
     return NULL;
 }
 
-CJAVal* CJAVal::operator[](const string key) const
+CJAVal* CJAVal::operator[](const string _key) const
 {
     if(m_type != JA_OBJECT || m_obj == NULL) return NULL;
-    for(int i = 0; i < m_obj.Total(); i++)
+    for(int _i = 0; _i < m_obj.Total(); _i++)
     {
-        CJAObj* pair = m_obj.At(i);
-        if(pair.m_key == key) return pair.m_val;
+        CJAObj* pair = m_obj.At(_i);
+        if(pair.m_key == _key) return pair.m_val;
     }
     return NULL;
 }
@@ -273,37 +273,37 @@ CJAVal* CJAVal::operator[](const string key) const
 //+------------------------------------------------------------------+
 //| Array methods                                                     |
 //+------------------------------------------------------------------+
-bool CJAVal::Add(CJAVal* value)
+bool CJAVal::Add(CJAVal* _value)
 {
     if(m_type != JA_ARRAY) return false;
     if(m_arr == NULL) m_arr = new CArrayObj();
-    return m_arr.Add(value);
+    return m_arr.Add(_value);
 }
 
 // Params renamed from `index` to `idx` to avoid shadow warnings — vendor EAs
 // sometimes declare a global `double index` (Loss Index, position index, etc.).
-CJAVal* CJAVal::operator[](const int idx)
+CJAVal* CJAVal::operator[](const int _idx)
 {
     if(m_type != JA_ARRAY || m_arr == NULL) return NULL;
-    return m_arr.At(idx);
+    return m_arr.At(_idx);
 }
 
-CJAVal* CJAVal::operator[](const int idx) const
+CJAVal* CJAVal::operator[](const int _idx) const
 {
     if(m_type != JA_ARRAY || m_arr == NULL) return NULL;
-    return m_arr.At(idx);
+    return m_arr.At(_idx);
 }
 
 //+------------------------------------------------------------------+
 //| Check if object has a key                                         |
 //+------------------------------------------------------------------+
-bool CJAVal::has_key(const string key) const
+bool CJAVal::has_key(const string _key) const
 {
     if(m_type != JA_OBJECT || m_obj == NULL) return false;
-    for(int i = 0; i < m_obj.Total(); i++)
+    for(int _i = 0; _i < m_obj.Total(); _i++)
     {
-        CJAObj* pair = m_obj.At(i);
-        if(pair.m_key == key) return true;
+        CJAObj* pair = m_obj.At(_i);
+        if(pair.m_key == _key) return true;
     }
     return false;
 }
@@ -319,14 +319,14 @@ string CJAVal::serialize()
 //+------------------------------------------------------------------+
 //| Skip whitespace characters                                        |
 //+------------------------------------------------------------------+
-void CJAVal::SkipWhitespace(string &json, int &pos)
+void CJAVal::SkipWhitespace(string &json, int &_pos)
 {
-    int len = StringLen(json);
-    while(pos < len)
+    int _len = StringLen(json);
+    while(_pos < _len)
     {
-        ushort c = StringGetCharacter(json, pos);
+        ushort c = StringGetCharacter(json, _pos);
         if(c == ' ' || c == '\t' || c == '\n' || c == '\r')
-            pos++;
+            _pos++;
         else
             break;
     }
@@ -335,25 +335,25 @@ void CJAVal::SkipWhitespace(string &json, int &pos)
 //+------------------------------------------------------------------+
 //| Parse any JSON value                                              |
 //+------------------------------------------------------------------+
-bool CJAVal::ParseValue(string &json, int &pos)
+bool CJAVal::ParseValue(string &json, int &_pos)
 {
-    SkipWhitespace(json, pos);
+    SkipWhitespace(json, _pos);
     
-    if(pos >= StringLen(json))
+    if(_pos >= StringLen(json))
         return false;
     
-    ushort c = StringGetCharacter(json, pos);
+    ushort c = StringGetCharacter(json, _pos);
     
     if(c == '{')
-        return ParseObject(json, pos);
+        return ParseObject(json, _pos);
     if(c == '[')
-        return ParseArray(json, pos);
+        return ParseArray(json, _pos);
     if(c == '"')
-        return ParseString(json, pos);
+        return ParseString(json, _pos);
     if(c == '-' || (c >= '0' && c <= '9'))
-        return ParseNumber(json, pos);
+        return ParseNumber(json, _pos);
     if(c == 't' || c == 'f' || c == 'n')
-        return ParseLiteral(json, pos);
+        return ParseLiteral(json, _pos);
     
     return false;
 }
@@ -361,71 +361,71 @@ bool CJAVal::ParseValue(string &json, int &pos)
 //+------------------------------------------------------------------+
 //| Parse JSON object                                                 |
 //+------------------------------------------------------------------+
-bool CJAVal::ParseObject(string &json, int &pos)
+bool CJAVal::ParseObject(string &json, int &_pos)
 {
-    if(StringGetCharacter(json, pos) != '{')
+    if(StringGetCharacter(json, _pos) != '{')
         return false;
     
     m_type = JA_OBJECT;
     if(m_obj == NULL)
         m_obj = new CArrayObj();
     
-    pos++;
-    SkipWhitespace(json, pos);
+    _pos++;
+    SkipWhitespace(json, _pos);
     
-    if(pos < StringLen(json) && StringGetCharacter(json, pos) == '}')
+    if(_pos < StringLen(json) && StringGetCharacter(json, _pos) == '}')
     {
-        pos++;
+        _pos++;
         return true;
     }
     
-    while(pos < StringLen(json))
+    while(_pos < StringLen(json))
     {
-        SkipWhitespace(json, pos);
+        SkipWhitespace(json, _pos);
         
-        if(StringGetCharacter(json, pos) != '"')
+        if(StringGetCharacter(json, _pos) != '"')
             return false;
         
         CJAVal* keyVal = new CJAVal();
-        if(!keyVal.ParseString(json, pos))
+        if(!keyVal.ParseString(json, _pos))
         {
             delete keyVal;
             return false;
         }
-        string key = keyVal.get_string();
+        string _key = keyVal.get_string();
         delete keyVal;
         
-        SkipWhitespace(json, pos);
+        SkipWhitespace(json, _pos);
         
-        if(pos >= StringLen(json) || StringGetCharacter(json, pos) != ':')
+        if(_pos >= StringLen(json) || StringGetCharacter(json, _pos) != ':')
             return false;
-        pos++;
+        _pos++;
         
-        SkipWhitespace(json, pos);
+        SkipWhitespace(json, _pos);
         
-        CJAVal* value = new CJAVal();
-        if(!value.ParseValue(json, pos))
+        CJAVal* _value = new CJAVal();
+        if(!_value.ParseValue(json, _pos))
         {
-            delete value;
+            delete _value;
             return false;
         }
         
-        m_obj.Add(new CJAObj(key, value));
+        m_obj.Add(new CJAObj(_key, _value));
         
-        SkipWhitespace(json, pos);
+        SkipWhitespace(json, _pos);
         
-        if(pos >= StringLen(json))
+        if(_pos >= StringLen(json))
             return false;
         
-        ushort c = StringGetCharacter(json, pos);
+        ushort c = StringGetCharacter(json, _pos);
         if(c == '}')
         {
-            pos++;
+            _pos++;
             return true;
         }
         if(c == ',')
         {
-            pos++;
+            _pos++;
             continue;
         }
         
@@ -438,51 +438,51 @@ bool CJAVal::ParseObject(string &json, int &pos)
 //+------------------------------------------------------------------+
 //| Parse JSON array                                                  |
 //+------------------------------------------------------------------+
-bool CJAVal::ParseArray(string &json, int &pos)
+bool CJAVal::ParseArray(string &json, int &_pos)
 {
-    if(StringGetCharacter(json, pos) != '[')
+    if(StringGetCharacter(json, _pos) != '[')
         return false;
     
     m_type = JA_ARRAY;
     if(m_arr == NULL)
         m_arr = new CArrayObj();
     
-    pos++;
-    SkipWhitespace(json, pos);
+    _pos++;
+    SkipWhitespace(json, _pos);
     
-    if(pos < StringLen(json) && StringGetCharacter(json, pos) == ']')
+    if(_pos < StringLen(json) && StringGetCharacter(json, _pos) == ']')
     {
-        pos++;
+        _pos++;
         return true;
     }
     
-    while(pos < StringLen(json))
+    while(_pos < StringLen(json))
     {
-        SkipWhitespace(json, pos);
+        SkipWhitespace(json, _pos);
         
-        CJAVal* value = new CJAVal();
-        if(!value.ParseValue(json, pos))
+        CJAVal* _value = new CJAVal();
+        if(!_value.ParseValue(json, _pos))
         {
-            delete value;
+            delete _value;
             return false;
         }
         
-        m_arr.Add(value);
+        m_arr.Add(_value);
         
-        SkipWhitespace(json, pos);
+        SkipWhitespace(json, _pos);
         
-        if(pos >= StringLen(json))
+        if(_pos >= StringLen(json))
             return false;
         
-        ushort c = StringGetCharacter(json, pos);
+        ushort c = StringGetCharacter(json, _pos);
         if(c == ']')
         {
-            pos++;
+            _pos++;
             return true;
         }
         if(c == ',')
         {
-            pos++;
+            _pos++;
             continue;
         }
         
@@ -495,53 +495,53 @@ bool CJAVal::ParseArray(string &json, int &pos)
 //+------------------------------------------------------------------+
 //| Parse JSON string                                                 |
 //+------------------------------------------------------------------+
-bool CJAVal::ParseString(string &json, int &pos)
+bool CJAVal::ParseString(string &json, int &_pos)
 {
-    if(StringGetCharacter(json, pos) != '"')
+    if(StringGetCharacter(json, _pos) != '"')
         return false;
     
-    pos++;
-    string result = "";
-    int len = StringLen(json);
+    _pos++;
+    string _result = "";
+    int _len = StringLen(json);
     
-    while(pos < len)
+    while(_pos < _len)
     {
-        ushort c = StringGetCharacter(json, pos);
+        ushort c = StringGetCharacter(json, _pos);
         
         if(c == '"')
         {
-            pos++;
+            _pos++;
             m_type = JA_STRING;
-            m_string = result;
+            m_string = _result;
             return true;
         }
         
         if(c == '\\')
         {
-            pos++;
-            if(pos >= len)
+            _pos++;
+            if(_pos >= _len)
                 return false;
             
-            ushort escaped = StringGetCharacter(json, pos);
+            ushort escaped = StringGetCharacter(json, _pos);
             switch(escaped)
             {
-                case '"':  result += "\""; break;
-                case '\\': result += "\\"; break;
-                case '/':  result += "/"; break;
-                case 'b':  result += ShortToString(8); break;  // backspace
-                case 'f':  result += ShortToString(12); break; // form feed
-                case 'n':  result += "\n"; break;
-                case 'r':  result += "\r"; break;
-                case 't':  result += "\t"; break;
+                case '"':  _result += "\""; break;
+                case '\\': _result += "\\"; break;
+                case '/':  _result += "/"; break;
+                case 'b':  _result += ShortToString(8); break;  // backspace
+                case 'f':  _result += ShortToString(12); break; // form feed
+                case 'n':  _result += "\n"; break;
+                case 'r':  _result += "\r"; break;
+                case 't':  _result += "\t"; break;
                 case 'u':
                 {
-                    if(pos + 4 >= len)
+                    if(_pos + 4 >= _len)
                         return false;
-                    string hex = StringSubstr(json, pos + 1, 4);
+                    string hex = StringSubstr(json, _pos + 1, 4);
                     int code = 0;
-                    for(int i = 0; i < 4; i++)
+                    for(int _i = 0; _i < 4; _i++)
                     {
-                        ushort h = StringGetCharacter(hex, i);
+                        ushort h = StringGetCharacter(hex, _i);
                         int val = 0;
                         if(h >= '0' && h <= '9') val = h - '0';
                         else if(h >= 'a' && h <= 'f') val = h - 'a' + 10;
@@ -549,19 +549,19 @@ bool CJAVal::ParseString(string &json, int &pos)
                         else return false;
                         code = code * 16 + val;
                     }
-                    result += ShortToString((ushort)code);
-                    pos += 4;
+                    _result += ShortToString((ushort)code);
+                    _pos += 4;
                     break;
                 }
                 default:
                     return false;
             }
-            pos++;
+            _pos++;
         }
         else
         {
-            result += ShortToString(c);
-            pos++;
+            _result += ShortToString(c);
+            _pos++;
         }
     }
     
@@ -571,30 +571,30 @@ bool CJAVal::ParseString(string &json, int &pos)
 //+------------------------------------------------------------------+
 //| Parse JSON number                                                 |
 //+------------------------------------------------------------------+
-bool CJAVal::ParseNumber(string &json, int &pos)
+bool CJAVal::ParseNumber(string &json, int &_pos)
 {
-    int start = pos;
-    int len = StringLen(json);
+    int start = _pos;
+    int _len = StringLen(json);
     
-    if(pos < len && StringGetCharacter(json, pos) == '-')
-        pos++;
+    if(_pos < _len && StringGetCharacter(json, _pos) == '-')
+        _pos++;
     
-    if(pos >= len)
+    if(_pos >= _len)
         return false;
     
-    ushort c = StringGetCharacter(json, pos);
+    ushort c = StringGetCharacter(json, _pos);
     if(c == '0')
     {
-        pos++;
+        _pos++;
     }
     else if(c >= '1' && c <= '9')
     {
-        pos++;
-        while(pos < len)
+        _pos++;
+        while(_pos < _len)
         {
-            c = StringGetCharacter(json, pos);
+            c = StringGetCharacter(json, _pos);
             if(c >= '0' && c <= '9')
-                pos++;
+                _pos++;
             else
                 break;
         }
@@ -604,58 +604,58 @@ bool CJAVal::ParseNumber(string &json, int &pos)
         return false;
     }
     
-    if(pos < len && StringGetCharacter(json, pos) == '.')
+    if(_pos < _len && StringGetCharacter(json, _pos) == '.')
     {
-        pos++;
-        if(pos >= len)
+        _pos++;
+        if(_pos >= _len)
             return false;
         
-        c = StringGetCharacter(json, pos);
+        c = StringGetCharacter(json, _pos);
         if(c < '0' || c > '9')
             return false;
         
-        while(pos < len)
+        while(_pos < _len)
         {
-            c = StringGetCharacter(json, pos);
+            c = StringGetCharacter(json, _pos);
             if(c >= '0' && c <= '9')
-                pos++;
+                _pos++;
             else
                 break;
         }
     }
     
-    if(pos < len)
+    if(_pos < _len)
     {
-        c = StringGetCharacter(json, pos);
+        c = StringGetCharacter(json, _pos);
         if(c == 'e' || c == 'E')
         {
-            pos++;
-            if(pos >= len)
+            _pos++;
+            if(_pos >= _len)
                 return false;
             
-            c = StringGetCharacter(json, pos);
+            c = StringGetCharacter(json, _pos);
             if(c == '+' || c == '-')
-                pos++;
+                _pos++;
             
-            if(pos >= len)
+            if(_pos >= _len)
                 return false;
             
-            c = StringGetCharacter(json, pos);
+            c = StringGetCharacter(json, _pos);
             if(c < '0' || c > '9')
                 return false;
             
-            while(pos < len)
+            while(_pos < _len)
             {
-                c = StringGetCharacter(json, pos);
+                c = StringGetCharacter(json, _pos);
                 if(c >= '0' && c <= '9')
-                    pos++;
+                    _pos++;
                 else
                     break;
             }
         }
     }
     
-    string numStr = StringSubstr(json, start, pos - start);
+    string numStr = StringSubstr(json, start, _pos - start);
     m_type = JA_NUMBER;
     m_number = StringToDouble(numStr);
     
@@ -665,30 +665,30 @@ bool CJAVal::ParseNumber(string &json, int &pos)
 //+------------------------------------------------------------------+
 //| Parse JSON literal (true, false, null)                            |
 //+------------------------------------------------------------------+
-bool CJAVal::ParseLiteral(string &json, int &pos)
+bool CJAVal::ParseLiteral(string &json, int &_pos)
 {
-    int len = StringLen(json);
+    int _len = StringLen(json);
     
-    if(pos + 4 <= len && StringSubstr(json, pos, 4) == "true")
+    if(_pos + 4 <= _len && StringSubstr(json, _pos, 4) == "true")
     {
         m_type = JA_BOOL;
         m_bool = true;
-        pos += 4;
+        _pos += 4;
         return true;
     }
     
-    if(pos + 5 <= len && StringSubstr(json, pos, 5) == "false")
+    if(_pos + 5 <= _len && StringSubstr(json, _pos, 5) == "false")
     {
         m_type = JA_BOOL;
         m_bool = false;
-        pos += 5;
+        _pos += 5;
         return true;
     }
     
-    if(pos + 4 <= len && StringSubstr(json, pos, 4) == "null")
+    if(_pos + 4 <= _len && StringSubstr(json, _pos, 4) == "null")
     {
         m_type = JA_NULL;
-        pos += 4;
+        _pos += 4;
         return true;
     }
     
@@ -700,45 +700,45 @@ bool CJAVal::ParseLiteral(string &json, int &pos)
 //+------------------------------------------------------------------+
 string CJAVal::Escape(const string s)
 {
-    string result = "";
-    int len = StringLen(s);
+    string _result = "";
+    int _len = StringLen(s);
     
-    for(int i = 0; i < len; i++)
+    for(int _i = 0; _i < _len; _i++)
     {
-        ushort c = StringGetCharacter(s, i);
+        ushort c = StringGetCharacter(s, _i);
         switch(c)
         {
-            case '"':  result += "\\\""; break;
-            case '\\': result += "\\\\"; break;
-            case 8:    result += "\\b"; break;  // backspace (0x08)
-            case 12:   result += "\\f"; break;  // form feed (0x0C)
-            case '\n': result += "\\n"; break;
-            case '\r': result += "\\r"; break;
-            case '\t': result += "\\t"; break;
+            case '"':  _result += "\\\""; break;
+            case '\\': _result += "\\\\"; break;
+            case 8:    _result += "\\b"; break;  // backspace (0x08)
+            case 12:   _result += "\\f"; break;  // form feed (0x0C)
+            case '\n': _result += "\\n"; break;
+            case '\r': _result += "\\r"; break;
+            case '\t': _result += "\\t"; break;
             default:
                 if(c < 32)
                 {
-                    result += "\\u";
+                    _result += "\\u";
                     string hex = "";
-                    for(int j = 3; j >= 0; j--)
+                    for(int _j = 3; _j >= 0; _j--)
                     {
-                        int nibble = (c >> (j * 4)) & 0xF;
+                        int nibble = (c >> (_j * 4)) & 0xF;
                         if(nibble < 10)
                             hex += ShortToString((ushort)('0' + nibble));
                         else
                             hex += ShortToString((ushort)('a' + nibble - 10));
                     }
-                    result += hex;
+                    _result += hex;
                 }
                 else
                 {
-                    result += ShortToString(c);
+                    _result += ShortToString(c);
                 }
                 break;
         }
     }
     
-    return result;
+    return _result;
 }
 
 //+------------------------------------------------------------------+
@@ -746,66 +746,66 @@ string CJAVal::Escape(const string s)
 //+------------------------------------------------------------------+
 string CJAVal::Unescape(const string s)
 {
-    string result = "";
-    int len = StringLen(s);
-    int i = 0;
+    string _result = "";
+    int _len = StringLen(s);
+    int _i = 0;
     
-    while(i < len)
+    while(_i < _len)
     {
-        ushort c = StringGetCharacter(s, i);
+        ushort c = StringGetCharacter(s, _i);
         
-        if(c == '\\' && i + 1 < len)
+        if(c == '\\' && _i + 1 < _len)
         {
-            ushort next = StringGetCharacter(s, i + 1);
+            ushort next = StringGetCharacter(s, _i + 1);
             switch(next)
             {
-                case '"':  result += "\""; i += 2; break;
-                case '\\': result += "\\"; i += 2; break;
-                case '/':  result += "/"; i += 2; break;
-                case 'b':  result += ShortToString(8); i += 2; break;  // backspace
-                case 'f':  result += ShortToString(12); i += 2; break; // form feed
-                case 'n':  result += "\n"; i += 2; break;
-                case 'r':  result += "\r"; i += 2; break;
-                case 't':  result += "\t"; i += 2; break;
+                case '"':  _result += "\""; _i += 2; break;
+                case '\\': _result += "\\"; _i += 2; break;
+                case '/':  _result += "/"; _i += 2; break;
+                case 'b':  _result += ShortToString(8); _i += 2; break;  // backspace
+                case 'f':  _result += ShortToString(12); _i += 2; break; // form feed
+                case 'n':  _result += "\n"; _i += 2; break;
+                case 'r':  _result += "\r"; _i += 2; break;
+                case 't':  _result += "\t"; _i += 2; break;
                 case 'u':
                 {
-                    if(i + 5 < len)
+                    if(_i + 5 < _len)
                     {
-                        string hex = StringSubstr(s, i + 2, 4);
+                        string hex = StringSubstr(s, _i + 2, 4);
                         int code = 0;
-                        for(int j = 0; j < 4; j++)
+                        for(int _j = 0; _j < 4; _j++)
                         {
-                            ushort h = StringGetCharacter(hex, j);
+                            ushort h = StringGetCharacter(hex, _j);
                             int val = 0;
                             if(h >= '0' && h <= '9') val = h - '0';
                             else if(h >= 'a' && h <= 'f') val = h - 'a' + 10;
                             else if(h >= 'A' && h <= 'F') val = h - 'A' + 10;
                             code = code * 16 + val;
                         }
-                        result += ShortToString((ushort)code);
-                        i += 6;
+                        _result += ShortToString((ushort)code);
+                        _i += 6;
                     }
                     else
                     {
-                        result += ShortToString(c);
-                        i++;
+                        _result += ShortToString(c);
+                        _i++;
                     }
                     break;
                 }
                 default:
-                    result += ShortToString(c);
-                    i++;
+                    _result += ShortToString(c);
+                    _i++;
                     break;
             }
         }
         else
         {
-            result += ShortToString(c);
-            i++;
+            _result += ShortToString(c);
+            _i++;
         }
     }
     
-    return result;
+    return _result;
 }
 
 //+------------------------------------------------------------------+

@@ -75,7 +75,7 @@ public:
     // Indicator callback (override in indicator)
     virtual int on_calculate(const int rates_total,
                               const int prev_calculated,
-                              const datetime &time[],
+                              const datetime &_time[],
                               const double   &open[],
                               const double   &high[],
                               const double   &low[],
@@ -207,7 +207,7 @@ public:
     // --- Indicator callback (override in indicator) ---
     virtual int  on_calculate(const int rates_total,
                               const int prev_calculated,
-                              const datetime &time[],
+                              const datetime &_time[],
                               const double   &open[],
                               const double   &high[],
                               const double   &low[],
@@ -243,7 +243,7 @@ public:
 
     // Indicator buffer count — call during OnInit() after SetIndexBuffer() calls.
     // Used by kill_indicator() to hide all draw styles on termination.
-    void   set_indicator_buffer_count(int count);
+    void   set_indicator_buffer_count(int _count);
     bool   is_killed() const;
 
     // Log level control — set before or after on_init()
@@ -388,9 +388,9 @@ bool CTheMarketRobo_Base::check_pending_removal()
 //| Set indicator buffer count — call during OnInit() after           |
 //| SetIndexBuffer() calls. Used by kill_indicator() to hide draws.   |
 //+------------------------------------------------------------------+
-void CTheMarketRobo_Base::set_indicator_buffer_count(int count)
+void CTheMarketRobo_Base::set_indicator_buffer_count(int _count)
 {
-    m_indicator_buffer_count = count;
+    m_indicator_buffer_count = _count;
 }
 
 //+------------------------------------------------------------------+
@@ -413,8 +413,8 @@ void CTheMarketRobo_Base::kill_indicator()
     EventKillTimer();
 
     // Hide all indicator draw styles — lines/arrows/histograms disappear
-    for(int i = 0; i < m_indicator_buffer_count; i++)
-        SetIndexStyle(i, DRAW_NONE);
+    for(int _i = 0; _i < m_indicator_buffer_count; _i++)
+        SetIndexStyle(_i, DRAW_NONE);
 
     // Blank the indicator name in chart's indicator list
     IndicatorShortName("TMR: DISABLED");

@@ -54,9 +54,9 @@ public:
     void   set_active_to_trade(bool active);
     
 private:
-    void add_json_string(CJAVal* json, string key, string value);
-    void add_json_bool(CJAVal* json, string key, bool value);
-    void add_json_double(CJAVal* json, string key, double value);
+    void add_json_string(CJAVal* json, string _key, string _value);
+    void add_json_bool(CJAVal* json, string _key, bool _value);
+    void add_json_double(CJAVal* json, string _key, double _value);
 };
 
 //+------------------------------------------------------------------+
@@ -189,28 +189,28 @@ CJAVal* CSessionSymbol::to_json()
 //+------------------------------------------------------------------+
 //| Private Helper Implementations                                   |
 //+------------------------------------------------------------------+
-void CSessionSymbol::add_json_string(CJAVal* json, string key, string value)
+void CSessionSymbol::add_json_string(CJAVal* json, string _key, string _value)
 {
     CJAVal* val = new CJAVal();
     if(val == NULL) return;
-    val.set_string(value);
-    json.Add(key, val);
+    val.set_string(_value);
+    json.Add(_key, val);
 }
 
-void CSessionSymbol::add_json_bool(CJAVal* json, string key, bool value)
+void CSessionSymbol::add_json_bool(CJAVal* json, string _key, bool _value)
 {
     CJAVal* val = new CJAVal();
     if(val == NULL) return;
-    val.set_bool(value);
-    json.Add(key, val);
+    val.set_bool(_value);
+    json.Add(_key, val);
 }
 
-void CSessionSymbol::add_json_double(CJAVal* json, string key, double value)
+void CSessionSymbol::add_json_double(CJAVal* json, string _key, double _value)
 {
     CJAVal* val = new CJAVal();
     if(val == NULL) return;
-    val.set_double(value);
-    json.Add(key, val);
+    val.set_double(_value);
+    json.Add(_key, val);
 }
 
 #endif

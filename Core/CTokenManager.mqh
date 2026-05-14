@@ -301,7 +301,7 @@ string CTokenManager::base64_url_decode(const string &encoded_string)
     int padding = 4 - (StringLen(str_input) % 4);
     if(padding != 4)
     {
-        for(int p = 0; p < padding; p++)
+        for(int _p = 0; _p < padding; _p++)
             str_input += "=";
     }
     
@@ -320,12 +320,12 @@ string CTokenManager::base64_url_decode(const string &encoded_string)
     
     int output_index = 0;
     
-    for(int i = 0; i < input_len; i += 4)
+    for(int _i = 0; _i < input_len; _i += 4)
     {
-        uchar c0 = (uchar)StringGetCharacter(str_input, i);
-        uchar c1 = (uchar)StringGetCharacter(str_input, i + 1);
-        uchar c2 = (i + 2 < input_len) ? (uchar)StringGetCharacter(str_input, i + 2) : '=';
-        uchar c3 = (i + 3 < input_len) ? (uchar)StringGetCharacter(str_input, i + 3) : '=';
+        uchar c0 = (uchar)StringGetCharacter(str_input, _i);
+        uchar c1 = (uchar)StringGetCharacter(str_input, _i + 1);
+        uchar c2 = (_i + 2 < input_len) ? (uchar)StringGetCharacter(str_input, _i + 2) : '=';
+        uchar c3 = (_i + 3 < input_len) ? (uchar)StringGetCharacter(str_input, _i + 3) : '=';
         
         int v0 = base64_char_to_value(c0);
         int v1 = base64_char_to_value(c1);
@@ -348,8 +348,8 @@ string CTokenManager::base64_url_decode(const string &encoded_string)
             output_bytes[output_index++] = (uchar)(combined & 0xFF);
     }
     
-    string result = CharArrayToString(output_bytes, 0, output_index, CP_UTF8);
-    return result;
+    string _result = CharArrayToString(output_bytes, 0, output_index, CP_UTF8);
+    return _result;
 }
 
 #endif

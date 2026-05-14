@@ -170,9 +170,9 @@ bool CSessionManager::start_session()
         CJAVal* symbols_array = new CJAVal(JA_ARRAY);
         if(symbols_list != NULL && symbols_array != NULL)
         {
-            for(int i = 0; i < symbols_list.Total(); i++)
+            for(int _i = 0; _i < symbols_list.Total(); _i++)
             {
-                CSessionSymbol* symbol = symbols_list.At(i);
+                CSessionSymbol* symbol = symbols_list.At(_i);
                 symbols_array.Add(symbol.to_json());
             }
             payload.Add("session_symbols", symbols_array);

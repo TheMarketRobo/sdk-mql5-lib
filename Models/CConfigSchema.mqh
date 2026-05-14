@@ -24,20 +24,20 @@ public:
     ~CConfigSchema();
     
     void add_field(CConfigField* field);
-    CConfigField* get_field(string key);
-    CConfigField* get_field_by_index(int idx);
+    CConfigField* get_field(string _key);
+    CConfigField* get_field_by_index(int _idx);
     int get_field_count();
     void get_field_keys(string &keys[]);
     
-    bool validate_field_value(string key, string value, string &reason);
-    bool validate_field_value(string key, int value, string &reason);
-    bool validate_field_value(string key, double value, string &reason);
-    bool validate_field_value(string key, bool value, string &reason);
+    bool validate_field_value(string _key, string _value, string &reason);
+    bool validate_field_value(string _key, int _value, string &reason);
+    bool validate_field_value(string _key, double _value, string &reason);
+    bool validate_field_value(string _key, bool _value, string &reason);
     
-    int get_default_int(string key);
-    double get_default_double(string key);
-    bool get_default_bool(string key);
-    string get_default_string(string key);
+    int get_default_int(string _key);
+    double get_default_double(string _key);
+    bool get_default_bool(string _key);
+    string get_default_string(string _key);
     
     CJAVal* to_json();
     string to_json_string();
@@ -62,23 +62,23 @@ void CConfigSchema::add_field(CConfigField* field)
         m_fields.Add(field);
 }
 
-CConfigField* CConfigSchema::get_field(string key)
+CConfigField* CConfigSchema::get_field(string _key)
 {
-    for(int i = 0; i < m_fields.Total(); i++)
+    for(int _i = 0; _i < m_fields.Total(); _i++)
     {
-        CConfigField* field = m_fields.At(i);
-        if(field != NULL && field.m_key == key)
+        CConfigField* field = m_fields.At(_i);
+        if(field != NULL && field.m_key == _key)
             return field;
     }
     return NULL;
 }
 
 // Param renamed from `index` to `idx` — see notes in Services/Json.mqh.
-CConfigField* CConfigSchema::get_field_by_index(int idx)
+CConfigField* CConfigSchema::get_field_by_index(int _idx)
 {
-    if(idx < 0 || idx >= m_fields.Total())
+    if(_idx < 0 || _idx >= m_fields.Total())
         return NULL;
-    return m_fields.At(idx);
+    return m_fields.At(_idx);
 }
 
 int CConfigSchema::get_field_count()
@@ -89,62 +89,62 @@ int CConfigSchema::get_field_count()
 void CConfigSchema::get_field_keys(string &keys[])
 {
     ArrayResize(keys, m_fields.Total());
-    for(int i = 0; i < m_fields.Total(); i++)
+    for(int _i = 0; _i < m_fields.Total(); _i++)
     {
-        CConfigField* field = m_fields.At(i);
-        if(field != NULL) keys[i] = field.m_key;
+        CConfigField* field = m_fields.At(_i);
+        if(field != NULL) keys[_i] = field.m_key;
     }
 }
 
-bool CConfigSchema::validate_field_value(string key, string value, string &reason)
+bool CConfigSchema::validate_field_value(string _key, string _value, string &reason)
 {
-    CConfigField* f = get_field(key);
-    if(f == NULL) { reason = "Field not found: " + key; return false; }
-    return f.validate_value(value, reason);
+    CConfigField* f = get_field(_key);
+    if(f == NULL) { reason = "Field not found: " + _key; return false; }
+    return f.validate_value(_value, reason);
 }
 
-bool CConfigSchema::validate_field_value(string key, int value, string &reason)
+bool CConfigSchema::validate_field_value(string _key, int _value, string &reason)
 {
-    CConfigField* f = get_field(key);
-    if(f == NULL) { reason = "Field not found: " + key; return false; }
-    return f.validate_value(value, reason);
+    CConfigField* f = get_field(_key);
+    if(f == NULL) { reason = "Field not found: " + _key; return false; }
+    return f.validate_value(_value, reason);
 }
 
-bool CConfigSchema::validate_field_value(string key, double value, string &reason)
+bool CConfigSchema::validate_field_value(string _key, double _value, string &reason)
 {
-    CConfigField* f = get_field(key);
-    if(f == NULL) { reason = "Field not found: " + key; return false; }
-    return f.validate_value(value, reason);
+    CConfigField* f = get_field(_key);
+    if(f == NULL) { reason = "Field not found: " + _key; return false; }
+    return f.validate_value(_value, reason);
 }
 
-bool CConfigSchema::validate_field_value(string key, bool value, string &reason)
+bool CConfigSchema::validate_field_value(string _key, bool _value, string &reason)
 {
-    CConfigField* f = get_field(key);
-    if(f == NULL) { reason = "Field not found: " + key; return false; }
-    return f.validate_value(value, reason);
+    CConfigField* f = get_field(_key);
+    if(f == NULL) { reason = "Field not found: " + _key; return false; }
+    return f.validate_value(_value, reason);
 }
 
-int CConfigSchema::get_default_int(string key)
+int CConfigSchema::get_default_int(string _key)
 {
-    CConfigField* f = get_field(key);
+    CConfigField* f = get_field(_key);
     return (f != NULL) ? f.m_default_int : 0;
 }
 
-double CConfigSchema::get_default_double(string key)
+double CConfigSchema::get_default_double(string _key)
 {
-    CConfigField* f = get_field(key);
+    CConfigField* f = get_field(_key);
     return (f != NULL) ? f.m_default_double : 0.0;
 }
 
-bool CConfigSchema::get_default_bool(string key)
+bool CConfigSchema::get_default_bool(string _key)
 {
-    CConfigField* f = get_field(key);
+    CConfigField* f = get_field(_key);
     return (f != NULL) ? f.m_default_bool : false;
 }
 
-string CConfigSchema::get_default_string(string key)
+string CConfigSchema::get_default_string(string _key)
 {
-    CConfigField* f = get_field(key);
+    CConfigField* f = get_field(_key);
     return (f != NULL) ? f.m_default_string : "";
 }
 
@@ -154,9 +154,9 @@ CJAVal* CConfigSchema::to_json()
     if(json == NULL) return NULL;
     
     CJAVal* arr = new CJAVal(JA_ARRAY);
-    for(int i = 0; i < m_fields.Total(); i++)
+    for(int _i = 0; _i < m_fields.Total(); _i++)
     {
-        CConfigField* f = m_fields.At(i);
+        CConfigField* f = m_fields.At(_i);
         if(f != NULL) arr.Add(f.to_json());
     }
     json.Add("fields", arr);
@@ -168,9 +168,9 @@ string CConfigSchema::to_json_string()
 {
     CJAVal* json = to_json();
     if(json == NULL) return "";
-    string result = json.to_string();
+    string _result = json.to_string();
     delete json;
-    return result;
+    return _result;
 }
 
 #endif

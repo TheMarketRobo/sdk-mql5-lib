@@ -54,7 +54,7 @@ public:
     
     CConfigSchema* get_schema();
     string get_schema_json();
-    CConfigField* get_field_definition(string key);
+    CConfigField* get_field_definition(string _key);
 };
 
 //+------------------------------------------------------------------+
@@ -104,18 +104,18 @@ bool IRobotConfig::validate_field(string field_name, string new_value, string &r
     {
         case CONFIG_FIELD_INTEGER:
         {
-            int value = (int)StringToInteger(new_value);
-            return field.validate_value(value, reason);
+            int _value = (int)StringToInteger(new_value);
+            return field.validate_value(_value, reason);
         }
         case CONFIG_FIELD_DECIMAL:
         {
-            double value = StringToDouble(new_value);
-            return field.validate_value(value, reason);
+            double _value = StringToDouble(new_value);
+            return field.validate_value(_value, reason);
         }
         case CONFIG_FIELD_BOOLEAN:
         {
-            bool value = (new_value == "true" || new_value == "1");
-            return field.validate_value(value, reason);
+            bool _value = (new_value == "true" || new_value == "1");
+            return field.validate_value(_value, reason);
         }
         case CONFIG_FIELD_RADIO:
         {
@@ -156,11 +156,11 @@ string IRobotConfig::get_schema_json()
 //+------------------------------------------------------------------+
 //| Get field definition                                              |
 //+------------------------------------------------------------------+
-CConfigField* IRobotConfig::get_field_definition(string key)
+CConfigField* IRobotConfig::get_field_definition(string _key)
 {
     if(CheckPointer(m_schema) != POINTER_INVALID)
     {
-        return m_schema.get_field(key);
+        return m_schema.get_field(_key);
     }
     return NULL;
 }

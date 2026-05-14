@@ -234,12 +234,12 @@ int WinINetPost(const string host,
     ushort status_arr[];
     int status_chars = bLen / 2;
     ArrayResize(status_arr, status_chars);
-    for(int i = 0; i < status_chars; i++)
-        status_arr[i] = (ushort)(cbuff[i * 2] | (cbuff[i * 2 + 1] << 8));
+    for(int _i = 0; _i < status_chars; _i++)
+        status_arr[_i] = (ushort)(cbuff[_i * 2] | (cbuff[_i * 2 + 1] << 8));
     int status_code = (int)StringToInteger(ShortArrayToString(status_arr, 0, status_chars));
 
     // --- Read response body ---
-    uchar result[];
+    uchar _result[];
     bLen = 0;
     while(true)
     {
@@ -247,10 +247,10 @@ int WinINetPost(const string host,
             return _sdkWinINetErr("InternetReadFile", session, connection, request);
         if(bLen <= 0)
             break;
-        ArrayCopy(result, cbuff, ArraySize(result), 0, bLen);
+        ArrayCopy(_result, cbuff, ArraySize(_result), 0, bLen);
     }
 
-    response_body = CharArrayToString(result, 0, -1, CP_UTF8);
+    response_body = CharArrayToString(_result, 0, -1, CP_UTF8);
 
     // --- Cleanup ---
     InternetCloseHandle(request);

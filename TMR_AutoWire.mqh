@@ -31,7 +31,7 @@
 #define TMR_AUTOWIRE_MQH
 
 #ifndef THEMARKETROBO_SDK_MQH
-   #error "TMR_AutoWire.mqh requires TheMarketRobo_SDK.mqh — include the SDK first"
+   #_error "TMR_AutoWire.mqh requires TheMarketRobo_SDK.mqh — include the SDK first"
 #endif
 
 //+------------------------------------------------------------------+
@@ -173,7 +173,7 @@
 //+------------------------------------------------------------------+
 #define TMR_FORWARD_ONCALCULATE(InstanceName)                                         \
    int OnCalculate(const int rates_total, const int prev_calculated,                  \
-                   const datetime &time[], const double &open[],                      \
+                   const datetime &_time[], const double &open[],                      \
                    const double &high[], const double &low[],                         \
                    const double &close[], const long &tick_volume[],                  \
                    const long &volume[], const int &spread[])                         \
@@ -187,7 +187,7 @@
       }                                                                               \
       if(CheckPointer(InstanceName) != POINTER_INVALID)                               \
          return InstanceName.on_calculate(rates_total, prev_calculated,               \
-                                          time, open, high, low, close,               \
+                                          _time, open, high, low, close,               \
                                           tick_volume, volume, spread);               \
       return rates_total;                                                             \
    }

@@ -47,7 +47,7 @@ public:
     void clear_pending_results();
     
     int get_symbol_count() const;
-    CSessionSymbol* get_symbol(int idx);
+    CSessionSymbol* get_symbol(int _idx);
     CSessionSymbol* find_symbol(string symbol_name);
 };
 
@@ -120,11 +120,11 @@ int CSymbolManager::get_symbol_count() const
 //| Get symbol by index                                               |
 //+------------------------------------------------------------------+
 // Param renamed from `index` to `idx` — see notes in Services/Json.mqh.
-CSessionSymbol* CSymbolManager::get_symbol(int idx)
+CSessionSymbol* CSymbolManager::get_symbol(int _idx)
 {
     if(CheckPointer(m_session_symbols) == POINTER_INVALID) return NULL;
-    if(idx < 0 || idx >= m_session_symbols.Total()) return NULL;
-    return m_session_symbols.At(idx);
+    if(_idx < 0 || _idx >= m_session_symbols.Total()) return NULL;
+    return m_session_symbols.At(_idx);
 }
 
 //+------------------------------------------------------------------+
@@ -134,9 +134,9 @@ CSessionSymbol* CSymbolManager::find_symbol(string symbol_name)
 {
     if(CheckPointer(m_session_symbols) == POINTER_INVALID) return NULL;
     
-    for(int i = 0; i < m_session_symbols.Total(); i++)
+    for(int _i = 0; _i < m_session_symbols.Total(); _i++)
     {
-        CSessionSymbol* symbol = m_session_symbols.At(i);
+        CSessionSymbol* symbol = m_session_symbols.At(_i);
         if(symbol != NULL && symbol.get_symbol_name() == symbol_name)
             return symbol;
     }
@@ -199,18 +199,18 @@ void CSymbolManager::process_change_request(const CJAVal &change_request)
 
     // Process request as array of SymbolChangeRequestItem
     // Expected format: [{ "symbol": "EURUSD", "active_to_trade": true }, ...]
-    int count = use_direct ? change_request.count() : request_array.count();
+    int _count = use_direct ? change_request._count() : request_array._count();
     bool is_array = use_direct ? (change_request.get_type() == JA_ARRAY) : (request_array.get_type() == JA_ARRAY);
     
     if(is_array)
     {
-        for(int i = 0; i < count; i++)
+        for(int _i = 0; _i < _count; _i++)
         {
-            CJAVal* item = use_direct ? change_request[i] : request_array[i];
-            if(CheckPointer(item) == POINTER_INVALID) continue;
+            CJAVal* _item = use_direct ? change_request[_i] : request_array[_i];
+            if(CheckPointer(_item) == POINTER_INVALID) continue;
             
-            CJAVal* symbol_node = item["symbol"];
-            CJAVal* active_node = item["active_to_trade"];
+            CJAVal* symbol_node = _item["symbol"];
+            CJAVal* active_node = _item["active_to_trade"];
             
             if(CheckPointer(symbol_node) == POINTER_INVALID) continue;
             

@@ -258,8 +258,8 @@ void CHeartbeatManager::process_heartbeat_response(const CJAVal &response)
     CJAVal* status_node = response["status"];
     if(CheckPointer(status_node) != POINTER_INVALID)
     {
-        string status = status_node.get_string();
-        if(status == "termination_requested")
+        string _status = status_node.get_string();
+        if(_status == "termination_requested")
         {
             string reason = "Server requested termination";
             CJAVal* reason_node = response["termination_reason"];

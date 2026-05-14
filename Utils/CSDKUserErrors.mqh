@@ -141,9 +141,9 @@ bool SDKRemoveIndicatorFromChart(string indicator_short_name)
     for(int w = 0; w < total_windows; w++)
     {
         int total_ind = TMR_ChartIndicatorsTotal(0, w);
-        for(int i = total_ind - 1; i >= 0; i--)
+        for(int _i = total_ind - 1; _i >= 0; _i--)
         {
-            if(TMR_ChartIndicatorName(0, w, i) == indicator_short_name)
+            if(TMR_ChartIndicatorName(0, w, _i) == indicator_short_name)
             {
                 bool removed = TMR_ChartIndicatorDelete(0, w, indicator_short_name);
                 if(removed)

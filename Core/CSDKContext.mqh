@@ -240,10 +240,10 @@ bool CSDKContext::try_restore_session()
 
     // Parse: session_id|expires_in|expiration_ts|api_key|jwt
     string parts[];
-    int count = StringSplit(line, '|', parts);
-    if(count < 5)
+    int _count = StringSplit(line, '|', parts);
+    if(_count < 5)
     {
-        if(SDKShouldLogWarning()) Print("SDK Warning: Corrupt session state file (expected 5 fields, got ", count, ").");
+        if(SDKShouldLogWarning()) Print("SDK Warning: Corrupt session state file (expected 5 fields, got ", _count, ").");
         return false;
     }
 
