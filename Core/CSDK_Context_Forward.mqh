@@ -8,7 +8,7 @@
 
 // This forward declaration breaks the circular dependency between the
 // CSDK_Context and the managers that depend on it.
-class CSDK_Context;
+class CTMKR_Context;
 
 #endif
 //+------------------------------------------------------------------+

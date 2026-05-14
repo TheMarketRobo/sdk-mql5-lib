@@ -11,13 +11,13 @@
 #include "../Utils/CSDK_Events.mqh"
 #include "../Utils/CSDKLogger.mqh"
 
-class CSDKContext;
+class CTMKR_Context;
 
 /**
  * @class CSessionManager
  * @brief Manages the overall robot session lifecycle (/start, /end, /refresh).
  */
-class CSessionManager : public CObject
+class CTMKR_SessionManager : public CObject
 {
 private:
     ulong m_session_id;
@@ -25,15 +25,15 @@ private:
     string m_robot_version_uuid;
     long m_magic_number;
     bool m_is_active;
-    CSDKContext* m_context;
+    CTMKR_Context* m_context;
 
 public:
-    CSessionManager(string api_key, string robot_version_uuid, long magic_number, CSDKContext* context);
-    ~CSessionManager();
+    CTMKR_SessionManager(string api_key, string robot_version_uuid, long magic_number, CTMKR_Context* context);
+    ~CTMKR_SessionManager();
 
     bool start_session();
     bool resume_session(ulong session_id);
-    bool end_session(string tmkr_reason, CFinalStats* final_stats);
+    bool end_session(string tmkr_reason, CTMKR_FinalStats* final_stats);
     bool refresh_token();
     
     bool is_session_active() const;
@@ -46,7 +46,7 @@ public:
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CSessionManager::CSessionManager(string api_key, string robot_version_uuid, long magic_number, CSDKContext* context)
+CTMKR_SessionManager::CSessionManager(string api_key, string robot_version_uuid, long magic_number, CTMKR_Context* context)
 {
     m_api_key = api_key;
     m_robot_version_uuid = robot_version_uuid;
@@ -59,14 +59,14 @@ CSessionManager::CSessionManager(string api_key, string robot_version_uuid, long
 //+------------------------------------------------------------------+
 //| Destructor                                                        |
 //+------------------------------------------------------------------+
-CSessionManager::~CSessionManager()
+CTMKR_SessionManager::~CTMKR_SessionManager()
 {
 }
 
 //+------------------------------------------------------------------+
 //| Returns session active status                                     |
 //+------------------------------------------------------------------+
-bool CSessionManager::is_session_active() const
+bool CTMKR_SessionManager::is_session_active() const
 {
     return m_is_active;
 }
@@ -74,7 +74,7 @@ bool CSessionManager::is_session_active() const
 //+------------------------------------------------------------------+
 //| Returns session ID                                                |
 //+------------------------------------------------------------------+
-ulong CSessionManager::get_session_id() const
+ulong CTMKR_SessionManager::get_session_id() const
 {
     return m_session_id;
 }
@@ -82,7 +82,7 @@ ulong CSessionManager::get_session_id() const
 //+------------------------------------------------------------------+
 //| Returns the API key                                               |
 //+------------------------------------------------------------------+
-string CSessionManager::get_api_key() const
+string CTMKR_SessionManager::get_api_key() const
 {
     return m_api_key;
 }
@@ -91,7 +91,7 @@ string CSessionManager::get_api_key() const
 //| Resume a previously saved session (no HTTP call to /robot/start). |
 //| The backend session is still alive; we just restore local state.  |
 //+------------------------------------------------------------------+
-bool CSessionManager::resume_session(ulong session_id)
+bool CTMKR_SessionManager::resume_session(ulong session_id)
 {
     m_session_id = session_id;
     m_is_active  = true;
@@ -104,7 +104,7 @@ bool CSessionManager::resume_session(ulong session_id)
 //+------------------------------------------------------------------+
 //| Start a new session with the server                               |
 //+------------------------------------------------------------------+
-bool CSessionManager::start_session()
+bool CTMKR_SessionManager::start_session()
 {
     bool is_indicator = m_context.is_indicator();
     
@@ -118,26 +118,26 @@ bool CSessionManager::start_session()
         if(SDKShouldLogWarning()) Print("SDK Warning: Starting session without full account data - values may be 0");
     }
     
-    CJAVal* payload = new CJAVal(JA_OBJECT);
+    CTMKR_JAVal* payload = new CTMKR_JAVal(TMKR_JA_OBJECT);
     if(payload == NULL) return false;
 
-    CJAVal* api_key_val = new CJAVal();
+    CTMKR_JAVal* api_key_val = new CTMKR_JAVal();
     api_key_val.set_string(m_api_key);
     payload.Add("api_key", api_key_val);
 
-    CJAVal* version_val = new CJAVal();
+    CTMKR_JAVal* version_val = new CTMKR_JAVal();
     version_val.set_string(m_robot_version_uuid);
     payload.Add("robot_version_uuid", version_val);
     
     // Robots send magic_number; indicators omit it (no order tracking)
     if(!is_indicator)
     {
-        CJAVal* magic_val = new CJAVal();
+        CTMKR_JAVal* magic_val = new CTMKR_JAVal();
         magic_val.set_long(m_magic_number);
         payload.Add("magic_number", magic_val);
     }
     
-    CJAVal* currency_val = new CJAVal();
+    CTMKR_JAVal* currency_val = new CTMKR_JAVal();
     currency_val.set_string(AccountInfoString(ACCOUNT_CURRENCY));
     payload.Add("account_currency", currency_val);
     
@@ -147,11 +147,11 @@ bool CSessionManager::start_session()
     
     if(SDKShouldLogDebug()) Print("SDK Debug: Initial Balance: ", initial_balance, ", Initial Equity: ", initial_equity);
     
-    CJAVal* balance_val = new CJAVal();
+    CTMKR_JAVal* balance_val = new CTMKR_JAVal();
     balance_val.set_double(NormalizeDouble(initial_balance, 2));
     payload.Add("initial_balance", balance_val);
     
-    CJAVal* equity_val = new CJAVal();
+    CTMKR_JAVal* equity_val = new CTMKR_JAVal();
     equity_val.set_double(NormalizeDouble(initial_equity, 2));
     payload.Add("initial_equity", equity_val);
     
@@ -167,12 +167,12 @@ bool CSessionManager::start_session()
     {
         if(SDKShouldLogDebug()) Print("SDK Debug: Collecting session symbols...");
         CArrayObj* symbols_list = m_context.data_collector.get_session_symbols();
-        CJAVal* symbols_array = new CJAVal(JA_ARRAY);
+        CTMKR_JAVal* symbols_array = new CTMKR_JAVal(TMKR_JA_ARRAY);
         if(symbols_list != NULL && symbols_array != NULL)
         {
             for(int tmkr_i = 0; tmkr_i < symbols_list.Total(); tmkr_i++)
             {
-                CSessionSymbol* tmkr_symbol = symbols_list.At(tmkr_i);
+                CTMKR_SessionSymbol* tmkr_symbol = symbols_list.At(tmkr_i);
                 symbols_array.Add(tmkr_symbol.to_json());
             }
             payload.Add("session_symbols", symbols_array);
@@ -186,7 +186,7 @@ bool CSessionManager::start_session()
     if(SDKShouldLogInfo()) Print("SDK Info: Sending start request to server...");
     // API Gateway requires Authorization header to be present for the authorizer to invoke,
     // even for the /start endpoint where we use the API key in the body.
-    CHttpResponse* response = m_context.http_service.post("/robot/start", "api-key-start", payload_str);
+    CTMKR_HttpResponse* response = m_context.http_service.post("/robot/start", "api-key-start", payload_str);
     delete payload;
 
     if(CheckPointer(response) == POINTER_INVALID || response.code != 200)
@@ -196,10 +196,10 @@ bool CSessionManager::start_session()
         return false;
     }
     
-    CJAVal* body = response.json_body;
+    CTMKR_JAVal* body = response.json_body;
     
     // Server returns session_id as string, need to parse it
-    CJAVal* session_id_node = body["session_id"];
+    CTMKR_JAVal* session_id_node = body["session_id"];
     if(CheckPointer(session_id_node) != POINTER_INVALID)
     {
         // Try string first (server returns it as string), then fall back to long
@@ -220,7 +220,7 @@ bool CSessionManager::start_session()
     
     m_context.token_manager.set_token(body["jwt"].get_string());
     
-    CJAVal* expires_in_node = body["expires_in"];
+    CTMKR_JAVal* expires_in_node = body["expires_in"];
     if(CheckPointer(expires_in_node) != POINTER_INVALID)
     {
         m_context.token_manager.set_expires_in((int)expires_in_node.get_long());
@@ -235,7 +235,7 @@ bool CSessionManager::start_session()
     }
     else
     {
-        CJAVal* server_config = body["robot_config"];
+        CTMKR_JAVal* server_config = body["robot_config"];
         if(CheckPointer(server_config) == POINTER_INVALID)
         {
             if(SDKShouldLogWarning()) Print("SDK Warning: No robot_config received from server, session will be marked as active");
@@ -253,13 +253,13 @@ bool CSessionManager::start_session()
         }
         
         // Process any initial change requests (robots only)
-        CJAVal* config_change_node = body["robot_config_change_request"];
+        CTMKR_JAVal* config_change_node = body["robot_config_change_request"];
         if(CheckPointer(config_change_node) != POINTER_INVALID)
         {
             m_context.config_manager.process_change_request(config_change_node);
         }
         
-        CJAVal* symbol_change_node = body["session_symbols_change_request"];
+        CTMKR_JAVal* symbol_change_node = body["session_symbols_change_request"];
         if(CheckPointer(symbol_change_node) != POINTER_INVALID)
         {
             m_context.symbol_manager.process_change_request(symbol_change_node);
@@ -273,25 +273,25 @@ bool CSessionManager::start_session()
 //+------------------------------------------------------------------+
 //| End the current session                                           |
 //+------------------------------------------------------------------+
-bool CSessionManager::end_session(string tmkr_reason, CFinalStats* final_stats)
+bool CTMKR_SessionManager::end_session(string tmkr_reason, CTMKR_FinalStats* final_stats)
 {
     if(!m_is_active) return false;
     
-    STermination_Event start_event;
+    STMKR_TerminationEvent start_event;
     start_event.reason = tmkr_reason;
     start_event.success = false;
     start_event.message = "Termination started";
     start_event.session_id = m_session_id;
     Fire_Termination_Start_Event(0, start_event);
     
-    CJAVal* payload = new CJAVal(JA_OBJECT);
+    CTMKR_JAVal* payload = new CTMKR_JAVal(TMKR_JA_OBJECT);
     if(payload == NULL) return false;
 
-    CJAVal* session_id_val = new CJAVal();
+    CTMKR_JAVal* session_id_val = new CTMKR_JAVal();
     session_id_val.set_long(m_session_id);
     payload.Add("session_id", session_id_val);
 
-    CJAVal* reason_val = new CJAVal();
+    CTMKR_JAVal* reason_val = new CTMKR_JAVal();
     reason_val.set_string(tmkr_reason);
     payload.Add("reason", reason_val);
 
@@ -301,7 +301,7 @@ bool CSessionManager::end_session(string tmkr_reason, CFinalStats* final_stats)
     }
     
     string payload_str = payload.to_string();
-    CHttpResponse* response = m_context.http_service.post("/robot/end", m_context.token_manager.get_token(), payload_str);
+    CTMKR_HttpResponse* response = m_context.http_service.post("/robot/end", m_context.token_manager.get_token(), payload_str);
     delete payload;
 
     bool success = false;
@@ -322,7 +322,7 @@ bool CSessionManager::end_session(string tmkr_reason, CFinalStats* final_stats)
         if(response != NULL) delete response;
     }
     
-    STermination_Event end_event;
+    STMKR_TerminationEvent end_event;
     end_event.reason = tmkr_reason;
     end_event.success = success;
     end_event.message = tmkr_message;
@@ -335,18 +335,18 @@ bool CSessionManager::end_session(string tmkr_reason, CFinalStats* final_stats)
 //+------------------------------------------------------------------+
 //| Refresh the JWT token                                             |
 //+------------------------------------------------------------------+
-bool CSessionManager::refresh_token()
+bool CTMKR_SessionManager::refresh_token()
 {
     string current_token = m_context.token_manager.get_token();
     
-    CJAVal* payload = new CJAVal(JA_OBJECT);
-    CJAVal* token_val = new CJAVal();
+    CTMKR_JAVal* payload = new CTMKR_JAVal(TMKR_JA_OBJECT);
+    CTMKR_JAVal* token_val = new CTMKR_JAVal();
     token_val.set_string(current_token);
     payload.Add("jwt_token", token_val);
     
     string payload_str = payload.to_string();
     // Pass current token for Authorization header - required by the authorizer
-    CHttpResponse* response = m_context.http_service.post("/robot/refresh", current_token, payload_str);
+    CTMKR_HttpResponse* response = m_context.http_service.post("/robot/refresh", current_token, payload_str);
     delete payload;
     
     bool success = false;
@@ -365,7 +365,7 @@ bool CSessionManager::refresh_token()
         delete response;
     }
     
-    SToken_Refresh_Event event_data;
+    STMKR_TokenRefreshEvent event_data;
     event_data.success = success;
     event_data.message = tmkr_message;
     Fire_Token_Refresh_Event(0, event_data);

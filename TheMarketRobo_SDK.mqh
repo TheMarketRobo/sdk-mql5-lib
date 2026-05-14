@@ -129,7 +129,7 @@
 
 // ----- Only compiled when SDK is enabled (network, managers, DLLs) -----
 
-#ifdef SDK_ENABLED
+#ifdef TMKR_SDK_ENABLED
 
 // SDK Options
 #include "Core/CSDKOptions.mqh"

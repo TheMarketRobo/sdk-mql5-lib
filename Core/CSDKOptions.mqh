@@ -10,9 +10,9 @@
 #include "../Utils/CSDKLogger.mqh"
 
 //--- Constants for token refresh thresholds
-#define SDK_MIN_REFRESH_THRESHOLD  60
-#define SDK_MAX_REFRESH_THRESHOLD  3600
-#define SDK_DEFAULT_REFRESH_THRESHOLD 300
+#define TMKR_MIN_REFRESH_THRESHOLD  60
+#define TMKR_MAX_REFRESH_THRESHOLD  3600
+#define TMKR_DEFAULT_REFRESH_THRESHOLD 300
 
 /**
  * @class CSDKOptions
@@ -24,21 +24,21 @@
  * Key rule: config and symbol change requests are always disabled for
  * PRODUCT_TYPE_INDICATOR and cannot be re-enabled.
  */
-class CSDKOptions
+class CTMKR_Options
 {
 private:
-    ENUM_SDK_PRODUCT_TYPE m_product_type;
+    ENUM_TMKR_PRODUCT_TYPE m_product_type;
     bool m_enable_config_change_requests;
     bool m_enable_symbol_change_requests;
     int  m_token_refresh_threshold_seconds;
     int  m_max_heartbeat_failure_intervals;
 
 public:
-    CSDKOptions();
-    ~CSDKOptions();
+    CTMKR_Options();
+    ~CTMKR_Options();
     
-    void set_product_type(ENUM_SDK_PRODUCT_TYPE tmkr_type);
-    ENUM_SDK_PRODUCT_TYPE get_product_type() const;
+    void set_product_type(ENUM_TMKR_PRODUCT_TYPE tmkr_type);
+    ENUM_TMKR_PRODUCT_TYPE get_product_type() const;
     bool is_indicator() const;
     bool is_robot() const;
     
@@ -54,33 +54,33 @@ public:
     void set_max_heartbeat_failure_intervals(int intervals);
     int get_max_heartbeat_failure_intervals() const;
     
-    CSDKOptions* clone() const;
+    CTMKR_Options* clone() const;
     void print_options() const;
 };
 
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CSDKOptions::CSDKOptions()
+CTMKR_Options::CSDKOptions()
 {
     m_product_type = PRODUCT_TYPE_ROBOT;
     m_enable_config_change_requests = true;
     m_enable_symbol_change_requests = true;
-    m_token_refresh_threshold_seconds = SDK_DEFAULT_REFRESH_THRESHOLD;
-    m_max_heartbeat_failure_intervals = SDK_DEFAULT_MAX_HEARTBEAT_FAILURE_INTERVALS;
+    m_token_refresh_threshold_seconds = TMKR_DEFAULT_REFRESH_THRESHOLD;
+    m_max_heartbeat_failure_intervals = TMKR_DEFAULT_MAX_HEARTBEAT_FAILURE_INTERVALS;
 }
 
 //+------------------------------------------------------------------+
 //| Destructor                                                        |
 //+------------------------------------------------------------------+
-CSDKOptions::~CSDKOptions()
+CTMKR_Options::~CTMKR_Options()
 {
 }
 
 //+------------------------------------------------------------------+
 //| Product type                                                      |
 //+------------------------------------------------------------------+
-void CSDKOptions::set_product_type(ENUM_SDK_PRODUCT_TYPE tmkr_type)
+void CTMKR_Options::set_product_type(ENUM_TMKR_PRODUCT_TYPE tmkr_type)
 {
     m_product_type = tmkr_type;
     if(tmkr_type == PRODUCT_TYPE_INDICATOR)
@@ -93,17 +93,17 @@ void CSDKOptions::set_product_type(ENUM_SDK_PRODUCT_TYPE tmkr_type)
     }
 }
 
-ENUM_SDK_PRODUCT_TYPE CSDKOptions::get_product_type() const
+ENUM_TMKR_PRODUCT_TYPE CTMKR_Options::get_product_type() const
 {
     return m_product_type;
 }
 
-bool CSDKOptions::is_indicator() const
+bool CTMKR_Options::is_indicator() const
 {
     return m_product_type == PRODUCT_TYPE_INDICATOR;
 }
 
-bool CSDKOptions::is_robot() const
+bool CTMKR_Options::is_robot() const
 {
     return m_product_type == PRODUCT_TYPE_ROBOT;
 }
@@ -111,7 +111,7 @@ bool CSDKOptions::is_robot() const
 //+------------------------------------------------------------------+
 //| Config change requests toggle                                     |
 //+------------------------------------------------------------------+
-void CSDKOptions::set_enable_config_change_requests(bool enable)
+void CTMKR_Options::set_enable_config_change_requests(bool enable)
 {
     if(m_product_type == PRODUCT_TYPE_INDICATOR)
     {
@@ -126,7 +126,7 @@ void CSDKOptions::set_enable_config_change_requests(bool enable)
     }
 }
 
-bool CSDKOptions::is_config_change_requests_enabled() const
+bool CTMKR_Options::is_config_change_requests_enabled() const
 {
     return m_enable_config_change_requests;
 }
@@ -134,7 +134,7 @@ bool CSDKOptions::is_config_change_requests_enabled() const
 //+------------------------------------------------------------------+
 //| Symbol change requests toggle                                     |
 //+------------------------------------------------------------------+
-void CSDKOptions::set_enable_symbol_change_requests(bool enable)
+void CTMKR_Options::set_enable_symbol_change_requests(bool enable)
 {
     if(m_product_type == PRODUCT_TYPE_INDICATOR)
     {
@@ -149,7 +149,7 @@ void CSDKOptions::set_enable_symbol_change_requests(bool enable)
     }
 }
 
-bool CSDKOptions::is_symbol_change_requests_enabled() const
+bool CTMKR_Options::is_symbol_change_requests_enabled() const
 {
     return m_enable_symbol_change_requests;
 }
@@ -157,25 +157,25 @@ bool CSDKOptions::is_symbol_change_requests_enabled() const
 //+------------------------------------------------------------------+
 //| Token refresh threshold                                           |
 //+------------------------------------------------------------------+
-void CSDKOptions::set_token_refresh_threshold_seconds(int seconds)
+void CTMKR_Options::set_token_refresh_threshold_seconds(int seconds)
 {
-    if(seconds < SDK_MIN_REFRESH_THRESHOLD)
+    if(seconds < TMKR_MIN_REFRESH_THRESHOLD)
     {
         if(SDKShouldLogWarning()) Print("SDK Warning: Token refresh threshold too low. ",
-              "Setting to minimum: ", SDK_MIN_REFRESH_THRESHOLD, " seconds.");
-        seconds = SDK_MIN_REFRESH_THRESHOLD;
+              "Setting to minimum: ", TMKR_MIN_REFRESH_THRESHOLD, " seconds.");
+        seconds = TMKR_MIN_REFRESH_THRESHOLD;
     }
-    else if(seconds > SDK_MAX_REFRESH_THRESHOLD)
+    else if(seconds > TMKR_MAX_REFRESH_THRESHOLD)
     {
         if(SDKShouldLogWarning()) Print("SDK Warning: Token refresh threshold too high. ",
-              "Setting to maximum: ", SDK_MAX_REFRESH_THRESHOLD, " seconds.");
-        seconds = SDK_MAX_REFRESH_THRESHOLD;
+              "Setting to maximum: ", TMKR_MAX_REFRESH_THRESHOLD, " seconds.");
+        seconds = TMKR_MAX_REFRESH_THRESHOLD;
     }
     
     m_token_refresh_threshold_seconds = seconds;
 }
 
-int CSDKOptions::get_token_refresh_threshold_seconds() const
+int CTMKR_Options::get_token_refresh_threshold_seconds() const
 {
     return m_token_refresh_threshold_seconds;
 }
@@ -183,7 +183,7 @@ int CSDKOptions::get_token_refresh_threshold_seconds() const
 //+------------------------------------------------------------------+
 //| Max heartbeat failure intervals (connection-lost removal)          |
 //+------------------------------------------------------------------+
-void CSDKOptions::set_max_heartbeat_failure_intervals(int intervals)
+void CTMKR_Options::set_max_heartbeat_failure_intervals(int intervals)
 {
     if(intervals < 1)
     {
@@ -193,7 +193,7 @@ void CSDKOptions::set_max_heartbeat_failure_intervals(int intervals)
     m_max_heartbeat_failure_intervals = intervals;
 }
 
-int CSDKOptions::get_max_heartbeat_failure_intervals() const
+int CTMKR_Options::get_max_heartbeat_failure_intervals() const
 {
     return m_max_heartbeat_failure_intervals;
 }
@@ -201,9 +201,9 @@ int CSDKOptions::get_max_heartbeat_failure_intervals() const
 //+------------------------------------------------------------------+
 //| Clone                                                             |
 //+------------------------------------------------------------------+
-CSDKOptions* CSDKOptions::clone() const
+CTMKR_Options* CTMKR_Options::clone() const
 {
-    CSDKOptions* copy = new CSDKOptions();
+    CTMKR_Options* copy = new CTMKR_Options();
     if(copy != NULL)
     {
         copy.m_product_type = m_product_type;
@@ -218,7 +218,7 @@ CSDKOptions* CSDKOptions::clone() const
 //+------------------------------------------------------------------+
 //| Print options                                                     |
 //+------------------------------------------------------------------+
-void CSDKOptions::print_options() const
+void CTMKR_Options::print_options() const
 {
     if(!SDKShouldLogInfo()) return;
     Print("=== SDK Options ===");
@@ -227,7 +227,7 @@ void CSDKOptions::print_options() const
     Print("  Symbol change requests: ", m_enable_symbol_change_requests ? "ENABLED" : "DISABLED");
     Print("  Token refresh threshold: ", m_token_refresh_threshold_seconds, " seconds");
     Print("  Max heartbeat failure intervals: ", m_max_heartbeat_failure_intervals, " (remove product after this many failed heartbeats)");
-    Print("  Log level: ", SDKLogLevelToString(SDKGetLogLevel()));
+    Print("  Log level: ", SDKLogLevelToString(TMKRGetLogLevel()));
     Print("===================");
 }
 

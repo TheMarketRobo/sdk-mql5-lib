@@ -10,7 +10,7 @@
 #include "../Services/Json.mqh"
 #include "../Utils/CSDKLogger.mqh"
 
-class CSDKContext;
+class CTMKR_Context;
 
 /**
  * @class CHeartbeatManager
@@ -23,7 +23,7 @@ class CSDKContext;
  * - config_change_results: Results of configuration change requests (optional)
  * - symbols_change_results: Results of symbol change requests (optional)
  */
-class CHeartbeatManager : public CObject
+class CTMKR_HeartbeatManager : public CObject
 {
 private:
     ulong m_session_id;
@@ -31,23 +31,23 @@ private:
     uint m_heartbeat_interval_seconds;
     uint m_max_heartbeat_interval;
     datetime m_last_heartbeat_time;
-    CSDKContext* m_context;
-    CJAVal* m_pending_heartbeat_data;
+    CTMKR_Context* m_context;
+    CTMKR_JAVal* m_pending_heartbeat_data;
     bool m_waiting_for_confirmation;
     
     string get_iso_timestamp();
 
 public:
-    CHeartbeatManager(CSDKContext* context);
-    ~CHeartbeatManager();
+    CTMKR_HeartbeatManager(CTMKR_Context* context);
+    ~CTMKR_HeartbeatManager();
 
     void set_session_id(ulong session_id);
     void request_immediate_heartbeat();
     void set_interval(uint interval);
     bool is_time_to_send();
-    CJAVal* build_heartbeat_payload();
-    void process_heartbeat_response(const CJAVal &response);
-    bool handle_sequence_error(const CJAVal &error_response);
+    CTMKR_JAVal* build_heartbeat_payload();
+    void process_heartbeat_response(const CTMKR_JAVal &response);
+    bool handle_sequence_error(const CTMKR_JAVal &error_response);
     void reset_confirmation_state();
 };
 
@@ -56,7 +56,7 @@ public:
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CHeartbeatManager::CHeartbeatManager(CSDKContext* context)
+CTMKR_HeartbeatManager::CHeartbeatManager(CTMKR_Context* context)
 {
     m_session_id = 0;
     m_sequence = 0;
@@ -71,7 +71,7 @@ CHeartbeatManager::CHeartbeatManager(CSDKContext* context)
 //+------------------------------------------------------------------+
 //| Destructor                                                        |
 //+------------------------------------------------------------------+
-CHeartbeatManager::~CHeartbeatManager()
+CTMKR_HeartbeatManager::~CTMKR_HeartbeatManager()
 {
     if(CheckPointer(m_pending_heartbeat_data) == POINTER_DYNAMIC)
         delete m_pending_heartbeat_data;
@@ -80,7 +80,7 @@ CHeartbeatManager::~CHeartbeatManager()
 //+------------------------------------------------------------------+
 //| Set session ID                                                    |
 //+------------------------------------------------------------------+
-void CHeartbeatManager::set_session_id(ulong session_id)
+void CTMKR_HeartbeatManager::set_session_id(ulong session_id)
 {
     m_session_id = session_id;
     if(SDKShouldLogDebug())
@@ -90,7 +90,7 @@ void CHeartbeatManager::set_session_id(ulong session_id)
 //+------------------------------------------------------------------+
 //| Force the next is_time_to_send() to return true immediately       |
 //+------------------------------------------------------------------+
-void CHeartbeatManager::request_immediate_heartbeat()
+void CTMKR_HeartbeatManager::request_immediate_heartbeat()
 {
     m_last_heartbeat_time = 0;
 }
@@ -98,7 +98,7 @@ void CHeartbeatManager::request_immediate_heartbeat()
 //+------------------------------------------------------------------+
 //| Set heartbeat interval                                            |
 //+------------------------------------------------------------------+
-void CHeartbeatManager::set_interval(uint interval)
+void CTMKR_HeartbeatManager::set_interval(uint interval)
 {
     uint old_interval = m_heartbeat_interval_seconds;
     m_heartbeat_interval_seconds = MathMin(interval, m_max_heartbeat_interval);
@@ -113,7 +113,7 @@ void CHeartbeatManager::set_interval(uint interval)
 //+------------------------------------------------------------------+
 //| Check if it's time to send heartbeat                              |
 //+------------------------------------------------------------------+
-bool CHeartbeatManager::is_time_to_send()
+bool CTMKR_HeartbeatManager::is_time_to_send()
 {
     // IMPORTANT: Use TimeLocal() instead of TimeCurrent()!
     // TimeCurrent() returns the last known server quote time, which does NOT
@@ -139,7 +139,7 @@ bool CHeartbeatManager::is_time_to_send()
 //+------------------------------------------------------------------+
 //| Generate ISO 8601 timestamp                                       |
 //+------------------------------------------------------------------+
-string CHeartbeatManager::get_iso_timestamp()
+string CTMKR_HeartbeatManager::get_iso_timestamp()
 {
     datetime tmkr_current = TimeCurrent();
     // Renamed from `dt` to avoid shadowing vendor globals — MQL EAs commonly
@@ -155,7 +155,7 @@ string CHeartbeatManager::get_iso_timestamp()
 //+------------------------------------------------------------------+
 //| Build heartbeat payload                                           |
 //+------------------------------------------------------------------+
-CJAVal* CHeartbeatManager::build_heartbeat_payload()
+CTMKR_JAVal* CTMKR_HeartbeatManager::build_heartbeat_payload()
 {
     if(m_waiting_for_confirmation && CheckPointer(m_pending_heartbeat_data) != POINTER_INVALID)
     {
@@ -167,22 +167,22 @@ CJAVal* CHeartbeatManager::build_heartbeat_payload()
     if(SDKShouldLogDebug())
         Print("SDK Debug: HeartbeatManager - Building new heartbeat payload for sequence ", m_sequence + 1);
     
-    CJAVal* payload = new CJAVal(JA_OBJECT);
+    CTMKR_JAVal* payload = new CTMKR_JAVal(TMKR_JA_OBJECT);
     if(payload == NULL)
     {
         Print("SDK Error: HeartbeatManager - Failed to create payload object");
         return NULL;
     }
 
-    CJAVal* sequence_val = new CJAVal();
+    CTMKR_JAVal* sequence_val = new CTMKR_JAVal();
     sequence_val.set_long(m_sequence + 1);
     payload.Add("sequence", sequence_val);
     
-    CJAVal* timestamp_val = new CJAVal();
+    CTMKR_JAVal* timestamp_val = new CTMKR_JAVal();
     timestamp_val.set_string(get_iso_timestamp());
     payload.Add("timestamp", timestamp_val);
     
-    CJAVal* dynamic_data = m_context.data_collector.get_dynamic_data();
+    CTMKR_JAVal* dynamic_data = m_context.data_collector.get_dynamic_data();
     if(CheckPointer(dynamic_data) == POINTER_INVALID)
     {
         if(SDKShouldLogWarning())
@@ -194,7 +194,7 @@ CJAVal* CHeartbeatManager::build_heartbeat_payload()
     // Indicators never receive or acknowledge change requests.
     if(m_context.is_robot())
     {
-        CJAVal* config_results = m_context.config_manager.get_pending_results();
+        CTMKR_JAVal* config_results = m_context.config_manager.get_pending_results();
         if(CheckPointer(config_results) != POINTER_INVALID)
         {
             if(SDKShouldLogDebug())
@@ -202,7 +202,7 @@ CJAVal* CHeartbeatManager::build_heartbeat_payload()
             payload.Add("config_change_results", config_results);
         }
 
-        CJAVal* symbol_results = m_context.symbol_manager.get_pending_results();
+        CTMKR_JAVal* symbol_results = m_context.symbol_manager.get_pending_results();
         if(CheckPointer(symbol_results) != POINTER_INVALID)
         {
             if(SDKShouldLogDebug())
@@ -222,7 +222,7 @@ CJAVal* CHeartbeatManager::build_heartbeat_payload()
 //+------------------------------------------------------------------+
 //| Process heartbeat response                                        |
 //+------------------------------------------------------------------+
-void CHeartbeatManager::process_heartbeat_response(const CJAVal &response)
+void CTMKR_HeartbeatManager::process_heartbeat_response(const CTMKR_JAVal &response)
 {
     if(SDKShouldLogDebug())
         Print("SDK Debug: HeartbeatManager - Processing heartbeat response");
@@ -255,14 +255,14 @@ void CHeartbeatManager::process_heartbeat_response(const CJAVal &response)
 
     // Termination request check applies to both robots and indicators
     // Server sends: { "status": "termination_requested", "termination_reason": "..." }
-    CJAVal* status_node = response["status"];
+    CTMKR_JAVal* status_node = response["status"];
     if(CheckPointer(status_node) != POINTER_INVALID)
     {
         string tmkr_status = status_node.get_string();
         if(tmkr_status == "termination_requested")
         {
             string tmkr_reason = "Server requested termination";
-            CJAVal* reason_node = response["termination_reason"];
+            CTMKR_JAVal* reason_node = response["termination_reason"];
             if(CheckPointer(reason_node) != POINTER_INVALID)
             {
                 tmkr_reason = reason_node.get_string();
@@ -273,8 +273,8 @@ void CHeartbeatManager::process_heartbeat_response(const CJAVal &response)
                 Print("SDK Warning: Server requested ", product_label, " session termination. Reason: ", tmkr_reason);
             
             // Fire termination event — the program should handle this
-            CJAVal event_json(JA_OBJECT);
-            CJAVal* reason_val = new CJAVal();
+            CTMKR_JAVal event_json(TMKR_JA_OBJECT);
+            CTMKR_JAVal* reason_val = new CTMKR_JAVal();
             reason_val.set_string(tmkr_reason);
             event_json.Add("reason", reason_val);
             
@@ -290,8 +290,8 @@ void CHeartbeatManager::process_heartbeat_response(const CJAVal &response)
         }
     }
 
-    CJAVal* interval_node = response["heartbeat_interval_seconds"];
-    if(CheckPointer(interval_node) != POINTER_INVALID && interval_node.get_type() == JA_NUMBER)
+    CTMKR_JAVal* interval_node = response["heartbeat_interval_seconds"];
+    if(CheckPointer(interval_node) != POINTER_INVALID && interval_node.get_type() == TMKR_JA_NUMBER)
     {
         uint new_interval = (uint)interval_node.get_long();
         if(SDKShouldLogDebug())
@@ -302,7 +302,7 @@ void CHeartbeatManager::process_heartbeat_response(const CJAVal &response)
     // Config and symbol change requests from server are only processed for robots
     if(m_context.is_robot())
     {
-        CJAVal* config_change_node = response["robot_config_change_request"];
+        CTMKR_JAVal* config_change_node = response["robot_config_change_request"];
         if(CheckPointer(config_change_node) != POINTER_INVALID)
         {
             if(SDKShouldLogDebug())
@@ -310,7 +310,7 @@ void CHeartbeatManager::process_heartbeat_response(const CJAVal &response)
             m_context.config_manager.process_change_request(config_change_node);
         }
         
-        CJAVal* symbol_change_node = response["session_symbols_change_request"];
+        CTMKR_JAVal* symbol_change_node = response["session_symbols_change_request"];
         if(CheckPointer(symbol_change_node) != POINTER_INVALID)
         {
             if(SDKShouldLogDebug())
@@ -326,11 +326,11 @@ void CHeartbeatManager::process_heartbeat_response(const CJAVal &response)
 //+------------------------------------------------------------------+
 //| Handle sequence error (409 response) - sync with server           |
 //+------------------------------------------------------------------+
-bool CHeartbeatManager::handle_sequence_error(const CJAVal &error_response)
+bool CTMKR_HeartbeatManager::handle_sequence_error(const CTMKR_JAVal &error_response)
 {
     // Extract expected sequence from error context
     // Server returns: { "context": { "expected_sequence": N } }
-    CJAVal* context_node = error_response["context"];
+    CTMKR_JAVal* context_node = error_response["context"];
     if(CheckPointer(context_node) == POINTER_INVALID)
     {
         if(SDKShouldLogWarning())
@@ -338,11 +338,11 @@ bool CHeartbeatManager::handle_sequence_error(const CJAVal &error_response)
         return false;
     }
     
-    CJAVal* expected_node = context_node["expected_sequence"];
+    CTMKR_JAVal* expected_node = context_node["expected_sequence"];
     if(CheckPointer(expected_node) == POINTER_INVALID)
     {
         // Try current_sequence as fallback
-        CJAVal* current_node = context_node["current_sequence"];
+        CTMKR_JAVal* current_node = context_node["current_sequence"];
         if(CheckPointer(current_node) == POINTER_INVALID)
         {
             if(SDKShouldLogWarning())
@@ -377,7 +377,7 @@ bool CHeartbeatManager::handle_sequence_error(const CJAVal &error_response)
 //+------------------------------------------------------------------+
 //| Reset confirmation state to allow new heartbeat                   |
 //+------------------------------------------------------------------+
-void CHeartbeatManager::reset_confirmation_state()
+void CTMKR_HeartbeatManager::reset_confirmation_state()
 {
     m_waiting_for_confirmation = false;
     

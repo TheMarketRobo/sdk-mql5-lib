@@ -16,7 +16,7 @@
 #include "../Utils/CSDKLogger.mqh"
 #include "../TMR_Platform.mqh"
 
-#ifdef SDK_ENABLED
+#ifdef TMKR_SDK_ENABLED
 
 #define WININET_SDK_TIMEOUT_SECS     10
 #define WININET_SDK_BUFF_SIZE        16384

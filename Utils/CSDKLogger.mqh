@@ -22,7 +22,7 @@
 //|   myRobot.set_log_level(SDK_LOG_ERROR);   before on_init(),       |
 //| or use an input with default SDK_LOG_ERROR.                       |
 //+------------------------------------------------------------------+
-ENUM_SDK_LOG_LEVEL g_sdk_log_level = SDK_LOG_ALL;
+ENUM_TMKR_LOG_LEVEL g_sdk_log_level = TMKR_LOG_ALL;
 
 //+------------------------------------------------------------------+
 //| Level-check helpers                                               |
@@ -33,19 +33,19 @@ ENUM_SDK_LOG_LEVEL g_sdk_log_level = SDK_LOG_ALL;
 //|                                                                    |
 //| Errors bypass the check — they always print.                      |
 //+------------------------------------------------------------------+
-bool SDKShouldLogDebug(void)   { return (g_sdk_log_level <= SDK_LOG_ALL); }
-bool SDKShouldLogInfo(void)    { return (g_sdk_log_level <= SDK_LOG_INFO); }
-bool SDKShouldLogWarning(void) { return (g_sdk_log_level <= SDK_LOG_WARNING); }
+bool SDKShouldLogDebug(void)   { return (g_sdk_log_level <= TMKR_LOG_ALL); }
+bool SDKShouldLogInfo(void)    { return (g_sdk_log_level <= TMKR_LOG_INFO); }
+bool SDKShouldLogWarning(void) { return (g_sdk_log_level <= TMKR_LOG_WARNING); }
 
 //+------------------------------------------------------------------+
 //| Getter / Setter                                                   |
 //+------------------------------------------------------------------+
-void SDKSetLogLevel(ENUM_SDK_LOG_LEVEL tmkr_level)
+void TMKRSetLogLevel(ENUM_TMKR_LOG_LEVEL tmkr_level)
 {
     g_sdk_log_level = tmkr_level;
 }
 
-ENUM_SDK_LOG_LEVEL SDKGetLogLevel(void)
+ENUM_TMKR_LOG_LEVEL TMKRGetLogLevel(void)
 {
     return g_sdk_log_level;
 }
@@ -53,14 +53,14 @@ ENUM_SDK_LOG_LEVEL SDKGetLogLevel(void)
 //+------------------------------------------------------------------+
 //| Human-readable label for the current level                        |
 //+------------------------------------------------------------------+
-string SDKLogLevelToString(ENUM_SDK_LOG_LEVEL tmkr_level)
+string SDKLogLevelToString(ENUM_TMKR_LOG_LEVEL tmkr_level)
 {
     switch(tmkr_level)
     {
-        case SDK_LOG_ALL:     return "ALL";
-        case SDK_LOG_INFO:    return "INFO";
-        case SDK_LOG_WARNING: return "WARNING";
-        case SDK_LOG_ERROR:   return "ERROR";
+        case TMKR_LOG_ALL:     return "ALL";
+        case TMKR_LOG_INFO:    return "INFO";
+        case TMKR_LOG_WARNING: return "WARNING";
+        case TMKR_LOG_ERROR:   return "ERROR";
         default:                return "UNKNOWN";
     }
 }

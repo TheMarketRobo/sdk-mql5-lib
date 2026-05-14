@@ -30,14 +30,14 @@
 //| code, no DLL references, and no API URLs — nothing to decompile.   |
 //+------------------------------------------------------------------+
 #ifndef TMR_SDK_DISABLED
-#define SDK_ENABLED
+#define TMKR_SDK_ENABLED
 #endif
 
 //+------------------------------------------------------------------+
 //| SDK Version                                                       |
 //+------------------------------------------------------------------+
-#define SDK_VERSION "1.0.0"
-#define SDK_UUID_LENGTH 36  // Standard UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+#define TMKR_SDK_VERSION "1.0.0"
+#define TMKR_UUID_LENGTH 36  // Standard UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 //+------------------------------------------------------------------+
 //| API Configuration                                                 |
@@ -55,7 +55,7 @@
  * be changed and the SDK recompiled. This is intentional to prevent
  * accidental connections to the wrong environment.
  */
-#define SDK_API_BASE_URL "https://api.staging.themarketrobo.com"
+#define TMKR_API_BASE_URL "https://api.staging.themarketrobo.com"
 
 //+------------------------------------------------------------------+
 //| Default Configuration Values                                      |
@@ -69,19 +69,19 @@
  * Note: This MUST be less than the JWT expiration time (default 300 seconds).
  * If set equal to or greater than expiration, refresh will trigger immediately!
  */
-#define SDK_DEFAULT_TOKEN_REFRESH_THRESHOLD 60
+#define TMKR_DEFAULT_TOKEN_REFRESH_THRESHOLD 60
 
 /**
  * Default heartbeat interval in seconds.
  * This is the fallback interval if the server doesn't specify one.
  */
-#define SDK_DEFAULT_HEARTBEAT_INTERVAL 60
+#define TMKR_DEFAULT_HEARTBEAT_INTERVAL 60
 
 /**
  * Maximum heartbeat interval in seconds.
  * Server-specified intervals greater than this will be clamped.
  */
-#define SDK_MAX_HEARTBEAT_INTERVAL 300
+#define TMKR_MAX_HEARTBEAT_INTERVAL 300
 
 /**
  * Default number of heartbeat intervals to allow failed before removing the product.
@@ -89,39 +89,39 @@
  * (EA or indicator) is removed from the chart. Example: interval=60s, default=3
  * -> remove after 3*60 = 180 seconds of continued failure.
  */
-#define SDK_DEFAULT_MAX_HEARTBEAT_FAILURE_INTERVALS 3
+#define TMKR_DEFAULT_MAX_HEARTBEAT_FAILURE_INTERVALS 3
 
 //+------------------------------------------------------------------+
 //| Error Codes (matching API contract)                               |
 //+------------------------------------------------------------------+
 
 // Configuration error codes
-#define SDK_ERROR_INVALID_VALUE     "INVALID_VALUE"
-#define SDK_ERROR_OUT_OF_RANGE      "OUT_OF_RANGE"
-#define SDK_ERROR_FIELD_NOT_FOUND   "FIELD_NOT_FOUND"
-#define SDK_ERROR_READ_ONLY_FIELD   "READ_ONLY_FIELD"
+#define TMKR_ERROR_INVALID_VALUE     "INVALID_VALUE"
+#define TMKR_ERROR_OUT_OF_RANGE      "OUT_OF_RANGE"
+#define TMKR_ERROR_FIELD_NOT_FOUND   "FIELD_NOT_FOUND"
+#define TMKR_ERROR_READ_ONLY_FIELD   "READ_ONLY_FIELD"
 
 // Symbol error codes
-#define SDK_ERROR_SYMBOL_NOT_FOUND      "SYMBOL_NOT_FOUND"
-#define SDK_ERROR_SYMBOL_UNAVAILABLE    "SYMBOL_UNAVAILABLE"
-#define SDK_ERROR_TRADING_DISABLED      "TRADING_DISABLED"
+#define TMKR_ERROR_SYMBOL_NOT_FOUND      "SYMBOL_NOT_FOUND"
+#define TMKR_ERROR_SYMBOL_UNAVAILABLE    "SYMBOL_UNAVAILABLE"
+#define TMKR_ERROR_TRADING_DISABLED      "TRADING_DISABLED"
 
 //+------------------------------------------------------------------+
 //| Change Result Status Values                                       |
 //+------------------------------------------------------------------+
-#define SDK_STATUS_ALL_ACCEPTED       "all_accepted"
-#define SDK_STATUS_ALL_REJECTED       "all_rejected"
-#define SDK_STATUS_PARTIALLY_ACCEPTED "partially_accepted"
+#define TMKR_STATUS_ALL_ACCEPTED       "all_accepted"
+#define TMKR_STATUS_ALL_REJECTED       "all_rejected"
+#define TMKR_STATUS_PARTIALLY_ACCEPTED "partially_accepted"
 
 //+------------------------------------------------------------------+
 //| HTTP Configuration                                                |
 //+------------------------------------------------------------------+
-#define SDK_HTTP_TIMEOUT 5000  // 5 seconds
+#define TMKR_HTTP_TIMEOUT 5000  // 5 seconds
 
 //+------------------------------------------------------------------+
 //| Session States                                                    |
 //+------------------------------------------------------------------+
-enum ENUM_SDK_SESSION_STATE
+enum ENUM_TMKR_SESSION_STATE
 {
     SDK_SESSION_NONE,       // No session
     SDK_SESSION_STARTING,   // Session is being started
@@ -134,7 +134,7 @@ enum ENUM_SDK_SESSION_STATE
 //+------------------------------------------------------------------+
 //| Heartbeat States                                                  |
 //+------------------------------------------------------------------+
-enum ENUM_SDK_HEARTBEAT_STATE
+enum ENUM_TMKR_HEARTBEAT_STATE
 {
     SDK_HEARTBEAT_IDLE,             // Waiting for next heartbeat
     SDK_HEARTBEAT_SENDING,          // Heartbeat is being sent
@@ -152,15 +152,15 @@ enum ENUM_SDK_HEARTBEAT_STATE
  * - PRODUCT_TYPE_INDICATOR: Custom Indicator — read-only, no magic_number,
  *                           no config or symbol change requests.
  */
-enum ENUM_SDK_PRODUCT_TYPE
+enum ENUM_TMKR_PRODUCT_TYPE
 {
     PRODUCT_TYPE_ROBOT,      // Expert Advisor (EA) — trading program
     PRODUCT_TYPE_INDICATOR   // Custom Indicator — chart analysis program
 };
 
 // Product type string identifiers (must match API contract values)
-#define SDK_PRODUCT_TYPE_ROBOT     "robot"
-#define SDK_PRODUCT_TYPE_INDICATOR "indicator"
+#define TMKR_PRODUCT_TYPE_ROBOT     "robot"
+#define TMKR_PRODUCT_TYPE_INDICATOR "indicator"
 
 //+------------------------------------------------------------------+
 //| Log Levels                                                        |
@@ -181,12 +181,12 @@ enum ENUM_SDK_PRODUCT_TYPE
  * Set via input (e.g. input ENUM_SDK_LOG_LEVEL InpLogLevel = SDK_LOG_ERROR)
  * or SDKSetLogLevel(SDK_LOG_ERROR) before on_init().
  */
-enum ENUM_SDK_LOG_LEVEL
+enum ENUM_TMKR_LOG_LEVEL
 {
-    SDK_LOG_ALL     = 0,   // All (debug + info + warning + error)
-    SDK_LOG_INFO    = 1,   // Info + Warning + Error
-    SDK_LOG_WARNING = 2,   // Warning + Error
-    SDK_LOG_ERROR   = 3    // Error only (recommended for production)
+    TMKR_LOG_ALL     = 0,   // All (debug + info + warning + error)
+    TMKR_LOG_INFO    = 1,   // Info + Warning + Error
+    TMKR_LOG_WARNING = 2,   // Warning + Error
+    TMKR_LOG_ERROR   = 3    // Error only (recommended for production)
 };
 
 #endif

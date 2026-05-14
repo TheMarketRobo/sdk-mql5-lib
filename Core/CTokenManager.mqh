@@ -23,7 +23,7 @@
  * - Token is refreshed when: current_time >= (expiration_time - refresh_threshold)
  * - This ensures the robot always has a valid token for API calls
  */
-class CTokenManager : public CObject
+class CTMKR_TokenManager : public CObject
 {
 private:
     string m_jwt;
@@ -33,8 +33,8 @@ private:
     int    m_expires_in;
 
 public:
-    CTokenManager();
-    ~CTokenManager();
+    CTMKR_TokenManager();
+    ~CTMKR_TokenManager();
 
     void   set_token(string jwt);
     void   restore_token(string jwt, int expires_in);
@@ -60,7 +60,7 @@ private:
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CTokenManager::CTokenManager()
+CTMKR_TokenManager::CTokenManager()
 {
     m_jwt = "";
     m_expiration_timestamp = 0;
@@ -73,14 +73,14 @@ CTokenManager::CTokenManager()
 //+------------------------------------------------------------------+
 //| Destructor                                                        |
 //+------------------------------------------------------------------+
-CTokenManager::~CTokenManager()
+CTMKR_TokenManager::~CTMKR_TokenManager()
 {
 }
 
 //+------------------------------------------------------------------+
 //| Sets a new JWT and decodes its payload                           |
 //+------------------------------------------------------------------+
-void CTokenManager::set_token(string jwt)
+void CTMKR_TokenManager::set_token(string jwt)
 {
     m_jwt = jwt;
     if(!decode_token_payload(jwt))
@@ -101,7 +101,7 @@ void CTokenManager::set_token(string jwt)
 //+------------------------------------------------------------------+
 //| Restore token from saved state (no decode log noise)              |
 //+------------------------------------------------------------------+
-void CTokenManager::restore_token(string jwt, int expires_in)
+void CTMKR_TokenManager::restore_token(string jwt, int expires_in)
 {
     m_jwt = jwt;
     m_expires_in = expires_in;
@@ -122,7 +122,7 @@ void CTokenManager::restore_token(string jwt, int expires_in)
 //+------------------------------------------------------------------+
 //| Sets the expires_in value from server response                    |
 //+------------------------------------------------------------------+
-void CTokenManager::set_expires_in(int expires_in)
+void CTMKR_TokenManager::set_expires_in(int expires_in)
 {
     m_expires_in = expires_in;
 }
@@ -130,7 +130,7 @@ void CTokenManager::set_expires_in(int expires_in)
 //+------------------------------------------------------------------+
 //| Returns the expires_in value                                      |
 //+------------------------------------------------------------------+
-int CTokenManager::get_expires_in() const
+int CTMKR_TokenManager::get_expires_in() const
 {
     return m_expires_in;
 }
@@ -138,7 +138,7 @@ int CTokenManager::get_expires_in() const
 //+------------------------------------------------------------------+
 //| Returns the expiration timestamp                                   |
 //+------------------------------------------------------------------+
-long CTokenManager::get_expiration_timestamp() const
+long CTMKR_TokenManager::get_expiration_timestamp() const
 {
     return m_expiration_timestamp;
 }
@@ -146,7 +146,7 @@ long CTokenManager::get_expiration_timestamp() const
 //+------------------------------------------------------------------+
 //| Returns the current JWT token                                     |
 //+------------------------------------------------------------------+
-string CTokenManager::get_token() const
+string CTMKR_TokenManager::get_token() const
 {
     return m_jwt;
 }
@@ -154,7 +154,7 @@ string CTokenManager::get_token() const
 //+------------------------------------------------------------------+
 //| Checks if a token has been set                                    |
 //+------------------------------------------------------------------+
-bool CTokenManager::is_token_set() const
+bool CTMKR_TokenManager::is_token_set() const
 {
     return m_jwt != "";
 }
@@ -162,7 +162,7 @@ bool CTokenManager::is_token_set() const
 //+------------------------------------------------------------------+
 //| Sets the refresh threshold in seconds                             |
 //+------------------------------------------------------------------+
-void CTokenManager::set_refresh_threshold_seconds(int seconds)
+void CTMKR_TokenManager::set_refresh_threshold_seconds(int seconds)
 {
     if(seconds < 60)
     {
@@ -182,7 +182,7 @@ void CTokenManager::set_refresh_threshold_seconds(int seconds)
 //+------------------------------------------------------------------+
 //| Returns the refresh threshold in seconds                          |
 //+------------------------------------------------------------------+
-int CTokenManager::get_refresh_threshold_seconds() const
+int CTMKR_TokenManager::get_refresh_threshold_seconds() const
 {
     return m_refresh_threshold_seconds;
 }
@@ -190,7 +190,7 @@ int CTokenManager::get_refresh_threshold_seconds() const
 //+------------------------------------------------------------------+
 //| Checks if the token should be refreshed proactively               |
 //+------------------------------------------------------------------+
-bool CTokenManager::should_refresh_token()
+bool CTMKR_TokenManager::should_refresh_token()
 {
     if(m_expiration_timestamp == 0 || m_jwt == "") 
         return false;
@@ -207,7 +207,7 @@ bool CTokenManager::should_refresh_token()
 //+------------------------------------------------------------------+
 //| Gets the seconds until token expiration                           |
 //+------------------------------------------------------------------+
-int CTokenManager::get_seconds_until_expiration() const
+int CTMKR_TokenManager::get_seconds_until_expiration() const
 {
     if(m_expiration_timestamp == 0) 
         return 0;
@@ -218,7 +218,7 @@ int CTokenManager::get_seconds_until_expiration() const
 //+------------------------------------------------------------------+
 //| Gets the seconds until refresh threshold                          |
 //+------------------------------------------------------------------+
-int CTokenManager::get_seconds_until_refresh() const
+int CTMKR_TokenManager::get_seconds_until_refresh() const
 {
     if(m_expiration_timestamp == 0) 
         return 0;
@@ -230,7 +230,7 @@ int CTokenManager::get_seconds_until_refresh() const
 //+------------------------------------------------------------------+
 //| Decodes the JWT payload to extract claims                         |
 //+------------------------------------------------------------------+
-bool CTokenManager::decode_token_payload(string jwt)
+bool CTMKR_TokenManager::decode_token_payload(string jwt)
 {
     string parts[];
     if(StringSplit(jwt, '.', parts) != 3)
@@ -248,23 +248,23 @@ bool CTokenManager::decode_token_payload(string jwt)
         return false;
     }
 
-    CJAVal json_payload;
+    CTMKR_JAVal json_payload;
     if(!json_payload.parse(decoded_payload))
     {
         Print("JWT Error: Failed to parse JSON payload.");
         return false;
     }
 
-    CJAVal* exp_node = json_payload["exp"];
-    if(CheckPointer(exp_node) == POINTER_INVALID || exp_node.get_type() != JA_NUMBER)
+    CTMKR_JAVal* exp_node = json_payload["exp"];
+    if(CheckPointer(exp_node) == POINTER_INVALID || exp_node.get_type() != TMKR_JA_NUMBER)
     {
         Print("JWT Error: 'exp' claim not found or is not a number.");
         return false;
     }
     m_expiration_timestamp = exp_node.get_long();
 
-    CJAVal* iat_node = json_payload["iat"];
-    if(CheckPointer(iat_node) != POINTER_INVALID && iat_node.get_type() == JA_NUMBER)
+    CTMKR_JAVal* iat_node = json_payload["iat"];
+    if(CheckPointer(iat_node) != POINTER_INVALID && iat_node.get_type() == TMKR_JA_NUMBER)
     {
         m_issued_at_timestamp = iat_node.get_long();
     }
@@ -275,7 +275,7 @@ bool CTokenManager::decode_token_payload(string jwt)
 //+------------------------------------------------------------------+
 //| Converts a Base64/Base64URL character to its 6-bit value          |
 //+------------------------------------------------------------------+
-int CTokenManager::base64_char_to_value(uchar tmkr_c)
+int CTMKR_TokenManager::base64_char_to_value(uchar tmkr_c)
 {
     if(tmkr_c >= 'A' && tmkr_c <= 'Z') return tmkr_c - 'A';
     if(tmkr_c >= 'a' && tmkr_c <= 'z') return tmkr_c - 'a' + 26;
@@ -288,7 +288,7 @@ int CTokenManager::base64_char_to_value(uchar tmkr_c)
 //+------------------------------------------------------------------+
 //| Decodes a Base64URL encoded string                                |
 //+------------------------------------------------------------------+
-string CTokenManager::base64_url_decode(const string &encoded_string)
+string CTMKR_TokenManager::base64_url_decode(const string &encoded_string)
 {
     if(encoded_string == "")
         return "";

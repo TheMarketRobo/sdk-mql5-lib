@@ -25,23 +25,23 @@
 //| ALWAYS print regardless of the global log level.                   |
 //+------------------------------------------------------------------+
 
-#define SDK_USER_PREFIX "TheMarketRobo: "
+#define TMKR_USER_PREFIX "TheMarketRobo: "
 
 //+------------------------------------------------------------------+
 //| Show a user-friendly alert (short message only)                   |
 //+------------------------------------------------------------------+
-void SDKUserError(string short_msg)
+void TMKRUserError(string short_msg)
 {
-    Alert(SDK_USER_PREFIX + short_msg);
+    Alert(TMKR_USER_PREFIX + short_msg);
     Print("SDK User Error: ", short_msg);
 }
 
 //+------------------------------------------------------------------+
 //| Show a user-friendly alert + log technical details for devs       |
 //+------------------------------------------------------------------+
-void SDKUserErrorWithDetails(string short_msg, string technical_detail)
+void TMKRUserErrorWithDetails(string short_msg, string technical_detail)
 {
-    Alert(SDK_USER_PREFIX + short_msg);
+    Alert(TMKR_USER_PREFIX + short_msg);
     Print("SDK User Error: ", short_msg);
     Print("SDK Technical Detail: ", technical_detail);
 }
@@ -112,7 +112,7 @@ string GetUserFriendlyHTTPMessage(int http_code)
 //| the deferred-removal pattern (set a flag, remove on next          |
 //| OnCalculate / OnTimer).                                            |
 //+------------------------------------------------------------------+
-bool SDKRemoveIndicatorFromChart(string indicator_short_name)
+bool TMKRRemoveIndicatorFromChart(string indicator_short_name)
 {
     if(indicator_short_name == "")
     {

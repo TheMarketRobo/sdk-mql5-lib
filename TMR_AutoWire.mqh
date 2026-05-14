@@ -51,7 +51,7 @@
       g_tmr_robot_instance = new RobotClass();                               \
       if(CheckPointer(g_tmr_robot_instance) == POINTER_INVALID)              \
          return INIT_FAILED;                                                 \
-      SDKSetLogLevel(SDK_LOG_ERROR);                                         \
+      TMKRSetLogLevel(TMKR_LOG_ERROR);                                         \
       return g_tmr_robot_instance.on_init(ApiKeyInput, MagicNumberInput);    \
    }                                                                         \
    void OnDeinit(const int tmkr_reason)                                           \
@@ -105,7 +105,7 @@
       g_pending_removal = false;                                                      \
       if(ApiKeyInput == "")                                                           \
       {                                                                               \
-         SDKUserError("API Key is required. Please set it in the indicator settings.");\
+         TMKRUserError("API Key is required. Please set it in the indicator settings.");\
          g_pending_removal = true;                                                    \
          EventSetTimer(1);                                                            \
          return INIT_SUCCEEDED;                                                       \
@@ -113,21 +113,21 @@
       g_tmr_indicator_instance = new IndicatorClass();                                \
       if(CheckPointer(g_tmr_indicator_instance) == POINTER_INVALID)                   \
       {                                                                               \
-         SDKUserError("Failed to start. Please try removing and re-adding.");         \
+         TMKRUserError("Failed to start. Please try removing and re-adding.");         \
          g_pending_removal = true;                                                    \
          EventSetTimer(1);                                                            \
          return INIT_SUCCEEDED;                                                       \
       }                                                                               \
       g_tmr_indicator_instance.set_indicator_short_name(g_indicator_short_name);      \
       g_tmr_indicator_instance.set_indicator_buffer_count(BufferCount);               \
-      SDKSetLogLevel(SDK_LOG_ERROR);                                                  \
+      TMKRSetLogLevel(TMKR_LOG_ERROR);                                                  \
       int _tmr_init_result = g_tmr_indicator_instance.on_init(ApiKeyInput);           \
       if(_tmr_init_result != INIT_SUCCEEDED)                                          \
       {                                                                               \
          g_pending_removal = g_tmr_indicator_instance.is_pending_removal();           \
          if(!g_pending_removal)                                                       \
          {                                                                            \
-            SDKUserError("Could not connect to TheMarketRobo service.");              \
+            TMKRUserError("Could not connect to TheMarketRobo service.");              \
             g_pending_removal = true;                                                 \
          }                                                                            \
          delete g_tmr_indicator_instance;                                             \
@@ -150,7 +150,7 @@
       if(g_pending_removal)                                                           \
       {                                                                               \
          EventKillTimer();                                                            \
-         SDKRemoveIndicatorFromChart(g_indicator_short_name);                         \
+         TMKRRemoveIndicatorFromChart(g_indicator_short_name);                         \
          return;                                                                      \
       }                                                                               \
       if(CheckPointer(g_tmr_indicator_instance) != POINTER_INVALID)                   \
@@ -182,7 +182,7 @@
          return rates_total;                                                          \
       if(g_pending_removal)                                                           \
       {                                                                               \
-         SDKRemoveIndicatorFromChart(g_indicator_short_name);                         \
+         TMKRRemoveIndicatorFromChart(g_indicator_short_name);                         \
          return rates_total;                                                          \
       }                                                                               \
       if(CheckPointer(InstanceName) != POINTER_INVALID)                               \

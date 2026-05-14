@@ -27,34 +27,34 @@
  * - status: enum [all_accepted, all_rejected, partially_accepted]
  * - results: array of SymbolChangeResultItem
  */
-class CSymbolManager : public CObject
+class CTMKR_SymbolManager : public CObject
 {
 private:
     CArrayObj* m_session_symbols;
-    CJAVal* m_pending_change_results;
+    CTMKR_JAVal* m_pending_change_results;
     bool m_enabled;
 
 public:
-    CSymbolManager();
-    ~CSymbolManager();
+    CTMKR_SymbolManager();
+    ~CTMKR_SymbolManager();
     
     void set_enabled(bool enabled);
     bool is_enabled() const;
 
     void set_initial_symbols(CArrayObj* symbols);
-    void process_change_request(const CJAVal &change_request);
-    CJAVal* get_pending_results();
+    void process_change_request(const CTMKR_JAVal &change_request);
+    CTMKR_JAVal* get_pending_results();
     void clear_pending_results();
     
     int get_symbol_count() const;
-    CSessionSymbol* get_symbol(int tmkr_idx);
-    CSessionSymbol* find_symbol(string symbol_name);
+    CTMKR_SessionSymbol* get_symbol(int tmkr_idx);
+    CTMKR_SessionSymbol* find_symbol(string symbol_name);
 };
 
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CSymbolManager::CSymbolManager()
+CTMKR_SymbolManager::CSymbolManager()
 {
     m_session_symbols = new CArrayObj();
     m_pending_change_results = NULL;
@@ -64,7 +64,7 @@ CSymbolManager::CSymbolManager()
 //+------------------------------------------------------------------+
 //| Destructor                                                        |
 //+------------------------------------------------------------------+
-CSymbolManager::~CSymbolManager()
+CTMKR_SymbolManager::~CTMKR_SymbolManager()
 {
     if(CheckPointer(m_session_symbols) == POINTER_DYNAMIC)
     {
@@ -77,7 +77,7 @@ CSymbolManager::~CSymbolManager()
 //+------------------------------------------------------------------+
 //| Set enabled state                                                 |
 //+------------------------------------------------------------------+
-void CSymbolManager::set_enabled(bool enabled)
+void CTMKR_SymbolManager::set_enabled(bool enabled)
 {
     m_enabled = enabled;
 }
@@ -85,7 +85,7 @@ void CSymbolManager::set_enabled(bool enabled)
 //+------------------------------------------------------------------+
 //| Get enabled state                                                 |
 //+------------------------------------------------------------------+
-bool CSymbolManager::is_enabled() const
+bool CTMKR_SymbolManager::is_enabled() const
 {
     return m_enabled;
 }
@@ -93,7 +93,7 @@ bool CSymbolManager::is_enabled() const
 //+------------------------------------------------------------------+
 //| Set initial symbols                                               |
 //+------------------------------------------------------------------+
-void CSymbolManager::set_initial_symbols(CArrayObj* symbols)
+void CTMKR_SymbolManager::set_initial_symbols(CArrayObj* symbols)
 {
     if(CheckPointer(symbols) != POINTER_INVALID)
     {
@@ -110,7 +110,7 @@ void CSymbolManager::set_initial_symbols(CArrayObj* symbols)
 //+------------------------------------------------------------------+
 //| Get symbol count                                                  |
 //+------------------------------------------------------------------+
-int CSymbolManager::get_symbol_count() const
+int CTMKR_SymbolManager::get_symbol_count() const
 {
     if(CheckPointer(m_session_symbols) == POINTER_INVALID) return 0;
     return m_session_symbols.Total();
@@ -120,7 +120,7 @@ int CSymbolManager::get_symbol_count() const
 //| Get symbol by index                                               |
 //+------------------------------------------------------------------+
 // Param renamed from `index` to `idx` — see notes in Services/Json.mqh.
-CSessionSymbol* CSymbolManager::get_symbol(int tmkr_idx)
+CTMKR_SessionSymbol* CTMKR_SymbolManager::get_symbol(int tmkr_idx)
 {
     if(CheckPointer(m_session_symbols) == POINTER_INVALID) return NULL;
     if(tmkr_idx < 0 || tmkr_idx >= m_session_symbols.Total()) return NULL;
@@ -130,13 +130,13 @@ CSessionSymbol* CSymbolManager::get_symbol(int tmkr_idx)
 //+------------------------------------------------------------------+
 //| Find symbol by name                                               |
 //+------------------------------------------------------------------+
-CSessionSymbol* CSymbolManager::find_symbol(string symbol_name)
+CTMKR_SessionSymbol* CTMKR_SymbolManager::find_symbol(string symbol_name)
 {
     if(CheckPointer(m_session_symbols) == POINTER_INVALID) return NULL;
     
     for(int tmkr_i = 0; tmkr_i < m_session_symbols.Total(); tmkr_i++)
     {
-        CSessionSymbol* tmkr_symbol = m_session_symbols.At(tmkr_i);
+        CTMKR_SessionSymbol* tmkr_symbol = m_session_symbols.At(tmkr_i);
         if(tmkr_symbol != NULL && tmkr_symbol.get_symbol_name() == symbol_name)
             return tmkr_symbol;
     }
@@ -153,7 +153,7 @@ CSessionSymbol* CSymbolManager::find_symbol(string symbol_name)
 //|   "created_at": "2026-01-17T00:00:00.000Z"                        |
 //| }                                                                  |
 //+------------------------------------------------------------------+
-void CSymbolManager::process_change_request(const CJAVal &change_request)
+void CTMKR_SymbolManager::process_change_request(const CTMKR_JAVal &change_request)
 {
     if(!m_enabled)
     {
@@ -164,15 +164,15 @@ void CSymbolManager::process_change_request(const CJAVal &change_request)
     if(CheckPointer(m_session_symbols) == POINTER_INVALID) return;
     
     clear_pending_results();
-    m_pending_change_results = new CJAVal(JA_OBJECT);
+    m_pending_change_results = new CTMKR_JAVal(TMKR_JA_OBJECT);
     if(m_pending_change_results == NULL) return;
     
     // Extract request_id from the change request wrapper
-    CJAVal* id_node = change_request["id"];
+    CTMKR_JAVal* id_node = change_request["id"];
     if(CheckPointer(id_node) != POINTER_INVALID)
     {
         string request_id = id_node.get_string();
-        CJAVal* request_id_val = new CJAVal();
+        CTMKR_JAVal* request_id_val = new CTMKR_JAVal();
         request_id_val.set_string(request_id);
         m_pending_change_results.Add("request_id", request_id_val);
         if(SDKShouldLogDebug()) Print("SDK Debug: Symbol change request ID: ", request_id);
@@ -182,13 +182,13 @@ void CSymbolManager::process_change_request(const CJAVal &change_request)
         if(SDKShouldLogWarning()) Print("SDK Warning: Symbol change request missing 'id' field");
     }
     
-    CJAVal* results_array = new CJAVal(JA_ARRAY);
+    CTMKR_JAVal* results_array = new CTMKR_JAVal(TMKR_JA_ARRAY);
     int accepted_count = 0;
     int rejected_count = 0;
     int total_count = 0;
 
     // Get the actual request array from the "request" field
-    CJAVal* request_array = change_request["request"];
+    CTMKR_JAVal* request_array = change_request["request"];
     bool use_direct = false;
     
     if(CheckPointer(request_array) == POINTER_INVALID)
@@ -200,17 +200,17 @@ void CSymbolManager::process_change_request(const CJAVal &change_request)
     // Process request as array of SymbolChangeRequestItem
     // Expected format: [{ "symbol": "EURUSD", "active_to_trade": true }, ...]
     int count = use_direct ? change_request.count() : request_array.count();
-    bool is_array = use_direct ? (change_request.get_type() == JA_ARRAY) : (request_array.get_type() == JA_ARRAY);
+    bool is_array = use_direct ? (change_request.get_type() == TMKR_JA_ARRAY) : (request_array.get_type() == TMKR_JA_ARRAY);
     
     if(is_array)
     {
         for(int tmkr_i = 0; tmkr_i < count; tmkr_i++)
         {
-            CJAVal* tmkr_item = use_direct ? change_request[tmkr_i] : request_array[tmkr_i];
+            CTMKR_JAVal* tmkr_item = use_direct ? change_request[tmkr_i] : request_array[tmkr_i];
             if(CheckPointer(tmkr_item) == POINTER_INVALID) continue;
             
-            CJAVal* symbol_node = tmkr_item["symbol"];
-            CJAVal* active_node = tmkr_item["active_to_trade"];
+            CTMKR_JAVal* symbol_node = tmkr_item["symbol"];
+            CTMKR_JAVal* active_node = tmkr_item["active_to_trade"];
             
             if(CheckPointer(symbol_node) == POINTER_INVALID) continue;
             
@@ -220,19 +220,19 @@ void CSymbolManager::process_change_request(const CJAVal &change_request)
             
             total_count++;
             
-            CJAVal* result_item = new CJAVal(JA_OBJECT);
+            CTMKR_JAVal* result_item = new CTMKR_JAVal(TMKR_JA_OBJECT);
             
             // symbol (required)
-            CJAVal* sym_val = new CJAVal();
+            CTMKR_JAVal* sym_val = new CTMKR_JAVal();
             sym_val.set_string(symbol_name);
             result_item.Add("symbol", sym_val);
             
             // requested_active_to_trade (required)
-            CJAVal* rat_val = new CJAVal();
+            CTMKR_JAVal* rat_val = new CTMKR_JAVal();
             rat_val.set_bool(requested_active);
             result_item.Add("requested_active_to_trade", rat_val);
             
-            CSessionSymbol* tmkr_symbol = find_symbol(symbol_name);
+            CTMKR_SessionSymbol* tmkr_symbol = find_symbol(symbol_name);
             
             if(tmkr_symbol != NULL)
             {
@@ -243,19 +243,19 @@ void CSymbolManager::process_change_request(const CJAVal &change_request)
                     tmkr_symbol.set_active_to_trade(requested_active);
                     
                     // accepted: true
-                    CJAVal* acc_val = new CJAVal();
+                    CTMKR_JAVal* acc_val = new CTMKR_JAVal();
                     acc_val.set_bool(true);
                     result_item.Add("accepted", acc_val);
                     
                     // applied_active_to_trade
-                    CJAVal* aat_val = new CJAVal();
+                    CTMKR_JAVal* aat_val = new CTMKR_JAVal();
                     aat_val.set_bool(requested_active);
                     result_item.Add("applied_active_to_trade", aat_val);
                     
                     accepted_count++;
                     if(SDKShouldLogInfo()) Print("SDK Info: Symbol '", symbol_name, "' active_to_trade set to ", requested_active);
 
-                    SSymbol_Change_Event event_data;
+                    STMKR_SymbolChangeEvent event_data;
                     event_data.symbol = symbol_name;
                     event_data.active_to_trade = requested_active;
                     Fire_Symbol_Change_Event(0, event_data);
@@ -263,17 +263,17 @@ void CSymbolManager::process_change_request(const CJAVal &change_request)
                 else
                 {
                     // accepted: false
-                    CJAVal* acc_val = new CJAVal();
+                    CTMKR_JAVal* acc_val = new CTMKR_JAVal();
                     acc_val.set_bool(false);
                     result_item.Add("accepted", acc_val);
                     
                     // error_code
-                    CJAVal* ec_val = new CJAVal();
+                    CTMKR_JAVal* ec_val = new CTMKR_JAVal();
                     ec_val.set_string(SYMBOL_ERROR_UNAVAILABLE);
                     result_item.Add("error_code", ec_val);
                     
                     // error_message
-                    CJAVal* em_val = new CJAVal();
+                    CTMKR_JAVal* em_val = new CTMKR_JAVal();
                     em_val.set_string("Terminal rejected symbol selection");
                     result_item.Add("error_message", em_val);
                     
@@ -284,17 +284,17 @@ void CSymbolManager::process_change_request(const CJAVal &change_request)
             else
             {
                 // accepted: false
-                CJAVal* acc_val = new CJAVal();
+                CTMKR_JAVal* acc_val = new CTMKR_JAVal();
                 acc_val.set_bool(false);
                 result_item.Add("accepted", acc_val);
                 
                 // error_code
-                CJAVal* ec_val = new CJAVal();
+                CTMKR_JAVal* ec_val = new CTMKR_JAVal();
                 ec_val.set_string(SYMBOL_ERROR_NOT_FOUND);
                 result_item.Add("error_code", ec_val);
                 
                 // error_message
-                CJAVal* em_val = new CJAVal();
+                CTMKR_JAVal* em_val = new CTMKR_JAVal();
                 em_val.set_string("Symbol not found in session");
                 result_item.Add("error_message", em_val);
                 
@@ -307,7 +307,7 @@ void CSymbolManager::process_change_request(const CJAVal &change_request)
     }
     
     // Determine status
-    CJAVal* status_val = new CJAVal();
+    CTMKR_JAVal* status_val = new CTMKR_JAVal();
     if(total_count == 0 || rejected_count == 0)
         status_val.set_string("all_accepted");
     else if(accepted_count == 0)
@@ -322,7 +322,7 @@ void CSymbolManager::process_change_request(const CJAVal &change_request)
 //+------------------------------------------------------------------+
 //| Get pending results                                               |
 //+------------------------------------------------------------------+
-CJAVal* CSymbolManager::get_pending_results()
+CTMKR_JAVal* CTMKR_SymbolManager::get_pending_results()
 {
     if(!m_enabled) return NULL;
     return m_pending_change_results;
@@ -331,7 +331,7 @@ CJAVal* CSymbolManager::get_pending_results()
 //+------------------------------------------------------------------+
 //| Clear pending results                                             |
 //+------------------------------------------------------------------+
-void CSymbolManager::clear_pending_results()
+void CTMKR_SymbolManager::clear_pending_results()
 {
     if(CheckPointer(m_pending_change_results) == POINTER_DYNAMIC)
     {

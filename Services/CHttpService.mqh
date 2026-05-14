@@ -18,22 +18,22 @@
  * @class CHttpResponse
  * @brief Represents the response from an HTTP request.
  */
-class CHttpResponse : public CObject
+class CTMKR_HttpResponse : public CObject
 {
 public:
     int tmkr_code;
     string body;
-    CJAVal* json_body;
+    CTMKR_JAVal* json_body;
 
-    CHttpResponse();
-    ~CHttpResponse();
+    CTMKR_HttpResponse();
+    ~CTMKR_HttpResponse();
 };
 
 //+------------------------------------------------------------------+
-CHttpResponse::CHttpResponse() : code(0), body(""), json_body(NULL) {}
+CTMKR_HttpResponse::CHttpResponse() : code(0), body(""), json_body(NULL) {}
 
 //+------------------------------------------------------------------+
-CHttpResponse::~CHttpResponse() 
+CTMKR_HttpResponse::~CTMKR_HttpResponse() 
 {
     if(CheckPointer(json_body) == POINTER_DYNAMIC)
         delete json_body;
@@ -45,24 +45,24 @@ CHttpResponse::~CHttpResponse()
  *
  * Uses the SDK_API_BASE_URL constant for the API endpoint.
  */
-class CHttpService : public CObject
+class CTMKR_HttpService : public CObject
 {
 private:
     string m_base_url;
     bool m_enable_logging;
-    ENUM_SDK_PRODUCT_TYPE m_product_type;
+    ENUM_TMKR_PRODUCT_TYPE m_product_type;
     string m_wininet_host;
     string m_wininet_base_path;
     int    m_wininet_port;
 
-    CHttpResponse* post_webrequest(string endpoint, string jwt_token, string &tmkr_data);
-    CHttpResponse* post_wininet(string endpoint, string jwt_token, string &tmkr_data);
+    CTMKR_HttpResponse* post_webrequest(string endpoint, string jwt_token, string &tmkr_data);
+    CTMKR_HttpResponse* post_wininet(string endpoint, string jwt_token, string &tmkr_data);
 
 public:
-    CHttpService(ENUM_SDK_PRODUCT_TYPE product_type = PRODUCT_TYPE_ROBOT);
-    ~CHttpService();
+    CTMKR_HttpService(ENUM_TMKR_PRODUCT_TYPE product_type = PRODUCT_TYPE_ROBOT);
+    ~CTMKR_HttpService();
 
-    CHttpResponse* post(string endpoint, string jwt_token, string &tmkr_data);
+    CTMKR_HttpResponse* post(string endpoint, string jwt_token, string &tmkr_data);
     string get_base_url() const;
     void set_logging(bool enable);
 };
@@ -70,9 +70,9 @@ public:
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CHttpService::CHttpService(ENUM_SDK_PRODUCT_TYPE product_type)
+CTMKR_HttpService::CHttpService(ENUM_TMKR_PRODUCT_TYPE product_type)
 {
-    m_base_url = SDK_API_BASE_URL;
+    m_base_url = TMKR_API_BASE_URL;
     m_enable_logging = true;
     m_product_type = product_type;
     m_wininet_host = "";
@@ -98,14 +98,14 @@ CHttpService::CHttpService(ENUM_SDK_PRODUCT_TYPE product_type)
 //+------------------------------------------------------------------+
 //| Destructor                                                        |
 //+------------------------------------------------------------------+
-CHttpService::~CHttpService()
+CTMKR_HttpService::~CTMKR_HttpService()
 {
 }
 
 //+------------------------------------------------------------------+
 //| Get base URL                                                      |
 //+------------------------------------------------------------------+
-string CHttpService::get_base_url() const
+string CTMKR_HttpService::get_base_url() const
 {
     return m_base_url;
 }
@@ -113,7 +113,7 @@ string CHttpService::get_base_url() const
 //+------------------------------------------------------------------+
 //| Set logging enabled/disabled                                      |
 //+------------------------------------------------------------------+
-void CHttpService::set_logging(bool enable)
+void CTMKR_HttpService::set_logging(bool enable)
 {
     m_enable_logging = enable;
 }
@@ -121,7 +121,7 @@ void CHttpService::set_logging(bool enable)
 //+------------------------------------------------------------------+
 //| Send POST request — dispatches to WebRequest or WinINet          |
 //+------------------------------------------------------------------+
-CHttpResponse* CHttpService::post(string endpoint, string jwt_token, string &tmkr_data)
+CTMKR_HttpResponse* CTMKR_HttpService::post(string endpoint, string jwt_token, string &tmkr_data)
 {
     if(m_product_type == PRODUCT_TYPE_INDICATOR)
         return post_wininet(endpoint, jwt_token, tmkr_data);
@@ -131,7 +131,7 @@ CHttpResponse* CHttpService::post(string endpoint, string jwt_token, string &tmk
 //+------------------------------------------------------------------+
 //| POST via built-in WebRequest (EAs and scripts only)              |
 //+------------------------------------------------------------------+
-CHttpResponse* CHttpService::post_webrequest(string endpoint, string jwt_token, string &tmkr_data)
+CTMKR_HttpResponse* CTMKR_HttpService::post_webrequest(string endpoint, string jwt_token, string &tmkr_data)
 {
     char post_data[];
     char tmkr_result[];
@@ -156,7 +156,7 @@ CHttpResponse* CHttpService::post_webrequest(string endpoint, string jwt_token, 
 
     StringToCharArray(tmkr_data, post_data, 0, StringLen(tmkr_data), CP_UTF8);
 
-    CHttpResponse* response = new CHttpResponse();
+    CTMKR_HttpResponse* response = new CTMKR_HttpResponse();
     if(response == NULL) return NULL;
 
     int res = WebRequest("POST", m_base_url + endpoint, headers, HTTP_TIMEOUT, post_data, tmkr_result, response_headers);
@@ -189,7 +189,7 @@ CHttpResponse* CHttpService::post_webrequest(string endpoint, string jwt_token, 
             Print("============================================================");
         }
 
-        CJAVal* json = new CJAVal();
+        CTMKR_JAVal* json = new CTMKR_JAVal();
         if(json != NULL)
         {
             if(json.parse(response.body))
@@ -209,7 +209,7 @@ CHttpResponse* CHttpService::post_webrequest(string endpoint, string jwt_token, 
 //+------------------------------------------------------------------+
 //| POST via WinINet.dll (works from indicators)                     |
 //+------------------------------------------------------------------+
-CHttpResponse* CHttpService::post_wininet(string endpoint, string jwt_token, string &tmkr_data)
+CTMKR_HttpResponse* CTMKR_HttpService::post_wininet(string endpoint, string jwt_token, string &tmkr_data)
 {
     string headers_str = "Content-Type: application/json\r\n";
     if(jwt_token != "")
@@ -231,7 +231,7 @@ CHttpResponse* CHttpService::post_wininet(string endpoint, string jwt_token, str
         Print("============================================================");
     }
 
-    CHttpResponse* response = new CHttpResponse();
+    CTMKR_HttpResponse* response = new CTMKR_HttpResponse();
     if(response == NULL) return NULL;
 
     string response_body = "";
@@ -266,7 +266,7 @@ CHttpResponse* CHttpService::post_wininet(string endpoint, string jwt_token, str
             Print("============================================================");
         }
 
-        CJAVal* json = new CJAVal();
+        CTMKR_JAVal* json = new CTMKR_JAVal();
         if(json != NULL)
         {
             if(json.parse(response.body))

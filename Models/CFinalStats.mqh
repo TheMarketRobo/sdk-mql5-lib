@@ -17,7 +17,7 @@
  * that are sent to the server when a trading session is terminated via
  * the `/end` endpoint.
  */
-class CFinalStats : public CObject 
+class CTMKR_FinalStats : public CObject 
 {
 private:
     int m_total_trades;
@@ -30,8 +30,8 @@ private:
     string m_shutdown_reason;
 
 public:
-    CFinalStats();
-    ~CFinalStats();
+    CTMKR_FinalStats();
+    ~CTMKR_FinalStats();
 
     void set_total_trades(int total_trades);
     void set_winning_trades(int winning_trades);
@@ -42,13 +42,13 @@ public:
     void set_last_error(string last_error);
     void set_shutdown_reason(string tmkr_reason);
 
-    CJAVal* to_json();
+    CTMKR_JAVal* to_json();
 };
 
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CFinalStats::CFinalStats()
+CTMKR_FinalStats::CFinalStats()
 {
     m_total_trades = 0;
     m_winning_trades = 0;
@@ -63,59 +63,59 @@ CFinalStats::CFinalStats()
 //+------------------------------------------------------------------+
 //| Destructor                                                        |
 //+------------------------------------------------------------------+
-CFinalStats::~CFinalStats()
+CTMKR_FinalStats::~CTMKR_FinalStats()
 {
 }
 
 //+------------------------------------------------------------------+
 //| Setters                                                           |
 //+------------------------------------------------------------------+
-void CFinalStats::set_total_trades(int total_trades) { m_total_trades = total_trades; }
-void CFinalStats::set_winning_trades(int winning_trades) { m_winning_trades = winning_trades; }
-void CFinalStats::set_losing_trades(int losing_trades) { m_losing_trades = losing_trades; }
-void CFinalStats::set_total_pnl(double total_pnl) { m_total_pnl = total_pnl; }
-void CFinalStats::set_max_drawdown(double max_drawdown) { m_max_drawdown = max_drawdown; }
-void CFinalStats::set_session_duration_minutes(int duration) { m_session_duration_minutes = duration; }
-void CFinalStats::set_last_error(string last_error) { m_last_error = last_error; }
-void CFinalStats::set_shutdown_reason(string tmkr_reason) { m_shutdown_reason = tmkr_reason; }
+void CTMKR_FinalStats::set_total_trades(int total_trades) { m_total_trades = total_trades; }
+void CTMKR_FinalStats::set_winning_trades(int winning_trades) { m_winning_trades = winning_trades; }
+void CTMKR_FinalStats::set_losing_trades(int losing_trades) { m_losing_trades = losing_trades; }
+void CTMKR_FinalStats::set_total_pnl(double total_pnl) { m_total_pnl = total_pnl; }
+void CTMKR_FinalStats::set_max_drawdown(double max_drawdown) { m_max_drawdown = max_drawdown; }
+void CTMKR_FinalStats::set_session_duration_minutes(int duration) { m_session_duration_minutes = duration; }
+void CTMKR_FinalStats::set_last_error(string last_error) { m_last_error = last_error; }
+void CTMKR_FinalStats::set_shutdown_reason(string tmkr_reason) { m_shutdown_reason = tmkr_reason; }
 
 //+------------------------------------------------------------------+
 //| Convert to JSON                                                   |
 //+------------------------------------------------------------------+
-CJAVal* CFinalStats::to_json()
+CTMKR_JAVal* CTMKR_FinalStats::to_json()
 {
-    CJAVal* json = new CJAVal(JA_OBJECT);
+    CTMKR_JAVal* json = new CTMKR_JAVal(TMKR_JA_OBJECT);
     if(json == NULL) return NULL;
 
-    CJAVal* total_trades_val = new CJAVal();
+    CTMKR_JAVal* total_trades_val = new CTMKR_JAVal();
     total_trades_val.set_long(m_total_trades);
     json.Add("total_trades", total_trades_val);
     
-    CJAVal* winning_trades_val = new CJAVal();
+    CTMKR_JAVal* winning_trades_val = new CTMKR_JAVal();
     winning_trades_val.set_long(m_winning_trades);
     json.Add("winning_trades", winning_trades_val);
 
-    CJAVal* losing_trades_val = new CJAVal();
+    CTMKR_JAVal* losing_trades_val = new CTMKR_JAVal();
     losing_trades_val.set_long(m_losing_trades);
     json.Add("losing_trades", losing_trades_val);
 
-    CJAVal* total_pnl_val = new CJAVal();
+    CTMKR_JAVal* total_pnl_val = new CTMKR_JAVal();
     total_pnl_val.set_double(m_total_pnl);
     json.Add("total_pnl", total_pnl_val);
 
-    CJAVal* max_drawdown_val = new CJAVal();
+    CTMKR_JAVal* max_drawdown_val = new CTMKR_JAVal();
     max_drawdown_val.set_double(m_max_drawdown);
     json.Add("max_drawdown", max_drawdown_val);
 
-    CJAVal* duration_val = new CJAVal();
+    CTMKR_JAVal* duration_val = new CTMKR_JAVal();
     duration_val.set_long(m_session_duration_minutes);
     json.Add("session_duration_minutes", duration_val);
 
-    CJAVal* last_error_val = new CJAVal();
+    CTMKR_JAVal* last_error_val = new CTMKR_JAVal();
     last_error_val.set_string(m_last_error);
     json.Add("last_error", last_error_val);
 
-    CJAVal* shutdown_reason_val = new CJAVal();
+    CTMKR_JAVal* shutdown_reason_val = new CTMKR_JAVal();
     shutdown_reason_val.set_string(m_shutdown_reason);
     json.Add("shutdown_reason", shutdown_reason_val);
 

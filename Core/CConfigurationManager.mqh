@@ -13,10 +13,10 @@
 #include "../Utils/CSDKLogger.mqh"
 
 // Error codes matching API contract
-#define CONFIG_ERROR_INVALID_VALUE    "INVALID_VALUE"
-#define CONFIG_ERROR_OUT_OF_RANGE     "OUT_OF_RANGE"
-#define CONFIG_ERROR_FIELD_NOT_FOUND  "FIELD_NOT_FOUND"
-#define CONFIG_ERROR_READ_ONLY_FIELD  "READ_ONLY_FIELD"
+#define TMKR_CONFIG_ERROR_INVALID_VALUE    "INVALID_VALUE"
+#define TMKR_CONFIG_ERROR_OUT_OF_RANGE     "OUT_OF_RANGE"
+#define TMKR_CONFIG_ERROR_FIELD_NOT_FOUND  "FIELD_NOT_FOUND"
+#define TMKR_CONFIG_ERROR_READ_ONLY_FIELD  "READ_ONLY_FIELD"
 
 /**
  * @class CConfigurationManager
@@ -27,30 +27,30 @@
  * - status: enum [all_accepted, all_rejected, partially_accepted]
  * - results: array of ConfigChangeResultItem
  */
-class CConfigurationManager : public CObject
+class CTMKR_ConfigurationManager : public CObject
 {
 private:
-    IRobotConfig* m_robot_config;
-    CJAVal* m_pending_change_results;
+    ITMKR_RobotConfig* m_robot_config;
+    CTMKR_JAVal* m_pending_change_results;
     bool m_enabled;
 
 public:
-    CConfigurationManager(IRobotConfig* robot_config);
-    ~CConfigurationManager();
+    CTMKR_ConfigurationManager(ITMKR_RobotConfig* robot_config);
+    ~CTMKR_ConfigurationManager();
 
     void set_enabled(bool enabled);
     bool is_enabled() const;
 
-    bool validate_initial_config(const CJAVal &server_config);
-    void process_change_request(const CJAVal &change_request);
-    CJAVal* get_pending_results();
+    bool validate_initial_config(const CTMKR_JAVal &server_config);
+    void process_change_request(const CTMKR_JAVal &change_request);
+    CTMKR_JAVal* get_pending_results();
     void clear_pending_results();
 };
 
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CConfigurationManager::CConfigurationManager(IRobotConfig* robot_config)
+CTMKR_ConfigurationManager::CConfigurationManager(ITMKR_RobotConfig* robot_config)
 {
     m_robot_config = robot_config;
     m_pending_change_results = NULL;
@@ -60,7 +60,7 @@ CConfigurationManager::CConfigurationManager(IRobotConfig* robot_config)
 //+------------------------------------------------------------------+
 //| Destructor                                                        |
 //+------------------------------------------------------------------+
-CConfigurationManager::~CConfigurationManager()
+CTMKR_ConfigurationManager::~CTMKR_ConfigurationManager()
 {
     clear_pending_results();
 }
@@ -68,7 +68,7 @@ CConfigurationManager::~CConfigurationManager()
 //+------------------------------------------------------------------+
 //| Set enabled state                                                 |
 //+------------------------------------------------------------------+
-void CConfigurationManager::set_enabled(bool enabled)
+void CTMKR_ConfigurationManager::set_enabled(bool enabled)
 {
     m_enabled = enabled;
 }
@@ -76,7 +76,7 @@ void CConfigurationManager::set_enabled(bool enabled)
 //+------------------------------------------------------------------+
 //| Get enabled state                                                 |
 //+------------------------------------------------------------------+
-bool CConfigurationManager::is_enabled() const
+bool CTMKR_ConfigurationManager::is_enabled() const
 {
     return m_enabled;
 }
@@ -84,7 +84,7 @@ bool CConfigurationManager::is_enabled() const
 //+------------------------------------------------------------------+
 //| Validate initial configuration from server                        |
 //+------------------------------------------------------------------+
-bool CConfigurationManager::validate_initial_config(const CJAVal &server_config)
+bool CTMKR_ConfigurationManager::validate_initial_config(const CTMKR_JAVal &server_config)
 {
     if(CheckPointer(m_robot_config) == POINTER_INVALID) return false;
     return m_robot_config.update_from_json(server_config);
@@ -100,7 +100,7 @@ bool CConfigurationManager::validate_initial_config(const CJAVal &server_config)
 //|   "created_at": "2026-01-17T00:00:00.000Z"                        |
 //| }                                                                  |
 //+------------------------------------------------------------------+
-void CConfigurationManager::process_change_request(const CJAVal &change_request)
+void CTMKR_ConfigurationManager::process_change_request(const CTMKR_JAVal &change_request)
 {
     if(!m_enabled)
     {
@@ -111,15 +111,15 @@ void CConfigurationManager::process_change_request(const CJAVal &change_request)
     if(CheckPointer(m_robot_config) == POINTER_INVALID) return;
 
     clear_pending_results();
-    m_pending_change_results = new CJAVal(JA_OBJECT);
+    m_pending_change_results = new CTMKR_JAVal(TMKR_JA_OBJECT);
     if(m_pending_change_results == NULL) return;
 
     // Extract request_id from the change request wrapper
-    CJAVal* id_node = change_request["id"];
+    CTMKR_JAVal* id_node = change_request["id"];
     if(CheckPointer(id_node) != POINTER_INVALID)
     {
         string request_id = id_node.get_string();
-        CJAVal* request_id_val = new CJAVal();
+        CTMKR_JAVal* request_id_val = new CTMKR_JAVal();
         request_id_val.set_string(request_id);
         m_pending_change_results.Add("request_id", request_id_val);
         if(SDKShouldLogDebug()) Print("SDK Debug: Config change request ID: ", request_id);
@@ -129,13 +129,13 @@ void CConfigurationManager::process_change_request(const CJAVal &change_request)
         if(SDKShouldLogWarning()) Print("SDK Warning: Config change request missing 'id' field");
     }
 
-    CJAVal* results_array = new CJAVal(JA_ARRAY);
+    CTMKR_JAVal* results_array = new CTMKR_JAVal(TMKR_JA_ARRAY);
     int accepted_count = 0;
     int rejected_count = 0;
     int total_count = 0;
 
     // Get the actual request array from the "request" field
-    CJAVal* request_array = change_request["request"];
+    CTMKR_JAVal* request_array = change_request["request"];
     bool use_direct = false;
     
     if(CheckPointer(request_array) == POINTER_INVALID)
@@ -147,17 +147,17 @@ void CConfigurationManager::process_change_request(const CJAVal &change_request)
     // Process request as array of ConfigChangeRequestItem
     // Expected format: [{ "field_name": "xxx", "new_value": yyy }, ...]
     int count = use_direct ? change_request.count() : request_array.count();
-    bool is_array = use_direct ? (change_request.get_type() == JA_ARRAY) : (request_array.get_type() == JA_ARRAY);
+    bool is_array = use_direct ? (change_request.get_type() == TMKR_JA_ARRAY) : (request_array.get_type() == TMKR_JA_ARRAY);
     
     if(is_array)
     {
         for(int tmkr_i = 0; tmkr_i < count; tmkr_i++)
         {
-            CJAVal* tmkr_item = use_direct ? change_request[tmkr_i] : request_array[tmkr_i];
+            CTMKR_JAVal* tmkr_item = use_direct ? change_request[tmkr_i] : request_array[tmkr_i];
             if(CheckPointer(tmkr_item) == POINTER_INVALID) continue;
             
-            CJAVal* field_node = tmkr_item["field_name"];
-            CJAVal* value_node = tmkr_item["new_value"];
+            CTMKR_JAVal* field_node = tmkr_item["field_name"];
+            CTMKR_JAVal* value_node = tmkr_item["new_value"];
             
             if(CheckPointer(field_node) == POINTER_INVALID) continue;
             
@@ -174,15 +174,15 @@ void CConfigurationManager::process_change_request(const CJAVal &change_request)
             
             total_count++;
             
-            CJAVal* result_item = new CJAVal(JA_OBJECT);
+            CTMKR_JAVal* result_item = new CTMKR_JAVal(TMKR_JA_OBJECT);
             
             // field_name (required)
-            CJAVal* fn_val = new CJAVal();
+            CTMKR_JAVal* fn_val = new CTMKR_JAVal();
             fn_val.set_string(field_name);
             result_item.Add("field_name", fn_val);
             
             // requested_value (required)
-            CJAVal* rv_val = new CJAVal();
+            CTMKR_JAVal* rv_val = new CTMKR_JAVal();
             rv_val.set_string(new_value_str);
             result_item.Add("requested_value", rv_val);
             
@@ -192,12 +192,12 @@ void CConfigurationManager::process_change_request(const CJAVal &change_request)
                 m_robot_config.update_field(field_name, new_value_str);
                 
                 // accepted: true
-                CJAVal* acc_val = new CJAVal();
+                CTMKR_JAVal* acc_val = new CTMKR_JAVal();
                 acc_val.set_bool(true);
                 result_item.Add("accepted", acc_val);
                 
                 // applied_value (optional but included on success)
-                CJAVal* av_val = new CJAVal();
+                CTMKR_JAVal* av_val = new CTMKR_JAVal();
                 av_val.set_string(new_value_str);
                 result_item.Add("applied_value", av_val);
                 
@@ -207,17 +207,17 @@ void CConfigurationManager::process_change_request(const CJAVal &change_request)
             else
             {
                 // accepted: false
-                CJAVal* acc_val = new CJAVal();
+                CTMKR_JAVal* acc_val = new CTMKR_JAVal();
                 acc_val.set_bool(false);
                 result_item.Add("accepted", acc_val);
                 
                 // error_code
-                CJAVal* ec_val = new CJAVal();
-                ec_val.set_string(CONFIG_ERROR_INVALID_VALUE);
+                CTMKR_JAVal* ec_val = new CTMKR_JAVal();
+                ec_val.set_string(TMKR_CONFIG_ERROR_INVALID_VALUE);
                 result_item.Add("error_code", ec_val);
                 
                 // error_message
-                CJAVal* em_val = new CJAVal();
+                CTMKR_JAVal* em_val = new CTMKR_JAVal();
                 em_val.set_string(tmkr_reason);
                 result_item.Add("error_message", em_val);
                 
@@ -230,7 +230,7 @@ void CConfigurationManager::process_change_request(const CJAVal &change_request)
     }
     
     // Determine status
-    CJAVal* status_val = new CJAVal();
+    CTMKR_JAVal* status_val = new CTMKR_JAVal();
     if(total_count == 0 || rejected_count == 0)
         status_val.set_string("all_accepted");
     else if(accepted_count == 0)
@@ -245,7 +245,7 @@ void CConfigurationManager::process_change_request(const CJAVal &change_request)
 //+------------------------------------------------------------------+
 //| Get pending results                                               |
 //+------------------------------------------------------------------+
-CJAVal* CConfigurationManager::get_pending_results()
+CTMKR_JAVal* CTMKR_ConfigurationManager::get_pending_results()
 {
     if(!m_enabled) return NULL;
     return m_pending_change_results;
@@ -254,7 +254,7 @@ CJAVal* CConfigurationManager::get_pending_results()
 //+------------------------------------------------------------------+
 //| Clear pending results                                             |
 //+------------------------------------------------------------------+
-void CConfigurationManager::clear_pending_results()
+void CTMKR_ConfigurationManager::clear_pending_results()
 {
     if(CheckPointer(m_pending_change_results) == POINTER_DYNAMIC)
     {

@@ -26,7 +26,7 @@
  * - Performance metrics: balance_profit, equity_profit
  * - Risk metrics: balance_drawdown, equity_drawdown
  */
-class CDataCollectorService : public CObject
+class CTMKR_DataCollectorService : public CObject
 {
 private:
     double m_initial_balance;
@@ -35,27 +35,27 @@ private:
     double m_peak_equity;
     bool   m_initialized;
 
-    void add_json_string(CJAVal* json, string tmkr_key, string tmkr_value);
-    void add_json_long(CJAVal* json, string tmkr_key, long tmkr_value);
-    void add_json_int(CJAVal* json, string tmkr_key, int tmkr_value);
-    void add_json_bool(CJAVal* json, string tmkr_key, bool tmkr_value);
-    void add_json_double(CJAVal* json, string tmkr_key, double tmkr_value);
+    void add_json_string(CTMKR_JAVal* json, string tmkr_key, string tmkr_value);
+    void add_json_long(CTMKR_JAVal* json, string tmkr_key, long tmkr_value);
+    void add_json_int(CTMKR_JAVal* json, string tmkr_key, int tmkr_value);
+    void add_json_bool(CTMKR_JAVal* json, string tmkr_key, bool tmkr_value);
+    void add_json_double(CTMKR_JAVal* json, string tmkr_key, double tmkr_value);
     
     string get_account_trade_mode_string(int tmkr_mode);
     string get_account_margin_so_mode_string(int tmkr_mode);
     string get_account_margin_mode_string(int tmkr_mode);
 
 public:
-    CDataCollectorService();
-    ~CDataCollectorService();
+    CTMKR_DataCollectorService();
+    ~CTMKR_DataCollectorService();
 
     void initialize(double initial_balance, double initial_equity);
     bool is_account_data_available();
     bool wait_for_account_data(int timeout_seconds = 10);
     
-    CJAVal* get_static_fields(long expert_magic_number = 0);
+    CTMKR_JAVal* get_static_fields(long expert_magic_number = 0);
     CArrayObj* get_session_symbols();
-    CJAVal* get_dynamic_data();
+    CTMKR_JAVal* get_dynamic_data();
     
     double get_initial_balance() const;
     double get_initial_equity() const;
@@ -66,7 +66,7 @@ public:
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CDataCollectorService::CDataCollectorService()
+CTMKR_DataCollectorService::CDataCollectorService()
 {
     m_initial_balance = 0.0;
     m_initial_equity = 0.0;
@@ -78,21 +78,21 @@ CDataCollectorService::CDataCollectorService()
 //+------------------------------------------------------------------+
 //| Destructor                                                        |
 //+------------------------------------------------------------------+
-CDataCollectorService::~CDataCollectorService() {}
+CTMKR_DataCollectorService::~CTMKR_DataCollectorService() {}
 
 //+------------------------------------------------------------------+
 //| Getters                                                           |
 //+------------------------------------------------------------------+
-double CDataCollectorService::get_initial_balance() const { return m_initial_balance; }
-double CDataCollectorService::get_initial_equity() const { return m_initial_equity; }
-double CDataCollectorService::get_current_balance() const { return AccountInfoDouble(ACCOUNT_BALANCE); }
-double CDataCollectorService::get_current_equity() const { return AccountInfoDouble(ACCOUNT_EQUITY); }
+double CTMKR_DataCollectorService::get_initial_balance() const { return m_initial_balance; }
+double CTMKR_DataCollectorService::get_initial_equity() const { return m_initial_equity; }
+double CTMKR_DataCollectorService::get_current_balance() const { return AccountInfoDouble(ACCOUNT_BALANCE); }
+double CTMKR_DataCollectorService::get_current_equity() const { return AccountInfoDouble(ACCOUNT_EQUITY); }
 
 //+------------------------------------------------------------------+
 //| Wait for account data to be available (with timeout)              |
 //| This is useful when starting during OnInit                        |
 //+------------------------------------------------------------------+
-bool CDataCollectorService::wait_for_account_data(int timeout_seconds)
+bool CTMKR_DataCollectorService::wait_for_account_data(int timeout_seconds)
 {
     if(SDKShouldLogInfo()) Print("SDK Info: Waiting for account data to be available...");
     
@@ -129,7 +129,7 @@ bool CDataCollectorService::wait_for_account_data(int timeout_seconds)
 //+------------------------------------------------------------------+
 //| Initialize with starting values                                   |
 //+------------------------------------------------------------------+
-void CDataCollectorService::initialize(double initial_balance, double initial_equity)
+void CTMKR_DataCollectorService::initialize(double initial_balance, double initial_equity)
 {
     m_initial_balance = initial_balance;
     m_initial_equity = initial_equity;
@@ -143,9 +143,9 @@ void CDataCollectorService::initialize(double initial_balance, double initial_eq
 //| expert_magic_number: pass the EA magic number for robots,         |
 //|                      or 0 for indicators (no order tracking).     |
 //+------------------------------------------------------------------+
-CJAVal* CDataCollectorService::get_static_fields(long expert_magic_number)
+CTMKR_JAVal* CTMKR_DataCollectorService::get_static_fields(long expert_magic_number)
 {
-    CJAVal* static_fields = new CJAVal(JA_OBJECT);
+    CTMKR_JAVal* static_fields = new CTMKR_JAVal(TMKR_JA_OBJECT);
     if(static_fields == NULL) return NULL;
 
     // Account Information
@@ -215,7 +215,7 @@ CJAVal* CDataCollectorService::get_static_fields(long expert_magic_number)
 //+------------------------------------------------------------------+
 //| Enum conversion helpers                                           |
 //+------------------------------------------------------------------+
-string CDataCollectorService::get_account_trade_mode_string(int tmkr_mode)
+string CTMKR_DataCollectorService::get_account_trade_mode_string(int tmkr_mode)
 {
     switch(tmkr_mode)
     {
@@ -226,7 +226,7 @@ string CDataCollectorService::get_account_trade_mode_string(int tmkr_mode)
     }
 }
 
-string CDataCollectorService::get_account_margin_so_mode_string(int tmkr_mode)
+string CTMKR_DataCollectorService::get_account_margin_so_mode_string(int tmkr_mode)
 {
     switch(tmkr_mode)
     {
@@ -236,7 +236,7 @@ string CDataCollectorService::get_account_margin_so_mode_string(int tmkr_mode)
     }
 }
 
-string CDataCollectorService::get_account_margin_mode_string(int tmkr_mode)
+string CTMKR_DataCollectorService::get_account_margin_mode_string(int tmkr_mode)
 {
     switch(tmkr_mode)
     {
@@ -250,7 +250,7 @@ string CDataCollectorService::get_account_margin_mode_string(int tmkr_mode)
 //+------------------------------------------------------------------+
 //| Get session symbols                                               |
 //+------------------------------------------------------------------+
-CArrayObj* CDataCollectorService::get_session_symbols()
+CArrayObj* CTMKR_DataCollectorService::get_session_symbols()
 {
     CArrayObj* symbols_list = new CArrayObj();
     if(symbols_list == NULL) return NULL;
@@ -265,7 +265,7 @@ CArrayObj* CDataCollectorService::get_session_symbols()
     {
         if(tmkr_i % 100 == 0 && SDKShouldLogDebug()) Print("SDK Debug: Processing watchlist symbol ", tmkr_i, " / ", total_symbols);
         string symbol_name = SymbolName(tmkr_i, true);
-        CSessionSymbol* tmkr_symbol = new CSessionSymbol(symbol_name);
+        CTMKR_SessionSymbol* tmkr_symbol = new CTMKR_SessionSymbol(symbol_name);
         if(tmkr_symbol != NULL)
         {
             tmkr_symbol.populate_data();
@@ -278,7 +278,7 @@ CArrayObj* CDataCollectorService::get_session_symbols()
 //+------------------------------------------------------------------+
 //| Check if account data is available (terminal connected)           |
 //+------------------------------------------------------------------+
-bool CDataCollectorService::is_account_data_available()
+bool CTMKR_DataCollectorService::is_account_data_available()
 {
     // Check if terminal is connected to the trade server
     if(!TerminalInfoInteger(TERMINAL_CONNECTED))
@@ -298,9 +298,9 @@ bool CDataCollectorService::is_account_data_available()
 //+------------------------------------------------------------------+
 //| Get dynamic data matching RobotDynamicData schema                 |
 //+------------------------------------------------------------------+
-CJAVal* CDataCollectorService::get_dynamic_data()
+CTMKR_JAVal* CTMKR_DataCollectorService::get_dynamic_data()
 {
-    CJAVal* dynamic_data = new CJAVal(JA_OBJECT);
+    CTMKR_JAVal* dynamic_data = new CTMKR_JAVal(TMKR_JA_OBJECT);
     if(dynamic_data == NULL) return NULL;
 
     // Check if account data is available
@@ -376,41 +376,41 @@ CJAVal* CDataCollectorService::get_dynamic_data()
 //+------------------------------------------------------------------+
 //| Private Helper Implementations                                   |
 //+------------------------------------------------------------------+
-void CDataCollectorService::add_json_string(CJAVal* json, string tmkr_key, string tmkr_value)
+void CTMKR_DataCollectorService::add_json_string(CTMKR_JAVal* json, string tmkr_key, string tmkr_value)
 {
-    CJAVal* tmkr_val = new CJAVal();
+    CTMKR_JAVal* tmkr_val = new CTMKR_JAVal();
     if(tmkr_val == NULL) return;
     tmkr_val.set_string(tmkr_value);
     json.Add(tmkr_key, tmkr_val);
 }
 
-void CDataCollectorService::add_json_long(CJAVal* json, string tmkr_key, long tmkr_value)
+void CTMKR_DataCollectorService::add_json_long(CTMKR_JAVal* json, string tmkr_key, long tmkr_value)
 {
-    CJAVal* tmkr_val = new CJAVal();
+    CTMKR_JAVal* tmkr_val = new CTMKR_JAVal();
     if(tmkr_val == NULL) return;
     tmkr_val.set_long(tmkr_value);
     json.Add(tmkr_key, tmkr_val);
 }
 
-void CDataCollectorService::add_json_int(CJAVal* json, string tmkr_key, int tmkr_value)
+void CTMKR_DataCollectorService::add_json_int(CTMKR_JAVal* json, string tmkr_key, int tmkr_value)
 {
-    CJAVal* tmkr_val = new CJAVal();
+    CTMKR_JAVal* tmkr_val = new CTMKR_JAVal();
     if(tmkr_val == NULL) return;
     tmkr_val.set_long((long)tmkr_value);
     json.Add(tmkr_key, tmkr_val);
 }
 
-void CDataCollectorService::add_json_bool(CJAVal* json, string tmkr_key, bool tmkr_value)
+void CTMKR_DataCollectorService::add_json_bool(CTMKR_JAVal* json, string tmkr_key, bool tmkr_value)
 {
-    CJAVal* tmkr_val = new CJAVal();
+    CTMKR_JAVal* tmkr_val = new CTMKR_JAVal();
     if(tmkr_val == NULL) return;
     tmkr_val.set_bool(tmkr_value);
     json.Add(tmkr_key, tmkr_val);
 }
 
-void CDataCollectorService::add_json_double(CJAVal* json, string tmkr_key, double tmkr_value)
+void CTMKR_DataCollectorService::add_json_double(CTMKR_JAVal* json, string tmkr_key, double tmkr_value)
 {
-    CJAVal* tmkr_val = new CJAVal();
+    CTMKR_JAVal* tmkr_val = new CTMKR_JAVal();
     if(tmkr_val == NULL) return;
     tmkr_val.set_double(tmkr_value);
     json.Add(tmkr_key, tmkr_val);

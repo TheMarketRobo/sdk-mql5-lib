@@ -21,14 +21,14 @@
  * Developers must inherit from this class to define their robot's specific
  * configuration parameters.
  */
-class IRobotConfig
+class ITMKR_RobotConfig
 {
 protected:
-    CConfigSchema* m_schema;
+    CTMKR_ConfigSchema* m_schema;
 
 public:
-    IRobotConfig();
-    virtual ~IRobotConfig();
+    ITMKR_RobotConfig();
+    virtual ~ITMKR_RobotConfig();
     
     //==========================================================================
     // SCHEMA DEFINITION (Programmer must implement)
@@ -43,7 +43,7 @@ public:
     
     virtual bool validate_field(string field_name, string new_value, string &tmkr_reason);
     virtual string to_json() = 0;
-    virtual bool update_from_json(const CJAVal &config_json) = 0;
+    virtual bool update_from_json(const CTMKR_JAVal &config_json) = 0;
     virtual bool update_field(string field_name, string new_value) = 0;
     virtual string get_field_as_string(string field_name) = 0;
     virtual void get_field_names(string &field_names[]);
@@ -52,23 +52,23 @@ public:
     // SCHEMA ACCESS
     //==========================================================================
     
-    CConfigSchema* get_schema();
+    CTMKR_ConfigSchema* get_schema();
     string get_schema_json();
-    CConfigField* get_field_definition(string tmkr_key);
+    CTMKR_ConfigField* get_field_definition(string tmkr_key);
 };
 
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-IRobotConfig::IRobotConfig()
+ITMKR_RobotConfig::IRobotConfig()
 {
-    m_schema = new CConfigSchema();
+    m_schema = new CTMKR_ConfigSchema();
 }
 
 //+------------------------------------------------------------------+
 //| Destructor                                                        |
 //+------------------------------------------------------------------+
-IRobotConfig::~IRobotConfig()
+ITMKR_RobotConfig::~ITMKR_RobotConfig()
 {
     if(CheckPointer(m_schema) == POINTER_DYNAMIC)
         delete m_schema;
@@ -77,7 +77,7 @@ IRobotConfig::~IRobotConfig()
 //+------------------------------------------------------------------+
 //| Get schema                                                        |
 //+------------------------------------------------------------------+
-CConfigSchema* IRobotConfig::get_schema()
+CTMKR_ConfigSchema* ITMKR_RobotConfig::get_schema()
 {
     return m_schema;
 }
@@ -85,7 +85,7 @@ CConfigSchema* IRobotConfig::get_schema()
 //+------------------------------------------------------------------+
 //| Validate field using schema                                       |
 //+------------------------------------------------------------------+
-bool IRobotConfig::validate_field(string field_name, string new_value, string &tmkr_reason)
+bool ITMKR_RobotConfig::validate_field(string field_name, string new_value, string &tmkr_reason)
 {
     if(CheckPointer(m_schema) == POINTER_INVALID)
     {
@@ -93,7 +93,7 @@ bool IRobotConfig::validate_field(string field_name, string new_value, string &t
         return false;
     }
     
-    CConfigField* field = m_schema.get_field(field_name);
+    CTMKR_ConfigField* field = m_schema.get_field(field_name);
     if(field == NULL)
     {
         tmkr_reason = "Field not found: " + field_name;
@@ -102,26 +102,26 @@ bool IRobotConfig::validate_field(string field_name, string new_value, string &t
     
     switch(field.m_type)
     {
-        case CONFIG_FIELD_INTEGER:
+        case TMKR_CONFIG_FIELD_INTEGER:
         {
             int tmkr_value = (int)StringToInteger(new_value);
             return field.validate_value(tmkr_value, tmkr_reason);
         }
-        case CONFIG_FIELD_DECIMAL:
+        case TMKR_CONFIG_FIELD_DECIMAL:
         {
             double tmkr_value = StringToDouble(new_value);
             return field.validate_value(tmkr_value, tmkr_reason);
         }
-        case CONFIG_FIELD_BOOLEAN:
+        case TMKR_CONFIG_FIELD_BOOLEAN:
         {
             bool tmkr_value = (new_value == "true" || new_value == "1");
             return field.validate_value(tmkr_value, tmkr_reason);
         }
-        case CONFIG_FIELD_RADIO:
+        case TMKR_CONFIG_FIELD_RADIO:
         {
             return field.validate_value(new_value, tmkr_reason);
         }
-        case CONFIG_FIELD_MULTIPLE:
+        case TMKR_CONFIG_FIELD_MULTIPLE:
         {
             return true;
         }
@@ -133,7 +133,7 @@ bool IRobotConfig::validate_field(string field_name, string new_value, string &t
 //+------------------------------------------------------------------+
 //| Get field names from schema                                       |
 //+------------------------------------------------------------------+
-void IRobotConfig::get_field_names(string &field_names[])
+void ITMKR_RobotConfig::get_field_names(string &field_names[])
 {
     if(CheckPointer(m_schema) != POINTER_INVALID)
     {
@@ -144,7 +144,7 @@ void IRobotConfig::get_field_names(string &field_names[])
 //+------------------------------------------------------------------+
 //| Get schema as JSON                                                |
 //+------------------------------------------------------------------+
-string IRobotConfig::get_schema_json()
+string ITMKR_RobotConfig::get_schema_json()
 {
     if(CheckPointer(m_schema) != POINTER_INVALID)
     {
@@ -156,7 +156,7 @@ string IRobotConfig::get_schema_json()
 //+------------------------------------------------------------------+
 //| Get field definition                                              |
 //+------------------------------------------------------------------+
-CConfigField* IRobotConfig::get_field_definition(string tmkr_key)
+CTMKR_ConfigField* ITMKR_RobotConfig::get_field_definition(string tmkr_key)
 {
     if(CheckPointer(m_schema) != POINTER_INVALID)
     {

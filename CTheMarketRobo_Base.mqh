@@ -18,32 +18,32 @@
 //| that preserves the public interface but performs no SDK operations. |
 //| Developer code compiles and runs without changes.                  |
 //+------------------------------------------------------------------+
-#ifndef SDK_ENABLED
+#ifndef TMKR_SDK_ENABLED
 
 #include "Interfaces/IRobotConfig.mqh"
 
-class CTheMarketRobo_Base
+class CTMKR_RobotBase
 {
 protected:
     string       m_robot_version_uuid;
-    IRobotConfig* m_robot_config;
+    ITMKR_RobotConfig* m_robot_config;
 
 public:
     // Robot constructor (matches full API — config pointer is stored for developer access)
-    CTheMarketRobo_Base(string robot_version_uuid, IRobotConfig* robot_config)
+    CTMKR_RobotBase(string robot_version_uuid, ITMKR_RobotConfig* robot_config)
     {
         m_robot_version_uuid = robot_version_uuid;
         m_robot_config = robot_config;
     }
 
     // Indicator constructor
-    CTheMarketRobo_Base(string robot_version_uuid)
+    CTMKR_RobotBase(string robot_version_uuid)
     {
         m_robot_version_uuid = robot_version_uuid;
         m_robot_config = NULL;
     }
 
-    ~CTheMarketRobo_Base()
+    ~CTMKR_RobotBase()
     {
         if(CheckPointer(m_robot_config) == POINTER_DYNAMIC)
             delete m_robot_config;
@@ -91,7 +91,7 @@ public:
     void set_token_refresh_threshold(int seconds) {}
     int  get_token_refresh_threshold() const { return 0; }
     void set_max_heartbeat_failure_intervals(int intervals) {}
-    int  get_max_heartbeat_failure_intervals() const { return SDK_DEFAULT_MAX_HEARTBEAT_FAILURE_INTERVALS; }
+    int  get_max_heartbeat_failure_intervals() const { return TMKR_DEFAULT_MAX_HEARTBEAT_FAILURE_INTERVALS; }
     void set_enable_config_change_requests(bool enable) {}
     bool is_config_change_requests_enabled() const { return false; }
     void set_enable_symbol_change_requests(bool enable) {}
@@ -102,8 +102,8 @@ public:
     bool is_robot_mode() const { return true; }
     void set_indicator_short_name(string short_name) {}
     bool is_pending_removal() const { return false; }
-    void set_log_level(ENUM_SDK_LOG_LEVEL tmkr_level) { SDKSetLogLevel(tmkr_level); }
-    ENUM_SDK_LOG_LEVEL get_log_level() const { return SDKGetLogLevel(); }
+    void set_log_level(ENUM_TMKR_LOG_LEVEL tmkr_level) { TMKRSetLogLevel(tmkr_level); }
+    ENUM_TMKR_LOG_LEVEL get_log_level() const { return TMKRGetLogLevel(); }
 };
 
 #else // SDK_ENABLED is defined — full SDK implementation follows
@@ -165,11 +165,11 @@ public:
  * | Symbol change requests   | Supported           | Not supported      |
  * | Termination removal call | ExpertRemove()      | Alert + timer stop |
  */
-class CTheMarketRobo_Base
+class CTMKR_RobotBase
 {
 protected:
-    CSDKContext*    m_sdk_context;
-    IRobotConfig*   m_robot_config;
+    CTMKR_Context*    m_sdk_context;
+    ITMKR_RobotConfig*   m_robot_config;
     string          m_robot_version_uuid;
     int             m_token_refresh_threshold_seconds;
     int             m_max_heartbeat_failure_intervals;
@@ -182,12 +182,12 @@ protected:
 
 public:
     // Robot constructor — requires config object
-    CTheMarketRobo_Base(string robot_version_uuid, IRobotConfig* robot_config);
+    CTMKR_RobotBase(string robot_version_uuid, ITMKR_RobotConfig* robot_config);
     
     // Indicator constructor — no config needed
-    CTheMarketRobo_Base(string robot_version_uuid);
+    CTMKR_RobotBase(string robot_version_uuid);
     
-    ~CTheMarketRobo_Base();
+    ~CTMKR_RobotBase();
 
     // Robot init: requires magic_number for order identification
     virtual int  on_init(string api_key, long magic_number);
@@ -247,8 +247,8 @@ public:
     bool   is_killed() const;
 
     // Log level control — set before or after on_init()
-    void   set_log_level(ENUM_SDK_LOG_LEVEL tmkr_level);
-    ENUM_SDK_LOG_LEVEL get_log_level() const;
+    void   set_log_level(ENUM_TMKR_LOG_LEVEL tmkr_level);
+    ENUM_TMKR_LOG_LEVEL get_log_level() const;
 
 protected:
     void   remove_indicator_from_chart();
@@ -258,51 +258,51 @@ protected:
     void handle_termination_requested_event(string event_json);
     void handle_token_refresh_event(string event_json);
     
-    int  init_common(string api_key, long magic_number, ENUM_SDK_PRODUCT_TYPE product_type);
+    int  init_common(string api_key, long magic_number, ENUM_TMKR_PRODUCT_TYPE product_type);
 };
 
 //+------------------------------------------------------------------+
 //| Robot constructor                                                 |
 //+------------------------------------------------------------------+
-CTheMarketRobo_Base::CTheMarketRobo_Base(string robot_version_uuid, IRobotConfig* robot_config)
+CTMKR_RobotBase::CTheMarketRobo_Base(string robot_version_uuid, ITMKR_RobotConfig* robot_config)
 {
     m_sdk_context = NULL;
     m_robot_config = robot_config;
     m_robot_version_uuid = robot_version_uuid;
-    m_token_refresh_threshold_seconds = SDK_DEFAULT_TOKEN_REFRESH_THRESHOLD;
+    m_token_refresh_threshold_seconds = TMKR_DEFAULT_TOKEN_REFRESH_THRESHOLD;
     m_enable_config_change_requests = true;
     m_enable_symbol_change_requests = true;
     m_indicator_short_name = "";
     m_pending_removal = false;
     m_killed = false;
     m_indicator_buffer_count = 0;
-    m_max_heartbeat_failure_intervals = SDK_DEFAULT_MAX_HEARTBEAT_FAILURE_INTERVALS;
+    m_max_heartbeat_failure_intervals = TMKR_DEFAULT_MAX_HEARTBEAT_FAILURE_INTERVALS;
     if(SDKShouldLogInfo()) Print("SDK Info: Robot Version UUID = ", m_robot_version_uuid);
 }
 
 //+------------------------------------------------------------------+
 //| Indicator constructor (no config)                                 |
 //+------------------------------------------------------------------+
-CTheMarketRobo_Base::CTheMarketRobo_Base(string robot_version_uuid)
+CTMKR_RobotBase::CTheMarketRobo_Base(string robot_version_uuid)
 {
     m_sdk_context = NULL;
     m_robot_config = NULL;
     m_robot_version_uuid = robot_version_uuid;
-    m_token_refresh_threshold_seconds = SDK_DEFAULT_TOKEN_REFRESH_THRESHOLD;
+    m_token_refresh_threshold_seconds = TMKR_DEFAULT_TOKEN_REFRESH_THRESHOLD;
     m_enable_config_change_requests = false; // Indicators never use config changes
     m_enable_symbol_change_requests = false; // Indicators never use symbol changes
     m_indicator_short_name = "";
     m_pending_removal = false;
     m_killed = false;
     m_indicator_buffer_count = 0;
-    m_max_heartbeat_failure_intervals = SDK_DEFAULT_MAX_HEARTBEAT_FAILURE_INTERVALS;
+    m_max_heartbeat_failure_intervals = TMKR_DEFAULT_MAX_HEARTBEAT_FAILURE_INTERVALS;
     if(SDKShouldLogInfo()) Print("SDK Info: Indicator Version UUID = ", m_robot_version_uuid);
 }
 
 //+------------------------------------------------------------------+
 //| Destructor                                                        |
 //+------------------------------------------------------------------+
-CTheMarketRobo_Base::~CTheMarketRobo_Base()
+CTMKR_RobotBase::~CTMKR_RobotBase()
 {
     if(CheckPointer(m_sdk_context) == POINTER_DYNAMIC)
         delete m_sdk_context;
@@ -314,16 +314,16 @@ CTheMarketRobo_Base::~CTheMarketRobo_Base()
 //+------------------------------------------------------------------+
 //| Getters                                                           |
 //+------------------------------------------------------------------+
-string CTheMarketRobo_Base::get_robot_version_uuid() const { return m_robot_version_uuid; }
+string CTMKR_RobotBase::get_robot_version_uuid() const { return m_robot_version_uuid; }
 
-bool CTheMarketRobo_Base::is_indicator_mode() const
+bool CTMKR_RobotBase::is_indicator_mode() const
 {
     if(CheckPointer(m_sdk_context) != POINTER_INVALID)
         return m_sdk_context.is_indicator();
     return (m_robot_config == NULL);
 }
 
-bool CTheMarketRobo_Base::is_robot_mode() const
+bool CTMKR_RobotBase::is_robot_mode() const
 {
     return !is_indicator_mode();
 }
@@ -331,12 +331,12 @@ bool CTheMarketRobo_Base::is_robot_mode() const
 //+------------------------------------------------------------------+
 //| Indicator short name (for self-removal via ChartIndicatorDelete)  |
 //+------------------------------------------------------------------+
-void CTheMarketRobo_Base::set_indicator_short_name(string short_name)
+void CTMKR_RobotBase::set_indicator_short_name(string short_name)
 {
     m_indicator_short_name = short_name;
 }
 
-bool CTheMarketRobo_Base::is_pending_removal() const
+bool CTMKR_RobotBase::is_pending_removal() const
 {
     return m_pending_removal;
 }
@@ -344,12 +344,12 @@ bool CTheMarketRobo_Base::is_pending_removal() const
 //+------------------------------------------------------------------+
 //| Remove this indicator from the chart using ChartIndicatorDelete   |
 //+------------------------------------------------------------------+
-void CTheMarketRobo_Base::remove_indicator_from_chart()
+void CTMKR_RobotBase::remove_indicator_from_chart()
 {
     EventKillTimer();
     if(m_indicator_short_name != "")
     {
-        if(!SDKRemoveIndicatorFromChart(m_indicator_short_name))
+        if(!TMKRRemoveIndicatorFromChart(m_indicator_short_name))
         {
             // ChartIndicatorDelete failed (common on MQL4) — apply functional death
             kill_indicator();
@@ -374,7 +374,7 @@ void CTheMarketRobo_Base::remove_indicator_from_chart()
 //| Check if pending removal should execute (call at top of          |
 //| on_calculate / on_timer). Returns true if removal was triggered.  |
 //+------------------------------------------------------------------+
-bool CTheMarketRobo_Base::check_pending_removal()
+bool CTMKR_RobotBase::check_pending_removal()
 {
     if(m_pending_removal)
     {
@@ -388,7 +388,7 @@ bool CTheMarketRobo_Base::check_pending_removal()
 //| Set indicator buffer count — call during OnInit() after           |
 //| SetIndexBuffer() calls. Used by kill_indicator() to hide draws.   |
 //+------------------------------------------------------------------+
-void CTheMarketRobo_Base::set_indicator_buffer_count(int count)
+void CTMKR_RobotBase::set_indicator_buffer_count(int count)
 {
     m_indicator_buffer_count = count;
 }
@@ -396,7 +396,7 @@ void CTheMarketRobo_Base::set_indicator_buffer_count(int count)
 //+------------------------------------------------------------------+
 //| Returns true if indicator has been functionally killed             |
 //+------------------------------------------------------------------+
-bool CTheMarketRobo_Base::is_killed() const
+bool CTMKR_RobotBase::is_killed() const
 {
     return m_killed;
 }
@@ -406,7 +406,7 @@ bool CTheMarketRobo_Base::is_killed() const
 //| block all future calculation, and mark as dead.                   |
 //| This is the security fallback when ChartIndicatorDelete fails.    |
 //+------------------------------------------------------------------+
-void CTheMarketRobo_Base::kill_indicator()
+void CTMKR_RobotBase::kill_indicator()
 {
     if(m_killed) return;  // Already dead
     m_killed = true;
@@ -428,16 +428,16 @@ void CTheMarketRobo_Base::kill_indicator()
 //+------------------------------------------------------------------+
 //| Shared init implementation                                        |
 //+------------------------------------------------------------------+
-int CTheMarketRobo_Base::init_common(string api_key, long magic_number, ENUM_SDK_PRODUCT_TYPE product_type)
+int CTMKR_RobotBase::init_common(string api_key, long magic_number, ENUM_TMKR_PRODUCT_TYPE product_type)
 {
     bool is_ind = (product_type == PRODUCT_TYPE_INDICATOR);
 
-    if(m_robot_version_uuid == "" || StringLen(m_robot_version_uuid) != SDK_UUID_LENGTH)
+    if(m_robot_version_uuid == "" || StringLen(m_robot_version_uuid) != TMKR_UUID_LENGTH)
     {
         Print("SDK Error: Invalid robot_version_uuid. Must be a valid UUID (36 characters).");
         if(is_ind)
         {
-            SDKUserError("Setup error — invalid product configuration. Please contact support.");
+            TMKRUserError("Setup error — invalid product configuration. Please contact support.");
             m_pending_removal = true;
         }
         return INIT_FAILED;
@@ -448,7 +448,7 @@ int CTheMarketRobo_Base::init_common(string api_key, long magic_number, ENUM_SDK
         Print("SDK Error: API Key is required. Please provide a valid API key.");
         if(is_ind)
         {
-            SDKUserError("API Key is required. Please set it in the indicator settings.");
+            TMKRUserError("API Key is required. Please set it in the indicator settings.");
             m_pending_removal = true;
         }
         else
@@ -477,13 +477,13 @@ int CTheMarketRobo_Base::init_common(string api_key, long magic_number, ENUM_SDK
             Print("SDK Info: Initializing INDICATOR (no magic number)");
     }
 
-    m_sdk_context = new CSDKContext(api_key, m_robot_version_uuid, magic_number, m_robot_config, product_type);
+    m_sdk_context = new CTMKR_Context(api_key, m_robot_version_uuid, magic_number, m_robot_config, product_type);
     if(CheckPointer(m_sdk_context) == POINTER_INVALID)
     {
         Print("SDK Error: Failed to create SDK Context.");
         if(is_ind)
         {
-            SDKUserError("Failed to start. Please try removing and re-adding the indicator.");
+            TMKRUserError("Failed to start. Please try removing and re-adding the indicator.");
             m_pending_removal = true;
         }
         return INIT_FAILED;
@@ -502,7 +502,7 @@ int CTheMarketRobo_Base::init_common(string api_key, long magic_number, ENUM_SDK
     // The kill file persists across timeframe changes to prevent session restart.
     if(is_ind && m_sdk_context.check_kill_file())
     {
-        SDKUserError("This indicator session was terminated. Please remove it from the chart.");
+        TMKRUserError("This indicator session was terminated. Please remove it from the chart.");
         m_killed = true;
         EventSetTimer(1);  // Timer fires → on_timer returns immediately due to m_killed
         return INIT_SUCCEEDED;
@@ -524,7 +524,7 @@ int CTheMarketRobo_Base::init_common(string api_key, long magic_number, ENUM_SDK
         
         if(is_ind)
         {
-            SDKUserError("Could not connect to TheMarketRobo service. Please check your internet connection and try again.");
+            TMKRUserError("Could not connect to TheMarketRobo service. Please check your internet connection and try again.");
             m_pending_removal = true;
         }
         else
@@ -543,7 +543,7 @@ int CTheMarketRobo_Base::init_common(string api_key, long magic_number, ENUM_SDK
 //+------------------------------------------------------------------+
 //| Robot initialization                                              |
 //+------------------------------------------------------------------+
-int CTheMarketRobo_Base::on_init(string api_key, long magic_number)
+int CTMKR_RobotBase::on_init(string api_key, long magic_number)
 {
     return init_common(api_key, magic_number, PRODUCT_TYPE_ROBOT);
 }
@@ -551,7 +551,7 @@ int CTheMarketRobo_Base::on_init(string api_key, long magic_number)
 //+------------------------------------------------------------------+
 //| Indicator initialization (no magic number)                        |
 //+------------------------------------------------------------------+
-int CTheMarketRobo_Base::on_init(string api_key)
+int CTMKR_RobotBase::on_init(string api_key)
 {
     return init_common(api_key, 0, PRODUCT_TYPE_INDICATOR);
 }
@@ -579,7 +579,7 @@ bool IsNonDestructiveDeinit(int tmkr_reason)
 //+------------------------------------------------------------------+
 //| Deinitialize                                                      |
 //+------------------------------------------------------------------+
-void CTheMarketRobo_Base::on_deinit(const int tmkr_reason)
+void CTMKR_RobotBase::on_deinit(const int tmkr_reason)
 {
     string tmkr_label = is_indicator_mode() ? "Indicator" : "EA";
     if(SDKShouldLogInfo()) Print("SDK Info: Deinitializing ", tmkr_label, " SDK (reason=", tmkr_reason, ")...");
@@ -612,7 +612,7 @@ void CTheMarketRobo_Base::on_deinit(const int tmkr_reason)
 //+------------------------------------------------------------------+
 //| Timer                                                             |
 //+------------------------------------------------------------------+
-void CTheMarketRobo_Base::on_timer()
+void CTMKR_RobotBase::on_timer()
 {
     // Security: indicator was killed — no processing allowed
     if(m_killed) return;
@@ -628,20 +628,20 @@ void CTheMarketRobo_Base::on_timer()
 //+------------------------------------------------------------------+
 //| Chart event                                                       |
 //+------------------------------------------------------------------+
-void CTheMarketRobo_Base::on_chart_event(const int tmkr_id, const long &lparam, const double &dparam, const string &sparam)
+void CTMKR_RobotBase::on_chart_event(const int tmkr_id, const long &lparam, const double &dparam, const string &sparam)
 {
     switch(tmkr_id)
     {
-        case SDK_EVENT_CONFIG_CHANGED:
+        case TMKR_EVENT_CONFIG_CHANGED:
             if(is_robot_mode())
                 on_config_changed(sparam);
             break;
-        case SDK_EVENT_SYMBOL_CHANGED:
+        case TMKR_EVENT_SYMBOL_CHANGED:
             if(is_robot_mode())
                 on_symbol_changed(sparam);
             break;
-        case SDK_EVENT_TERMINATION_START:
-        case SDK_EVENT_TERMINATION_END:
+        case TMKR_EVENT_TERMINATION_START:
+        case TMKR_EVENT_TERMINATION_END:
         {
             // Guard: ignore termination events from a previous (stale) session.
             // After a non-destructive deinit → reinit cycle, the chart event queue
@@ -649,11 +649,11 @@ void CTheMarketRobo_Base::on_chart_event(const int tmkr_id, const long &lparam, 
             if(CheckPointer(m_sdk_context) != POINTER_INVALID
                && CheckPointer(m_sdk_context.session_manager) != POINTER_INVALID)
             {
-                CJAVal guard_data;
+                CTMKR_JAVal guard_data;
                 string sparam_copy = sparam;
                 if(guard_data.parse(sparam_copy))
                 {
-                    CJAVal* sid_node = guard_data["session_id"];
+                    CTMKR_JAVal* sid_node = guard_data["session_id"];
                     if(CheckPointer(sid_node) != POINTER_INVALID)
                     {
                         ulong event_sid = (ulong)sid_node.get_long();
@@ -670,10 +670,10 @@ void CTheMarketRobo_Base::on_chart_event(const int tmkr_id, const long &lparam, 
             handle_termination_event(sparam);
             break;
         }
-        case SDK_EVENT_TERMINATION_REQUESTED:
+        case TMKR_EVENT_TERMINATION_REQUESTED:
             handle_termination_requested_event(sparam);
             break;
-        case SDK_EVENT_TOKEN_REFRESH:
+        case TMKR_EVENT_TOKEN_REFRESH:
             handle_token_refresh_event(sparam);
             break;
     }
@@ -682,14 +682,14 @@ void CTheMarketRobo_Base::on_chart_event(const int tmkr_id, const long &lparam, 
 //+------------------------------------------------------------------+
 //| Token refresh threshold                                           |
 //+------------------------------------------------------------------+
-void CTheMarketRobo_Base::set_token_refresh_threshold(int seconds)
+void CTMKR_RobotBase::set_token_refresh_threshold(int seconds)
 {
     m_token_refresh_threshold_seconds = seconds;
     if(CheckPointer(m_sdk_context) != POINTER_INVALID)
         m_sdk_context.set_token_refresh_threshold_seconds(seconds);
 }
 
-int CTheMarketRobo_Base::get_token_refresh_threshold() const
+int CTMKR_RobotBase::get_token_refresh_threshold() const
 {
     if(CheckPointer(m_sdk_context) != POINTER_INVALID)
         return m_sdk_context.get_token_refresh_threshold_seconds();
@@ -699,14 +699,14 @@ int CTheMarketRobo_Base::get_token_refresh_threshold() const
 //+------------------------------------------------------------------+
 //| Max heartbeat failure intervals (connection-lost removal)        |
 //+------------------------------------------------------------------+
-void CTheMarketRobo_Base::set_max_heartbeat_failure_intervals(int intervals)
+void CTMKR_RobotBase::set_max_heartbeat_failure_intervals(int intervals)
 {
     m_max_heartbeat_failure_intervals = intervals;
     if(CheckPointer(m_sdk_context) != POINTER_INVALID)
         m_sdk_context.set_max_heartbeat_failure_intervals(intervals);
 }
 
-int CTheMarketRobo_Base::get_max_heartbeat_failure_intervals() const
+int CTMKR_RobotBase::get_max_heartbeat_failure_intervals() const
 {
     if(CheckPointer(m_sdk_context) != POINTER_INVALID)
         return m_sdk_context.get_max_heartbeat_failure_intervals();
@@ -716,14 +716,14 @@ int CTheMarketRobo_Base::get_max_heartbeat_failure_intervals() const
 //+------------------------------------------------------------------+
 //| Config change requests toggle (no-op for indicators)             |
 //+------------------------------------------------------------------+
-void CTheMarketRobo_Base::set_enable_config_change_requests(bool enable)
+void CTMKR_RobotBase::set_enable_config_change_requests(bool enable)
 {
     m_enable_config_change_requests = enable;
     if(CheckPointer(m_sdk_context) != POINTER_INVALID)
         m_sdk_context.set_enable_config_change_requests(enable);
 }
 
-bool CTheMarketRobo_Base::is_config_change_requests_enabled() const
+bool CTMKR_RobotBase::is_config_change_requests_enabled() const
 {
     if(CheckPointer(m_sdk_context) != POINTER_INVALID)
         return m_sdk_context.is_config_change_requests_enabled();
@@ -733,14 +733,14 @@ bool CTheMarketRobo_Base::is_config_change_requests_enabled() const
 //+------------------------------------------------------------------+
 //| Symbol change requests toggle (no-op for indicators)             |
 //+------------------------------------------------------------------+
-void CTheMarketRobo_Base::set_enable_symbol_change_requests(bool enable)
+void CTMKR_RobotBase::set_enable_symbol_change_requests(bool enable)
 {
     m_enable_symbol_change_requests = enable;
     if(CheckPointer(m_sdk_context) != POINTER_INVALID)
         m_sdk_context.set_enable_symbol_change_requests(enable);
 }
 
-bool CTheMarketRobo_Base::is_symbol_change_requests_enabled() const
+bool CTMKR_RobotBase::is_symbol_change_requests_enabled() const
 {
     if(CheckPointer(m_sdk_context) != POINTER_INVALID)
         return m_sdk_context.is_symbol_change_requests_enabled();
@@ -750,13 +750,13 @@ bool CTheMarketRobo_Base::is_symbol_change_requests_enabled() const
 //+------------------------------------------------------------------+
 //| Print configuration                                               |
 //+------------------------------------------------------------------+
-void CTheMarketRobo_Base::print_sdk_configuration() const
+void CTMKR_RobotBase::print_sdk_configuration() const
 {
     if(!SDKShouldLogInfo()) return;
     Print("=== SDK Configuration ===");
     Print("  Version UUID: ", m_robot_version_uuid);
-    Print("  API Base URL: ", SDK_API_BASE_URL);
-    Print("  Log level: ", SDKLogLevelToString(SDKGetLogLevel()));
+    Print("  API Base URL: ", TMKR_API_BASE_URL);
+    Print("  Log level: ", SDKLogLevelToString(TMKRGetLogLevel()));
     
     if(CheckPointer(m_sdk_context) != POINTER_INVALID)
         m_sdk_context.print_configuration();
@@ -772,9 +772,9 @@ void CTheMarketRobo_Base::print_sdk_configuration() const
 //+------------------------------------------------------------------+
 //| Handle termination event (session already ended on server)        |
 //+------------------------------------------------------------------+
-void CTheMarketRobo_Base::handle_termination_event(string event_json)
+void CTMKR_RobotBase::handle_termination_event(string event_json)
 {
-    CJAVal event_data;
+    CTMKR_JAVal event_data;
     if(!event_data.parse(event_json)) return;
 
     string tmkr_reason = event_data["reason"].get_string();
@@ -788,7 +788,7 @@ void CTheMarketRobo_Base::handle_termination_event(string event_json)
     }
     else
     {
-        SDKUserErrorWithDetails(
+        TMKRUserErrorWithDetails(
             "Session ended. The indicator will be removed from the chart.",
             "Server termination reason: " + tmkr_reason);
         remove_indicator_from_chart();
@@ -798,9 +798,9 @@ void CTheMarketRobo_Base::handle_termination_event(string event_json)
 //+------------------------------------------------------------------+
 //| Handle termination requested event (server asked to stop)         |
 //+------------------------------------------------------------------+
-void CTheMarketRobo_Base::handle_termination_requested_event(string event_json)
+void CTMKR_RobotBase::handle_termination_requested_event(string event_json)
 {
-    CJAVal event_data;
+    CTMKR_JAVal event_data;
     if(!event_data.parse(event_json)) return;
 
     string tmkr_reason = event_data["reason"].get_string();
@@ -815,9 +815,9 @@ void CTheMarketRobo_Base::handle_termination_requested_event(string event_json)
 //+------------------------------------------------------------------+
 //| Default termination handler (virtual — can be overridden)         |
 //+------------------------------------------------------------------+
-void CTheMarketRobo_Base::on_termination_requested(string event_json)
+void CTMKR_RobotBase::on_termination_requested(string event_json)
 {
-    CJAVal event_data;
+    CTMKR_JAVal event_data;
     string tmkr_reason = "Server requested termination";
     
     if(event_data.parse(event_json))
@@ -830,7 +830,7 @@ void CTheMarketRobo_Base::on_termination_requested(string event_json)
     }
     else
     {
-        SDKUserErrorWithDetails(
+        TMKRUserErrorWithDetails(
             "Session stopped by server. The indicator will be removed from the chart.",
             "Termination reason: " + tmkr_reason);
         remove_indicator_from_chart();
@@ -840,9 +840,9 @@ void CTheMarketRobo_Base::on_termination_requested(string event_json)
 //+------------------------------------------------------------------+
 //| Handle token refresh event                                        |
 //+------------------------------------------------------------------+
-void CTheMarketRobo_Base::handle_token_refresh_event(string event_json)
+void CTMKR_RobotBase::handle_token_refresh_event(string event_json)
 {
-    CJAVal event_data;
+    CTMKR_JAVal event_data;
     if(!event_data.parse(event_json)) return;
 
     bool success = event_data["success"].get_bool();
@@ -857,7 +857,7 @@ void CTheMarketRobo_Base::handle_token_refresh_event(string event_json)
         }
         else
         {
-            SDKUserError("Authentication failed. The indicator will be removed from the chart.");
+            TMKRUserError("Authentication failed. The indicator will be removed from the chart.");
             remove_indicator_from_chart();
         }
     }
@@ -870,14 +870,14 @@ void CTheMarketRobo_Base::handle_token_refresh_event(string event_json)
 //+------------------------------------------------------------------+
 //| Log level                                                         |
 //+------------------------------------------------------------------+
-void CTheMarketRobo_Base::set_log_level(ENUM_SDK_LOG_LEVEL tmkr_level)
+void CTMKR_RobotBase::set_log_level(ENUM_TMKR_LOG_LEVEL tmkr_level)
 {
-    SDKSetLogLevel(tmkr_level);
+    TMKRSetLogLevel(tmkr_level);
 }
 
-ENUM_SDK_LOG_LEVEL CTheMarketRobo_Base::get_log_level() const
+ENUM_TMKR_LOG_LEVEL CTMKR_RobotBase::get_log_level() const
 {
-    return SDKGetLogLevel();
+    return TMKRGetLogLevel();
 }
 
 #endif // SDK_ENABLED

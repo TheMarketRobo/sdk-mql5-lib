@@ -18,7 +18,7 @@
  * the session_symbols/v1.json schema. It includes trading specifications,
  * symbol metadata, and market data collected from MQL5 SymbolInfo* functions.
  */
-class CSessionSymbol : public CObject
+class CTMKR_SessionSymbol : public CObject
 {
 private:
     string m_symbol;
@@ -43,26 +43,26 @@ private:
     string m_symbol_bank;
 
 public:
-    CSessionSymbol(string tmkr_symbol);
-    ~CSessionSymbol();
+    CTMKR_SessionSymbol(string tmkr_symbol);
+    ~CTMKR_SessionSymbol();
 
     void populate_data();
-    CJAVal* to_json();
+    CTMKR_JAVal* to_json();
     
     string get_symbol_name() const;
     bool   is_active_to_trade() const;
     void   set_active_to_trade(bool active);
     
 private:
-    void add_json_string(CJAVal* json, string tmkr_key, string tmkr_value);
-    void add_json_bool(CJAVal* json, string tmkr_key, bool tmkr_value);
-    void add_json_double(CJAVal* json, string tmkr_key, double tmkr_value);
+    void add_json_string(CTMKR_JAVal* json, string tmkr_key, string tmkr_value);
+    void add_json_bool(CTMKR_JAVal* json, string tmkr_key, bool tmkr_value);
+    void add_json_double(CTMKR_JAVal* json, string tmkr_key, double tmkr_value);
 };
 
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CSessionSymbol::CSessionSymbol(string tmkr_symbol) : m_symbol(tmkr_symbol)
+CTMKR_SessionSymbol::CSessionSymbol(string tmkr_symbol) : m_symbol(tmkr_symbol)
 {
     m_active_to_trade = false;
     m_spread = 0.0;
@@ -88,21 +88,21 @@ CSessionSymbol::CSessionSymbol(string tmkr_symbol) : m_symbol(tmkr_symbol)
 //+------------------------------------------------------------------+
 //| Destructor                                                        |
 //+------------------------------------------------------------------+
-CSessionSymbol::~CSessionSymbol()
+CTMKR_SessionSymbol::~CTMKR_SessionSymbol()
 {
 }
 
 //+------------------------------------------------------------------+
 //| Getters and Setters                                               |
 //+------------------------------------------------------------------+
-string CSessionSymbol::get_symbol_name() const { return m_symbol; }
-bool CSessionSymbol::is_active_to_trade() const { return m_active_to_trade; }
-void CSessionSymbol::set_active_to_trade(bool active) { m_active_to_trade = active; }
+string CTMKR_SessionSymbol::get_symbol_name() const { return m_symbol; }
+bool CTMKR_SessionSymbol::is_active_to_trade() const { return m_active_to_trade; }
+void CTMKR_SessionSymbol::set_active_to_trade(bool active) { m_active_to_trade = active; }
 
 //+------------------------------------------------------------------+
 //| Populate symbol data from terminal                                |
 //+------------------------------------------------------------------+
-void CSessionSymbol::populate_data()
+void CTMKR_SessionSymbol::populate_data()
 {
     // Symbol is already selected when iterating with SymbolsTotal(true)
 
@@ -155,9 +155,9 @@ void CSessionSymbol::populate_data()
 //+------------------------------------------------------------------+
 //| Convert to JSON                                                   |
 //+------------------------------------------------------------------+
-CJAVal* CSessionSymbol::to_json()
+CTMKR_JAVal* CTMKR_SessionSymbol::to_json()
 {
-    CJAVal* json = new CJAVal(JA_OBJECT);
+    CTMKR_JAVal* json = new CTMKR_JAVal(TMKR_JA_OBJECT);
     if(json == NULL) return NULL;
     
     add_json_string(json, "symbol", m_symbol);
@@ -189,25 +189,25 @@ CJAVal* CSessionSymbol::to_json()
 //+------------------------------------------------------------------+
 //| Private Helper Implementations                                   |
 //+------------------------------------------------------------------+
-void CSessionSymbol::add_json_string(CJAVal* json, string tmkr_key, string tmkr_value)
+void CTMKR_SessionSymbol::add_json_string(CTMKR_JAVal* json, string tmkr_key, string tmkr_value)
 {
-    CJAVal* tmkr_val = new CJAVal();
+    CTMKR_JAVal* tmkr_val = new CTMKR_JAVal();
     if(tmkr_val == NULL) return;
     tmkr_val.set_string(tmkr_value);
     json.Add(tmkr_key, tmkr_val);
 }
 
-void CSessionSymbol::add_json_bool(CJAVal* json, string tmkr_key, bool tmkr_value)
+void CTMKR_SessionSymbol::add_json_bool(CTMKR_JAVal* json, string tmkr_key, bool tmkr_value)
 {
-    CJAVal* tmkr_val = new CJAVal();
+    CTMKR_JAVal* tmkr_val = new CTMKR_JAVal();
     if(tmkr_val == NULL) return;
     tmkr_val.set_bool(tmkr_value);
     json.Add(tmkr_key, tmkr_val);
 }
 
-void CSessionSymbol::add_json_double(CJAVal* json, string tmkr_key, double tmkr_value)
+void CTMKR_SessionSymbol::add_json_double(CTMKR_JAVal* json, string tmkr_key, double tmkr_value)
 {
-    CJAVal* tmkr_val = new CJAVal();
+    CTMKR_JAVal* tmkr_val = new CTMKR_JAVal();
     if(tmkr_val == NULL) return;
     tmkr_val.set_double(tmkr_value);
     json.Add(tmkr_key, tmkr_val);

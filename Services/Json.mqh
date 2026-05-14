@@ -14,36 +14,36 @@
 //+------------------------------------------------------------------+
 //| JSON value types                                                 |
 //+------------------------------------------------------------------+
-enum ENUM_JA_TYPE
+enum ENUM_TMKR_JA_TYPE
 {
-    JA_NULL,
-    JA_OBJECT,
-    JA_ARRAY,
-    JA_STRING,
-    JA_NUMBER,
-    JA_BOOL
+    TMKR_JA_NULL,
+    TMKR_JA_OBJECT,
+    TMKR_JA_ARRAY,
+    TMKR_JA_STRING,
+    TMKR_JA_NUMBER,
+    TMKR_JA_BOOL
 };
 
-class CJAVal;
+class CTMKR_JAVal;
 
 //+------------------------------------------------------------------+
 //| Class for JSON object key-value pair                             |
 //+------------------------------------------------------------------+
-class CJAObj : public CObject
+class CTMKR_JAObj : public CObject
 {
 public:
     string      m_key;
-    CJAVal     *m_val;
+    CTMKR_JAVal     *m_val;
 
-                CJAObj(string tmkr_key, CJAVal *tmkr_val);
-               ~CJAObj();
+                CTMKR_JAObj(string tmkr_key, CTMKR_JAVal *tmkr_val);
+               ~CTMKR_JAObj();
 };
 
 //+------------------------------------------------------------------+
-CJAObj::CJAObj(string tmkr_key, CJAVal *tmkr_val) : m_key(tmkr_key), m_val(tmkr_val) {}
+CTMKR_JAObj::CJAObj(string tmkr_key, CTMKR_JAVal *tmkr_val) : m_key(tmkr_key), m_val(tmkr_val) {}
 
 //+------------------------------------------------------------------+
-CJAObj::~CJAObj()
+CTMKR_JAObj::~CTMKR_JAObj()
 {
     if(CheckPointer(m_val) == POINTER_DYNAMIC)
         delete m_val;
@@ -52,10 +52,10 @@ CJAObj::~CJAObj()
 //+------------------------------------------------------------------+
 //| Class for a JSON value                                           |
 //+------------------------------------------------------------------+
-class CJAVal : public CObject
+class CTMKR_JAVal : public CObject
 {
 private:
-    ENUM_JA_TYPE m_type;
+    ENUM_TMKR_JA_TYPE m_type;
     string      m_string;
     double      m_number;
     bool        m_bool;
@@ -63,13 +63,13 @@ private:
     CArrayObj  *m_arr;
 
 public:
-                CJAVal(ENUM_JA_TYPE tmkr_type = JA_NULL);
-               ~CJAVal();
+                CTMKR_JAVal(ENUM_TMKR_JA_TYPE tmkr_type = TMKR_JA_NULL);
+               ~CTMKR_JAVal();
 
     bool        parse(string &json_string);
     string      to_string();
 
-    ENUM_JA_TYPE get_type() const;
+    ENUM_TMKR_JA_TYPE get_type() const;
     string      get_string() const;
     double      get_double() const;
     long        get_long() const;
@@ -81,14 +81,14 @@ public:
     void        set_long(const long tmkr_value);
     void        set_bool(const bool tmkr_value);
 
-    bool        Add(const string tmkr_key, CJAVal *tmkr_value);
-    CJAVal     *operator[](const string tmkr_key);
-    CJAVal     *operator[](const string tmkr_key) const;
+    bool        Add(const string tmkr_key, CTMKR_JAVal *tmkr_value);
+    CTMKR_JAVal     *operator[](const string tmkr_key);
+    CTMKR_JAVal     *operator[](const string tmkr_key) const;
     bool        has_key(const string tmkr_key) const;
 
-    bool        Add(CJAVal *tmkr_value);
-    CJAVal     *operator[](const int tmkr_idx);
-    CJAVal     *operator[](const int tmkr_idx) const;
+    bool        Add(CTMKR_JAVal *tmkr_value);
+    CTMKR_JAVal     *operator[](const int tmkr_idx);
+    CTMKR_JAVal     *operator[](const int tmkr_idx) const;
     
     string      serialize();  // Alias for to_string
 
@@ -107,15 +107,15 @@ private:
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CJAVal::CJAVal(ENUM_JA_TYPE tmkr_type) : m_type(tmkr_type), m_number(0), m_bool(false)
+CTMKR_JAVal::CJAVal(ENUM_TMKR_JA_TYPE tmkr_type) : m_type(tmkr_type), m_number(0), m_bool(false)
 {
     m_string = "";
-    if(tmkr_type == JA_OBJECT)
+    if(tmkr_type == TMKR_JA_OBJECT)
         m_obj = new CArrayObj();
     else
         m_obj = NULL;
 
-    if(tmkr_type == JA_ARRAY)
+    if(tmkr_type == TMKR_JA_ARRAY)
         m_arr = new CArrayObj();
     else
         m_arr = NULL;
@@ -124,7 +124,7 @@ CJAVal::CJAVal(ENUM_JA_TYPE tmkr_type) : m_type(tmkr_type), m_number(0), m_bool(
 //+------------------------------------------------------------------+
 //| Destructor                                                        |
 //+------------------------------------------------------------------+
-CJAVal::~CJAVal()
+CTMKR_JAVal::~CTMKR_JAVal()
 {
     if(CheckPointer(m_obj) == POINTER_DYNAMIC)
         delete m_obj;
@@ -135,7 +135,7 @@ CJAVal::~CJAVal()
 //+------------------------------------------------------------------+
 //| Parse JSON string                                                 |
 //+------------------------------------------------------------------+
-bool CJAVal::parse(string &json_string)
+bool CTMKR_JAVal::parse(string &json_string)
 {
     int tmkr_pos = 0;
     return ParseValue(json_string, tmkr_pos);
@@ -144,23 +144,23 @@ bool CJAVal::parse(string &json_string)
 //+------------------------------------------------------------------+
 //| Convert to JSON string                                            |
 //+------------------------------------------------------------------+
-string CJAVal::to_string()
+string CTMKR_JAVal::to_string()
 {
     switch(m_type)
     {
-        case JA_NULL: 
+        case TMKR_JA_NULL: 
             return "null";
-        case JA_STRING: 
+        case TMKR_JA_STRING: 
             return "\"" + Escape(m_string) + "\"";
-        case JA_NUMBER:
+        case TMKR_JA_NUMBER:
         {
             if(m_number == MathFloor(m_number) && MathAbs(m_number) < 1e15)
                 return IntegerToString((long)m_number);
             return DoubleToString(m_number, 8);
         }
-        case JA_BOOL: 
+        case TMKR_JA_BOOL: 
             return m_bool ? "true" : "false";
-        case JA_OBJECT:
+        case TMKR_JA_OBJECT:
         {
             string tmkr_s = "{";
             // Renamed from `total` to avoid shadowing common vendor globals
@@ -168,7 +168,7 @@ string CJAVal::to_string()
             int json_total = m_obj.Total();
             for(int tmkr_i = 0; tmkr_i < json_total; tmkr_i++)
             {
-                CJAObj *tmkr_pair = m_obj.At(tmkr_i);
+                CTMKR_JAObj *tmkr_pair = m_obj.At(tmkr_i);
                 tmkr_s += "\"" + Escape(tmkr_pair.m_key) + "\":" + tmkr_pair.m_val.to_string();
                 if(tmkr_i < json_total - 1)
                     tmkr_s += ",";
@@ -176,14 +176,14 @@ string CJAVal::to_string()
             tmkr_s += "}";
             return tmkr_s;
         }
-        case JA_ARRAY:
+        case TMKR_JA_ARRAY:
         {
             string tmkr_s = "[";
             // Renamed from `total` for the same reason as above.
             int json_total = m_arr.Total();
             for(int tmkr_i = 0; tmkr_i < json_total; tmkr_i++)
             {
-                CJAVal *tmkr_val = m_arr.At(tmkr_i);
+                CTMKR_JAVal *tmkr_val = m_arr.At(tmkr_i);
                 tmkr_s += tmkr_val.to_string();
                 if(tmkr_i < json_total - 1)
                     tmkr_s += ",";
@@ -198,73 +198,73 @@ string CJAVal::to_string()
 //+------------------------------------------------------------------+
 //| Getters                                                           |
 //+------------------------------------------------------------------+
-ENUM_JA_TYPE CJAVal::get_type() const { return m_type; }
-string CJAVal::get_string() const { return m_string; }
-double CJAVal::get_double() const { return m_number; }
-long CJAVal::get_long() const { return (long)m_number; }
-bool CJAVal::get_bool() const { return m_bool; }
+ENUM_TMKR_JA_TYPE CTMKR_JAVal::get_type() const { return m_type; }
+string CTMKR_JAVal::get_string() const { return m_string; }
+double CTMKR_JAVal::get_double() const { return m_number; }
+long CTMKR_JAVal::get_long() const { return (long)m_number; }
+bool CTMKR_JAVal::get_bool() const { return m_bool; }
 
-int CJAVal::count() const
+int CTMKR_JAVal::count() const
 {
-    if(m_type == JA_OBJECT && m_obj != NULL) return m_obj.Total();
-    if(m_type == JA_ARRAY && m_arr != NULL) return m_arr.Total();
+    if(m_type == TMKR_JA_OBJECT && m_obj != NULL) return m_obj.Total();
+    if(m_type == TMKR_JA_ARRAY && m_arr != NULL) return m_arr.Total();
     return 0;
 }
 
 //+------------------------------------------------------------------+
 //| Setters                                                           |
 //+------------------------------------------------------------------+
-void CJAVal::set_string(const string tmkr_value)
+void CTMKR_JAVal::set_string(const string tmkr_value)
 {
-    m_type = JA_STRING;
+    m_type = TMKR_JA_STRING;
     m_string = tmkr_value;
 }
 
-void CJAVal::set_double(const double tmkr_value)
+void CTMKR_JAVal::set_double(const double tmkr_value)
 {
-    m_type = JA_NUMBER;
+    m_type = TMKR_JA_NUMBER;
     m_number = tmkr_value;
 }
 
-void CJAVal::set_long(const long tmkr_value)
+void CTMKR_JAVal::set_long(const long tmkr_value)
 {
-    m_type = JA_NUMBER;
+    m_type = TMKR_JA_NUMBER;
     m_number = (double)tmkr_value;
 }
 
-void CJAVal::set_bool(const bool tmkr_value)
+void CTMKR_JAVal::set_bool(const bool tmkr_value)
 {
-    m_type = JA_BOOL;
+    m_type = TMKR_JA_BOOL;
     m_bool = tmkr_value;
 }
 
 //+------------------------------------------------------------------+
 //| Object methods                                                    |
 //+------------------------------------------------------------------+
-bool CJAVal::Add(const string tmkr_key, CJAVal* tmkr_value)
+bool CTMKR_JAVal::Add(const string tmkr_key, CTMKR_JAVal* tmkr_value)
 {
-    if(m_type != JA_OBJECT) return false;
+    if(m_type != TMKR_JA_OBJECT) return false;
     if(m_obj == NULL) m_obj = new CArrayObj();
-    return m_obj.Add(new CJAObj(tmkr_key, tmkr_value));
+    return m_obj.Add(new CTMKR_JAObj(tmkr_key, tmkr_value));
 }
 
-CJAVal* CJAVal::operator[](const string tmkr_key)
+CTMKR_JAVal* CTMKR_JAVal::operator[](const string tmkr_key)
 {
-    if(m_type != JA_OBJECT || m_obj == NULL) return NULL;
+    if(m_type != TMKR_JA_OBJECT || m_obj == NULL) return NULL;
     for(int tmkr_i = 0; tmkr_i < m_obj.Total(); tmkr_i++)
     {
-        CJAObj* tmkr_pair = m_obj.At(tmkr_i);
+        CTMKR_JAObj* tmkr_pair = m_obj.At(tmkr_i);
         if(tmkr_pair.m_key == tmkr_key) return tmkr_pair.m_val;
     }
     return NULL;
 }
 
-CJAVal* CJAVal::operator[](const string tmkr_key) const
+CTMKR_JAVal* CTMKR_JAVal::operator[](const string tmkr_key) const
 {
-    if(m_type != JA_OBJECT || m_obj == NULL) return NULL;
+    if(m_type != TMKR_JA_OBJECT || m_obj == NULL) return NULL;
     for(int tmkr_i = 0; tmkr_i < m_obj.Total(); tmkr_i++)
     {
-        CJAObj* tmkr_pair = m_obj.At(tmkr_i);
+        CTMKR_JAObj* tmkr_pair = m_obj.At(tmkr_i);
         if(tmkr_pair.m_key == tmkr_key) return tmkr_pair.m_val;
     }
     return NULL;
@@ -273,36 +273,36 @@ CJAVal* CJAVal::operator[](const string tmkr_key) const
 //+------------------------------------------------------------------+
 //| Array methods                                                     |
 //+------------------------------------------------------------------+
-bool CJAVal::Add(CJAVal* tmkr_value)
+bool CTMKR_JAVal::Add(CTMKR_JAVal* tmkr_value)
 {
-    if(m_type != JA_ARRAY) return false;
+    if(m_type != TMKR_JA_ARRAY) return false;
     if(m_arr == NULL) m_arr = new CArrayObj();
     return m_arr.Add(tmkr_value);
 }
 
 // Params renamed from `index` to `idx` to avoid shadow warnings — vendor EAs
 // sometimes declare a global `double index` (Loss Index, position index, etc.).
-CJAVal* CJAVal::operator[](const int tmkr_idx)
+CTMKR_JAVal* CTMKR_JAVal::operator[](const int tmkr_idx)
 {
-    if(m_type != JA_ARRAY || m_arr == NULL) return NULL;
+    if(m_type != TMKR_JA_ARRAY || m_arr == NULL) return NULL;
     return m_arr.At(tmkr_idx);
 }
 
-CJAVal* CJAVal::operator[](const int tmkr_idx) const
+CTMKR_JAVal* CTMKR_JAVal::operator[](const int tmkr_idx) const
 {
-    if(m_type != JA_ARRAY || m_arr == NULL) return NULL;
+    if(m_type != TMKR_JA_ARRAY || m_arr == NULL) return NULL;
     return m_arr.At(tmkr_idx);
 }
 
 //+------------------------------------------------------------------+
 //| Check if object has a key                                         |
 //+------------------------------------------------------------------+
-bool CJAVal::has_key(const string tmkr_key) const
+bool CTMKR_JAVal::has_key(const string tmkr_key) const
 {
-    if(m_type != JA_OBJECT || m_obj == NULL) return false;
+    if(m_type != TMKR_JA_OBJECT || m_obj == NULL) return false;
     for(int tmkr_i = 0; tmkr_i < m_obj.Total(); tmkr_i++)
     {
-        CJAObj* tmkr_pair = m_obj.At(tmkr_i);
+        CTMKR_JAObj* tmkr_pair = m_obj.At(tmkr_i);
         if(tmkr_pair.m_key == tmkr_key) return true;
     }
     return false;
@@ -311,7 +311,7 @@ bool CJAVal::has_key(const string tmkr_key) const
 //+------------------------------------------------------------------+
 //| Serialize to JSON string (alias for to_string)                    |
 //+------------------------------------------------------------------+
-string CJAVal::serialize()
+string CTMKR_JAVal::serialize()
 {
     return to_string();
 }
@@ -319,7 +319,7 @@ string CJAVal::serialize()
 //+------------------------------------------------------------------+
 //| Skip whitespace characters                                        |
 //+------------------------------------------------------------------+
-void CJAVal::SkipWhitespace(string &json, int &tmkr_pos)
+void CTMKR_JAVal::SkipWhitespace(string &json, int &tmkr_pos)
 {
     int tmkr_len = StringLen(json);
     while(tmkr_pos < tmkr_len)
@@ -335,7 +335,7 @@ void CJAVal::SkipWhitespace(string &json, int &tmkr_pos)
 //+------------------------------------------------------------------+
 //| Parse any JSON value                                              |
 //+------------------------------------------------------------------+
-bool CJAVal::ParseValue(string &json, int &tmkr_pos)
+bool CTMKR_JAVal::ParseValue(string &json, int &tmkr_pos)
 {
     SkipWhitespace(json, tmkr_pos);
     
@@ -361,12 +361,12 @@ bool CJAVal::ParseValue(string &json, int &tmkr_pos)
 //+------------------------------------------------------------------+
 //| Parse JSON object                                                 |
 //+------------------------------------------------------------------+
-bool CJAVal::ParseObject(string &json, int &tmkr_pos)
+bool CTMKR_JAVal::ParseObject(string &json, int &tmkr_pos)
 {
     if(StringGetCharacter(json, tmkr_pos) != '{')
         return false;
     
-    m_type = JA_OBJECT;
+    m_type = TMKR_JA_OBJECT;
     if(m_obj == NULL)
         m_obj = new CArrayObj();
     
@@ -386,7 +386,7 @@ bool CJAVal::ParseObject(string &json, int &tmkr_pos)
         if(StringGetCharacter(json, tmkr_pos) != '"')
             return false;
         
-        CJAVal* keyVal = new CJAVal();
+        CTMKR_JAVal* keyVal = new CTMKR_JAVal();
         if(!keyVal.ParseString(json, tmkr_pos))
         {
             delete keyVal;
@@ -403,14 +403,14 @@ bool CJAVal::ParseObject(string &json, int &tmkr_pos)
         
         SkipWhitespace(json, tmkr_pos);
         
-        CJAVal* tmkr_value = new CJAVal();
+        CTMKR_JAVal* tmkr_value = new CTMKR_JAVal();
         if(!tmkr_value.ParseValue(json, tmkr_pos))
         {
             delete tmkr_value;
             return false;
         }
         
-        m_obj.Add(new CJAObj(tmkr_key, tmkr_value));
+        m_obj.Add(new CTMKR_JAObj(tmkr_key, tmkr_value));
         
         SkipWhitespace(json, tmkr_pos);
         
@@ -438,12 +438,12 @@ bool CJAVal::ParseObject(string &json, int &tmkr_pos)
 //+------------------------------------------------------------------+
 //| Parse JSON array                                                  |
 //+------------------------------------------------------------------+
-bool CJAVal::ParseArray(string &json, int &tmkr_pos)
+bool CTMKR_JAVal::ParseArray(string &json, int &tmkr_pos)
 {
     if(StringGetCharacter(json, tmkr_pos) != '[')
         return false;
     
-    m_type = JA_ARRAY;
+    m_type = TMKR_JA_ARRAY;
     if(m_arr == NULL)
         m_arr = new CArrayObj();
     
@@ -460,7 +460,7 @@ bool CJAVal::ParseArray(string &json, int &tmkr_pos)
     {
         SkipWhitespace(json, tmkr_pos);
         
-        CJAVal* tmkr_value = new CJAVal();
+        CTMKR_JAVal* tmkr_value = new CTMKR_JAVal();
         if(!tmkr_value.ParseValue(json, tmkr_pos))
         {
             delete tmkr_value;
@@ -495,7 +495,7 @@ bool CJAVal::ParseArray(string &json, int &tmkr_pos)
 //+------------------------------------------------------------------+
 //| Parse JSON string                                                 |
 //+------------------------------------------------------------------+
-bool CJAVal::ParseString(string &json, int &tmkr_pos)
+bool CTMKR_JAVal::ParseString(string &json, int &tmkr_pos)
 {
     if(StringGetCharacter(json, tmkr_pos) != '"')
         return false;
@@ -511,7 +511,7 @@ bool CJAVal::ParseString(string &json, int &tmkr_pos)
         if(tmkr_c == '"')
         {
             tmkr_pos++;
-            m_type = JA_STRING;
+            m_type = TMKR_JA_STRING;
             m_string = tmkr_result;
             return true;
         }
@@ -571,7 +571,7 @@ bool CJAVal::ParseString(string &json, int &tmkr_pos)
 //+------------------------------------------------------------------+
 //| Parse JSON number                                                 |
 //+------------------------------------------------------------------+
-bool CJAVal::ParseNumber(string &json, int &tmkr_pos)
+bool CTMKR_JAVal::ParseNumber(string &json, int &tmkr_pos)
 {
     int tmkr_start = tmkr_pos;
     int tmkr_len = StringLen(json);
@@ -656,7 +656,7 @@ bool CJAVal::ParseNumber(string &json, int &tmkr_pos)
     }
     
     string numStr = StringSubstr(json, tmkr_start, tmkr_pos - tmkr_start);
-    m_type = JA_NUMBER;
+    m_type = TMKR_JA_NUMBER;
     m_number = StringToDouble(numStr);
     
     return true;
@@ -665,13 +665,13 @@ bool CJAVal::ParseNumber(string &json, int &tmkr_pos)
 //+------------------------------------------------------------------+
 //| Parse JSON literal (true, false, null)                            |
 //+------------------------------------------------------------------+
-bool CJAVal::ParseLiteral(string &json, int &tmkr_pos)
+bool CTMKR_JAVal::ParseLiteral(string &json, int &tmkr_pos)
 {
     int tmkr_len = StringLen(json);
     
     if(tmkr_pos + 4 <= tmkr_len && StringSubstr(json, tmkr_pos, 4) == "true")
     {
-        m_type = JA_BOOL;
+        m_type = TMKR_JA_BOOL;
         m_bool = true;
         tmkr_pos += 4;
         return true;
@@ -679,7 +679,7 @@ bool CJAVal::ParseLiteral(string &json, int &tmkr_pos)
     
     if(tmkr_pos + 5 <= tmkr_len && StringSubstr(json, tmkr_pos, 5) == "false")
     {
-        m_type = JA_BOOL;
+        m_type = TMKR_JA_BOOL;
         m_bool = false;
         tmkr_pos += 5;
         return true;
@@ -687,7 +687,7 @@ bool CJAVal::ParseLiteral(string &json, int &tmkr_pos)
     
     if(tmkr_pos + 4 <= tmkr_len && StringSubstr(json, tmkr_pos, 4) == "null")
     {
-        m_type = JA_NULL;
+        m_type = TMKR_JA_NULL;
         tmkr_pos += 4;
         return true;
     }
@@ -698,7 +698,7 @@ bool CJAVal::ParseLiteral(string &json, int &tmkr_pos)
 //+------------------------------------------------------------------+
 //| Escape special characters in string                               |
 //+------------------------------------------------------------------+
-string CJAVal::Escape(const string tmkr_s)
+string CTMKR_JAVal::Escape(const string tmkr_s)
 {
     string tmkr_result = "";
     int tmkr_len = StringLen(tmkr_s);
@@ -744,7 +744,7 @@ string CJAVal::Escape(const string tmkr_s)
 //+------------------------------------------------------------------+
 //| Unescape special characters in string                             |
 //+------------------------------------------------------------------+
-string CJAVal::Unescape(const string tmkr_s)
+string CTMKR_JAVal::Unescape(const string tmkr_s)
 {
     string tmkr_result = "";
     int tmkr_len = StringLen(tmkr_s);

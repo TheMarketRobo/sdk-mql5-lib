@@ -19,7 +19,7 @@
 #include "CTheMarketRobo_Base.mqh"
 
 // Alias so existing code using CTheMarketRobo_Bot_Base still compiles unchanged
-#define CTheMarketRobo_Bot_Base CTheMarketRobo_Base
+#define CTMKR_BotBase CTMKR_RobotBase
 
 #endif
 //+------------------------------------------------------------------+

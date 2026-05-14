@@ -30,25 +30,25 @@
  * - Session start payload omits magic_number, robot_config, and session_symbols
  * - Heartbeat payload omits config/symbol change results
  */
-class CSDKContext : public CObject
+class CTMKR_Context : public CObject
 {
 private:
-    CSDKOptions* m_options;
+    CTMKR_Options* m_options;
 
 public:
-    CSessionManager*       session_manager;
-    CHeartbeatManager*     heartbeat_manager;
-    CTokenManager*         token_manager;
-    CConfigurationManager* config_manager;
-    CSymbolManager*        symbol_manager;
-    CHttpService*          http_service;
-    CDataCollectorService* data_collector;
-    IRobotConfig*          robot_config;
+    CTMKR_SessionManager*       session_manager;
+    CTMKR_HeartbeatManager*     heartbeat_manager;
+    CTMKR_TokenManager*         token_manager;
+    CTMKR_ConfigurationManager* config_manager;
+    CTMKR_SymbolManager*        symbol_manager;
+    CTMKR_HttpService*          http_service;
+    CTMKR_DataCollectorService* data_collector;
+    ITMKR_RobotConfig*          robot_config;
 
 public:
-    CSDKContext(string api_key, string robot_version_uuid, long magic_number, IRobotConfig* config,
-                ENUM_SDK_PRODUCT_TYPE product_type = PRODUCT_TYPE_ROBOT);
-    ~CSDKContext();
+    CTMKR_Context(string api_key, string robot_version_uuid, long magic_number, ITMKR_RobotConfig* config,
+                ENUM_TMKR_PRODUCT_TYPE product_type = PRODUCT_TYPE_ROBOT);
+    ~CTMKR_Context();
 
     bool start();
     bool try_restore_session();
@@ -72,12 +72,12 @@ public:
     void set_max_heartbeat_failure_intervals(int intervals);
     int  get_max_heartbeat_failure_intervals() const;
     
-    CSDKOptions* get_options() const;
+    CTMKR_Options* get_options() const;
     void print_configuration() const;
     
     bool is_indicator() const;
     bool is_robot() const;
-    ENUM_SDK_PRODUCT_TYPE get_product_type() const;
+    ENUM_TMKR_PRODUCT_TYPE get_product_type() const;
 
 private:
     string get_state_filename() const;
@@ -88,8 +88,8 @@ private:
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CSDKContext::CSDKContext(string api_key, string robot_version_uuid, long magic_number, IRobotConfig* config,
-                         ENUM_SDK_PRODUCT_TYPE product_type)
+CTMKR_Context::CSDKContext(string api_key, string robot_version_uuid, long magic_number, ITMKR_RobotConfig* config,
+                         ENUM_TMKR_PRODUCT_TYPE product_type)
 {
     m_options             = NULL;
     session_manager       = NULL;
@@ -103,49 +103,49 @@ CSDKContext::CSDKContext(string api_key, string robot_version_uuid, long magic_n
 
     m_consecutive_heartbeat_failures = 0;
 
-    if(SDKShouldLogInfo()) Print("SDK Info: TheMarketRobo SDK v", SDK_VERSION);
-    if(SDKShouldLogInfo()) Print("SDK Info: API Base URL = ", SDK_API_BASE_URL);
+    if(SDKShouldLogInfo()) Print("SDK Info: TheMarketRobo SDK v", TMKR_SDK_VERSION);
+    if(SDKShouldLogInfo()) Print("SDK Info: API Base URL = ", TMKR_API_BASE_URL);
     if(SDKShouldLogInfo()) Print("SDK Info: Product type = ", (product_type == PRODUCT_TYPE_INDICATOR) ? "INDICATOR" : "ROBOT");
 
     robot_config = config;
     
-    m_options = new CSDKOptions();
+    m_options = new CTMKR_Options();
     if(CheckPointer(m_options) == POINTER_INVALID) { Print("SDK Error: Failed to create CSDKOptions"); return; }
     
     // Apply product type — this also enforces indicator restrictions on config/symbol toggles
     m_options.set_product_type(product_type);
 
-    http_service = new CHttpService(product_type);
+    http_service = new CTMKR_HttpService(product_type);
     if(CheckPointer(http_service) == POINTER_INVALID) { Print("SDK Error: Failed to create CHttpService"); return; }
 
-    data_collector = new CDataCollectorService();
+    data_collector = new CTMKR_DataCollectorService();
     if(CheckPointer(data_collector) == POINTER_INVALID) { Print("SDK Error: Failed to create CDataCollectorService"); return; }
 
-    token_manager = new CTokenManager();
+    token_manager = new CTMKR_TokenManager();
     if(CheckPointer(token_manager) == POINTER_INVALID) { Print("SDK Error: Failed to create CTokenManager"); return; }
 
     // For indicators, robot_config is NULL — config_manager is created but permanently disabled.
-    config_manager = new CConfigurationManager(robot_config);
+    config_manager = new CTMKR_ConfigurationManager(robot_config);
     if(CheckPointer(config_manager) == POINTER_INVALID) { Print("SDK Error: Failed to create CConfigurationManager"); return; }
     if(product_type == PRODUCT_TYPE_INDICATOR)
         config_manager.set_enabled(false);
 
-    symbol_manager = new CSymbolManager();
+    symbol_manager = new CTMKR_SymbolManager();
     if(CheckPointer(symbol_manager) == POINTER_INVALID) { Print("SDK Error: Failed to create CSymbolManager"); return; }
     if(product_type == PRODUCT_TYPE_INDICATOR)
         symbol_manager.set_enabled(false);
     
-    session_manager = new CSessionManager(api_key, robot_version_uuid, magic_number, GetPointer(this));
+    session_manager = new CTMKR_SessionManager(api_key, robot_version_uuid, magic_number, GetPointer(this));
     if(CheckPointer(session_manager) == POINTER_INVALID) { Print("SDK Error: Failed to create CSessionManager"); return; }
 
-    heartbeat_manager = new CHeartbeatManager(GetPointer(this));
+    heartbeat_manager = new CTMKR_HeartbeatManager(GetPointer(this));
     if(CheckPointer(heartbeat_manager) == POINTER_INVALID) { Print("SDK Error: Failed to create CHeartbeatManager"); return; }
 }
 
 //+------------------------------------------------------------------+
 //| Destructor                                                        |
 //+------------------------------------------------------------------+
-CSDKContext::~CSDKContext()
+CTMKR_Context::~CTMKR_Context()
 {
     if(CheckPointer(heartbeat_manager) == POINTER_DYNAMIC) delete heartbeat_manager;
     if(CheckPointer(session_manager) == POINTER_DYNAMIC) delete session_manager;
@@ -160,7 +160,7 @@ CSDKContext::~CSDKContext()
 //+------------------------------------------------------------------+
 //| Start session                                                     |
 //+------------------------------------------------------------------+
-bool CSDKContext::start()
+bool CTMKR_Context::start()
 {
     if(CheckPointer(session_manager) == POINTER_INVALID) return false;
     return session_manager.start_session();
@@ -169,7 +169,7 @@ bool CSDKContext::start()
 //+------------------------------------------------------------------+
 //| Build the state filename unique to this chart + API key           |
 //+------------------------------------------------------------------+
-string CSDKContext::get_state_filename() const
+string CTMKR_Context::get_state_filename() const
 {
     string api_key = "";
     if(CheckPointer(session_manager) != POINTER_INVALID)
@@ -182,7 +182,7 @@ string CSDKContext::get_state_filename() const
 //| Save session state to file for resumption after non-destructive   |
 //| deinit (chart change, parameter change, recompile, etc.)          |
 //+------------------------------------------------------------------+
-void CSDKContext::save_session_state()
+void CTMKR_Context::save_session_state()
 {
     if(CheckPointer(session_manager) == POINTER_INVALID || !session_manager.is_session_active())
         return;
@@ -217,7 +217,7 @@ void CSDKContext::save_session_state()
 //| Try to restore a previously saved session. Returns true if the    |
 //| session was successfully resumed (no /robot/start needed).        |
 //+------------------------------------------------------------------+
-bool CSDKContext::try_restore_session()
+bool CTMKR_Context::try_restore_session()
 {
     string fname = get_state_filename();
 
@@ -283,7 +283,7 @@ bool CSDKContext::try_restore_session()
 //+------------------------------------------------------------------+
 //| Delete saved session state file (destructive deinit)              |
 //+------------------------------------------------------------------+
-void CSDKContext::clear_session_state()
+void CTMKR_Context::clear_session_state()
 {
     string fname = get_state_filename();
     if(FileIsExist(fname))
@@ -293,7 +293,7 @@ void CSDKContext::clear_session_state()
 //+------------------------------------------------------------------+
 //| Build the kill filename (same pattern as session state file)       |
 //+------------------------------------------------------------------+
-string CSDKContext::get_kill_filename() const
+string CTMKR_Context::get_kill_filename() const
 {
     string api_key = "";
     if(CheckPointer(session_manager) != POINTER_INVALID)
@@ -307,7 +307,7 @@ string CSDKContext::get_kill_filename() const
 //| timeframe change. Deleted only on destructive deinit (user removes |
 //| indicator from chart) to allow a fresh session later.              |
 //+------------------------------------------------------------------+
-void CSDKContext::write_kill_file()
+void CTMKR_Context::write_kill_file()
 {
     string fname = get_kill_filename();
     int handle = FileOpen(fname, FILE_WRITE | FILE_TXT | FILE_ANSI);
@@ -322,7 +322,7 @@ void CSDKContext::write_kill_file()
 //+------------------------------------------------------------------+
 //| Check if a kill file exists (indicator was previously terminated)  |
 //+------------------------------------------------------------------+
-bool CSDKContext::check_kill_file() const
+bool CTMKR_Context::check_kill_file() const
 {
     return FileIsExist(get_kill_filename());
 }
@@ -330,7 +330,7 @@ bool CSDKContext::check_kill_file() const
 //+------------------------------------------------------------------+
 //| Delete the kill file (destructive deinit — allow fresh start)      |
 //+------------------------------------------------------------------+
-void CSDKContext::clear_kill_file()
+void CTMKR_Context::clear_kill_file()
 {
     string fname = get_kill_filename();
     if(FileIsExist(fname))
@@ -343,7 +343,7 @@ void CSDKContext::clear_kill_file()
 //+------------------------------------------------------------------+
 //| On timer                                                          |
 //+------------------------------------------------------------------+
-void CSDKContext::on_timer()
+void CTMKR_Context::on_timer()
 {
     // Check if session manager is valid
     if(CheckPointer(session_manager) == POINTER_INVALID)
@@ -390,7 +390,7 @@ void CSDKContext::on_timer()
     
     // Build heartbeat payload
     if(SDKShouldLogDebug()) Print("SDK Debug: Building heartbeat payload...");
-    CJAVal* payload = heartbeat_manager.build_heartbeat_payload();
+    CTMKR_JAVal* payload = heartbeat_manager.build_heartbeat_payload();
     if(CheckPointer(payload) == POINTER_INVALID)
     {
         Print("SDK Error: Failed to build heartbeat payload");
@@ -400,7 +400,7 @@ void CSDKContext::on_timer()
     // Send heartbeat
     string payload_str = payload.to_string();
     if(SDKShouldLogDebug()) Print("SDK Debug: Sending heartbeat request...");
-    CHttpResponse* response = http_service.post("/robot/heartbeat", token_manager.get_token(), payload_str);
+    CTMKR_HttpResponse* response = http_service.post("/robot/heartbeat", token_manager.get_token(), payload_str);
 
     if(CheckPointer(response) == POINTER_INVALID)
     {
@@ -414,8 +414,8 @@ void CSDKContext::on_timer()
             string tmkr_reason = "Connection lost: maximum heartbeat failure intervals (" +
                             IntegerToString(m_options.get_max_heartbeat_failure_intervals()) + ") exceeded.";
             terminate(tmkr_reason);
-            CJAVal event_json(JA_OBJECT);
-            CJAVal* reason_val = new CJAVal();
+            CTMKR_JAVal event_json(TMKR_JA_OBJECT);
+            CTMKR_JAVal* reason_val = new CTMKR_JAVal();
             reason_val.set_string(tmkr_reason);
             event_json.Add("reason", reason_val);
             Fire_Termination_Requested_Event(0, event_json.to_string());
@@ -466,8 +466,8 @@ void CSDKContext::on_timer()
             string tmkr_reason = "Connection lost: maximum heartbeat failure intervals (" +
                             IntegerToString(m_options.get_max_heartbeat_failure_intervals()) + ") exceeded.";
             terminate(tmkr_reason);
-            CJAVal event_json(JA_OBJECT);
-            CJAVal* reason_val = new CJAVal();
+            CTMKR_JAVal event_json(TMKR_JA_OBJECT);
+            CTMKR_JAVal* reason_val = new CTMKR_JAVal();
             reason_val.set_string(tmkr_reason);
             event_json.Add("reason", reason_val);
             Fire_Termination_Requested_Event(0, event_json.to_string());
@@ -489,11 +489,11 @@ void CSDKContext::on_timer()
 //+------------------------------------------------------------------+
 //| Terminate session                                                 |
 //+------------------------------------------------------------------+
-void CSDKContext::terminate(string tmkr_reason)
+void CTMKR_Context::terminate(string tmkr_reason)
 {
     if(CheckPointer(session_manager) != POINTER_INVALID && session_manager.is_session_active())
     {
-        CFinalStats* stats = new CFinalStats();
+        CTMKR_FinalStats* stats = new CTMKR_FinalStats();
         session_manager.end_session(tmkr_reason, stats);
         delete stats;
     }
@@ -502,13 +502,13 @@ void CSDKContext::terminate(string tmkr_reason)
 //+------------------------------------------------------------------+
 //| Token refresh threshold                                           |
 //+------------------------------------------------------------------+
-void CSDKContext::set_token_refresh_threshold_seconds(int seconds)
+void CTMKR_Context::set_token_refresh_threshold_seconds(int seconds)
 {
     if(CheckPointer(token_manager) != POINTER_INVALID)
         token_manager.set_refresh_threshold_seconds(seconds);
 }
 
-int CSDKContext::get_token_refresh_threshold_seconds() const
+int CTMKR_Context::get_token_refresh_threshold_seconds() const
 {
     if(CheckPointer(token_manager) != POINTER_INVALID)
         return token_manager.get_refresh_threshold_seconds();
@@ -518,7 +518,7 @@ int CSDKContext::get_token_refresh_threshold_seconds() const
 //+------------------------------------------------------------------+
 //| Config change requests toggle                                     |
 //+------------------------------------------------------------------+
-void CSDKContext::set_enable_config_change_requests(bool enable)
+void CTMKR_Context::set_enable_config_change_requests(bool enable)
 {
     if(CheckPointer(m_options) != POINTER_INVALID)
         m_options.set_enable_config_change_requests(enable);
@@ -526,7 +526,7 @@ void CSDKContext::set_enable_config_change_requests(bool enable)
         config_manager.set_enabled(enable);
 }
 
-bool CSDKContext::is_config_change_requests_enabled() const
+bool CTMKR_Context::is_config_change_requests_enabled() const
 {
     if(CheckPointer(m_options) != POINTER_INVALID)
         return m_options.is_config_change_requests_enabled();
@@ -536,7 +536,7 @@ bool CSDKContext::is_config_change_requests_enabled() const
 //+------------------------------------------------------------------+
 //| Symbol change requests toggle                                     |
 //+------------------------------------------------------------------+
-void CSDKContext::set_enable_symbol_change_requests(bool enable)
+void CTMKR_Context::set_enable_symbol_change_requests(bool enable)
 {
     if(CheckPointer(m_options) != POINTER_INVALID)
         m_options.set_enable_symbol_change_requests(enable);
@@ -544,7 +544,7 @@ void CSDKContext::set_enable_symbol_change_requests(bool enable)
         symbol_manager.set_enabled(enable);
 }
 
-bool CSDKContext::is_symbol_change_requests_enabled() const
+bool CTMKR_Context::is_symbol_change_requests_enabled() const
 {
     if(CheckPointer(m_options) != POINTER_INVALID)
         return m_options.is_symbol_change_requests_enabled();
@@ -554,23 +554,23 @@ bool CSDKContext::is_symbol_change_requests_enabled() const
 //+------------------------------------------------------------------+
 //| Max heartbeat failure intervals (connection-lost removal)         |
 //+------------------------------------------------------------------+
-void CSDKContext::set_max_heartbeat_failure_intervals(int intervals)
+void CTMKR_Context::set_max_heartbeat_failure_intervals(int intervals)
 {
     if(CheckPointer(m_options) != POINTER_INVALID)
         m_options.set_max_heartbeat_failure_intervals(intervals);
 }
 
-int CSDKContext::get_max_heartbeat_failure_intervals() const
+int CTMKR_Context::get_max_heartbeat_failure_intervals() const
 {
     if(CheckPointer(m_options) != POINTER_INVALID)
         return m_options.get_max_heartbeat_failure_intervals();
-    return SDK_DEFAULT_MAX_HEARTBEAT_FAILURE_INTERVALS;
+    return TMKR_DEFAULT_MAX_HEARTBEAT_FAILURE_INTERVALS;
 }
 
 //+------------------------------------------------------------------+
 //| Options access                                                    |
 //+------------------------------------------------------------------+
-CSDKOptions* CSDKContext::get_options() const
+CTMKR_Options* CTMKR_Context::get_options() const
 {
     return m_options;
 }
@@ -578,7 +578,7 @@ CSDKOptions* CSDKContext::get_options() const
 //+------------------------------------------------------------------+
 //| Print configuration                                               |
 //+------------------------------------------------------------------+
-void CSDKContext::print_configuration() const
+void CTMKR_Context::print_configuration() const
 {
     if(CheckPointer(m_options) != POINTER_INVALID)
         m_options.print_options();
@@ -587,21 +587,21 @@ void CSDKContext::print_configuration() const
 //+------------------------------------------------------------------+
 //| Product type helpers                                              |
 //+------------------------------------------------------------------+
-bool CSDKContext::is_indicator() const
+bool CTMKR_Context::is_indicator() const
 {
     if(CheckPointer(m_options) != POINTER_INVALID)
         return m_options.is_indicator();
     return false;
 }
 
-bool CSDKContext::is_robot() const
+bool CTMKR_Context::is_robot() const
 {
     if(CheckPointer(m_options) != POINTER_INVALID)
         return m_options.is_robot();
     return true;
 }
 
-ENUM_SDK_PRODUCT_TYPE CSDKContext::get_product_type() const
+ENUM_TMKR_PRODUCT_TYPE CTMKR_Context::get_product_type() const
 {
     if(CheckPointer(m_options) != POINTER_INVALID)
         return m_options.get_product_type();
