@@ -25,7 +25,7 @@ public:
     
     void add_field(CConfigField* field);
     CConfigField* get_field(string key);
-    CConfigField* get_field_by_index(int index);
+    CConfigField* get_field_by_index(int idx);
     int get_field_count();
     void get_field_keys(string &keys[]);
     
@@ -73,11 +73,12 @@ CConfigField* CConfigSchema::get_field(string key)
     return NULL;
 }
 
-CConfigField* CConfigSchema::get_field_by_index(int index)
+// Param renamed from `index` to `idx` — see notes in Services/Json.mqh.
+CConfigField* CConfigSchema::get_field_by_index(int idx)
 {
-    if(index < 0 || index >= m_fields.Total())
+    if(idx < 0 || idx >= m_fields.Total())
         return NULL;
-    return m_fields.At(index);
+    return m_fields.At(idx);
 }
 
 int CConfigSchema::get_field_count()

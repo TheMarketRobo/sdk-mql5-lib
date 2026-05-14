@@ -154,10 +154,12 @@ int TMR_MQLInfoInteger(int property_id)   { return (int)MQLInfoInteger(property_
       return ChartIndicatorsTotal(chart_id, sub_window);
    }
 
-   string TMR_ChartIndicatorName(long chart_id, int sub_window, int index)
+   string TMR_ChartIndicatorName(long chart_id, int sub_window, int idx)
    {
-      // Try the real function — needed for the fallback scan in SDKRemoveIndicatorFromChart.
-      return ChartIndicatorName(chart_id, sub_window, index);
+      // Param renamed from `index` to `idx` to avoid shadow warnings — see
+      // Services/Json.mqh. Try the real function — needed for the fallback
+      // scan in SDKRemoveIndicatorFromChart.
+      return ChartIndicatorName(chart_id, sub_window, idx);
    }
 #else
    bool TMR_ChartIndicatorDelete(long chart_id, int sub_window, string indicator_name)
@@ -170,9 +172,10 @@ int TMR_MQLInfoInteger(int property_id)   { return (int)MQLInfoInteger(property_
       return ChartIndicatorsTotal(chart_id, sub_window);
    }
 
-   string TMR_ChartIndicatorName(long chart_id, int sub_window, int index)
+   string TMR_ChartIndicatorName(long chart_id, int sub_window, int idx)
    {
-      return ChartIndicatorName(chart_id, sub_window, index);
+      // Param renamed from `index` to `idx` — see comment on the MQL5 branch above.
+      return ChartIndicatorName(chart_id, sub_window, idx);
    }
 #endif
 

@@ -47,7 +47,7 @@ public:
     void clear_pending_results();
     
     int get_symbol_count() const;
-    CSessionSymbol* get_symbol(int index);
+    CSessionSymbol* get_symbol(int idx);
     CSessionSymbol* find_symbol(string symbol_name);
 };
 
@@ -119,11 +119,12 @@ int CSymbolManager::get_symbol_count() const
 //+------------------------------------------------------------------+
 //| Get symbol by index                                               |
 //+------------------------------------------------------------------+
-CSessionSymbol* CSymbolManager::get_symbol(int index)
+// Param renamed from `index` to `idx` — see notes in Services/Json.mqh.
+CSessionSymbol* CSymbolManager::get_symbol(int idx)
 {
     if(CheckPointer(m_session_symbols) == POINTER_INVALID) return NULL;
-    if(index < 0 || index >= m_session_symbols.Total()) return NULL;
-    return m_session_symbols.At(index);
+    if(idx < 0 || idx >= m_session_symbols.Total()) return NULL;
+    return m_session_symbols.At(idx);
 }
 
 //+------------------------------------------------------------------+

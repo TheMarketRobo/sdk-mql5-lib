@@ -87,8 +87,8 @@ public:
     bool        has_key(const string key) const;
 
     bool        Add(CJAVal *value);
-    CJAVal     *operator[](const int index);
-    CJAVal     *operator[](const int index) const;
+    CJAVal     *operator[](const int idx);
+    CJAVal     *operator[](const int idx) const;
     
     string      serialize();  // Alias for to_string
 
@@ -280,16 +280,18 @@ bool CJAVal::Add(CJAVal* value)
     return m_arr.Add(value);
 }
 
-CJAVal* CJAVal::operator[](const int index)
+// Params renamed from `index` to `idx` to avoid shadow warnings — vendor EAs
+// sometimes declare a global `double index` (Loss Index, position index, etc.).
+CJAVal* CJAVal::operator[](const int idx)
 {
     if(m_type != JA_ARRAY || m_arr == NULL) return NULL;
-    return m_arr.At(index);
+    return m_arr.At(idx);
 }
 
-CJAVal* CJAVal::operator[](const int index) const
+CJAVal* CJAVal::operator[](const int idx) const
 {
     if(m_type != JA_ARRAY || m_arr == NULL) return NULL;
-    return m_arr.At(index);
+    return m_arr.At(idx);
 }
 
 //+------------------------------------------------------------------+
