@@ -44,7 +44,7 @@ public:
 };
 
 //+------------------------------------------------------------------+
-CTMKR_ConfigSchema::CConfigSchema()
+CTMKR_ConfigSchema::CTMKR_ConfigSchema()
 {
     m_fields = new CArrayObj();
     m_fields.FreeMode(true);

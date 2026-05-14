@@ -56,7 +56,7 @@ public:
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CTMKR_HeartbeatManager::CHeartbeatManager(CTMKR_Context* context)
+CTMKR_HeartbeatManager::CTMKR_HeartbeatManager(CTMKR_Context* context)
 {
     m_session_id = 0;
     m_sequence = 0;

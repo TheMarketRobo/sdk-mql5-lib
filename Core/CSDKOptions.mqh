@@ -61,7 +61,7 @@ public:
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CTMKR_Options::CSDKOptions()
+CTMKR_Options::CTMKR_Options()
 {
     m_product_type = PRODUCT_TYPE_ROBOT;
     m_enable_config_change_requests = true;

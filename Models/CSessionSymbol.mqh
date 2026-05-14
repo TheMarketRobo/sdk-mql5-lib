@@ -62,7 +62,7 @@ private:
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CTMKR_SessionSymbol::CSessionSymbol(string tmkr_symbol) : m_symbol(tmkr_symbol)
+CTMKR_SessionSymbol::CTMKR_SessionSymbol(string tmkr_symbol) : m_symbol(tmkr_symbol)
 {
     m_active_to_trade = false;
     m_spread = 0.0;

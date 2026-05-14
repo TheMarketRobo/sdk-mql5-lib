@@ -60,7 +60,7 @@ public:
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-ITMKR_RobotConfig::IRobotConfig()
+ITMKR_RobotConfig::ITMKR_RobotConfig()
 {
     m_schema = new CTMKR_ConfigSchema();
 }

@@ -50,7 +50,7 @@ public:
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CTMKR_ConfigurationManager::CConfigurationManager(ITMKR_RobotConfig* robot_config)
+CTMKR_ConfigurationManager::CTMKR_ConfigurationManager(ITMKR_RobotConfig* robot_config)
 {
     m_robot_config = robot_config;
     m_pending_change_results = NULL;

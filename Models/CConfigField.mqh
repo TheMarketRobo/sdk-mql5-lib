@@ -46,9 +46,9 @@ public:
     CTMKR_JAVal* to_json();
 };
 
-CTMKR_ConfigOption::CConfigOption() : m_value(""), m_label(""), m_numeric_value(0), m_is_numeric(false) {}
-CTMKR_ConfigOption::CConfigOption(string tmkr_value, string tmkr_label) : m_value(tmkr_value), m_label(tmkr_label), m_numeric_value(0), m_is_numeric(false) {}
-CTMKR_ConfigOption::CConfigOption(double tmkr_value, string tmkr_label) : m_value(""), m_label(tmkr_label), m_numeric_value(tmkr_value), m_is_numeric(true) {}
+CTMKR_ConfigOption::CTMKR_ConfigOption() : m_value(""), m_label(""), m_numeric_value(0), m_is_numeric(false) {}
+CTMKR_ConfigOption::CTMKR_ConfigOption(string tmkr_value, string tmkr_label) : m_value(tmkr_value), m_label(tmkr_label), m_numeric_value(0), m_is_numeric(false) {}
+CTMKR_ConfigOption::CTMKR_ConfigOption(double tmkr_value, string tmkr_label) : m_value(""), m_label(tmkr_label), m_numeric_value(tmkr_value), m_is_numeric(true) {}
 CTMKR_ConfigOption::~CTMKR_ConfigOption() {}
 
 CTMKR_JAVal* CTMKR_ConfigOption::to_json()
@@ -79,7 +79,7 @@ public:
     CTMKR_JAVal* to_json();
 };
 
-CTMKR_ConfigDependency::CConfigDependency() : m_field(""), m_condition(TMKR_CONDITION_EQUALS), m_value_string(""), m_value_numeric(0), m_value_bool(false), m_value_type(0) {}
+CTMKR_ConfigDependency::CTMKR_ConfigDependency() : m_field(""), m_condition(TMKR_CONDITION_EQUALS), m_value_string(""), m_value_numeric(0), m_value_bool(false), m_value_type(0) {}
 CTMKR_ConfigDependency::~CTMKR_ConfigDependency() {}
 
 void CTMKR_ConfigDependency::set_string_value(string field, ENUM_TMKR_DEPENDENCY_CONDITION condition, string tmkr_value) { m_field = field; m_condition = condition; m_value_string = tmkr_value; m_value_type = 0; }
@@ -161,7 +161,7 @@ public:
     CTMKR_JAVal* to_json();
 };
 
-CTMKR_ConfigField::CConfigField()
+CTMKR_ConfigField::CTMKR_ConfigField()
 {
     m_type = TMKR_CONFIG_FIELD_INTEGER; m_key = ""; m_label = ""; m_required = true;
     m_default_int = 0; m_default_double = 0.0; m_default_bool = false; m_default_string = "";

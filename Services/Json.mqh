@@ -40,7 +40,7 @@ public:
 };
 
 //+------------------------------------------------------------------+
-CTMKR_JAObj::CJAObj(string tmkr_key, CTMKR_JAVal *tmkr_val) : m_key(tmkr_key), m_val(tmkr_val) {}
+CTMKR_JAObj::CTMKR_JAObj(string tmkr_key, CTMKR_JAVal *tmkr_val) : m_key(tmkr_key), m_val(tmkr_val) {}
 
 //+------------------------------------------------------------------+
 CTMKR_JAObj::~CTMKR_JAObj()
@@ -107,7 +107,7 @@ private:
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CTMKR_JAVal::CJAVal(ENUM_TMKR_JA_TYPE tmkr_type) : m_type(tmkr_type), m_number(0), m_bool(false)
+CTMKR_JAVal::CTMKR_JAVal(ENUM_TMKR_JA_TYPE tmkr_type) : m_type(tmkr_type), m_number(0), m_bool(false)
 {
     m_string = "";
     if(tmkr_type == TMKR_JA_OBJECT)

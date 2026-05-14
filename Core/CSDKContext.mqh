@@ -88,7 +88,7 @@ private:
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CTMKR_Context::CSDKContext(string api_key, string robot_version_uuid, long magic_number, ITMKR_RobotConfig* config,
+CTMKR_Context::CTMKR_Context(string api_key, string robot_version_uuid, long magic_number, ITMKR_RobotConfig* config,
                          ENUM_TMKR_PRODUCT_TYPE product_type)
 {
     m_options             = NULL;

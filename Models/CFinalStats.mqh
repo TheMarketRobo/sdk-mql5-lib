@@ -48,7 +48,7 @@ public:
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CTMKR_FinalStats::CFinalStats()
+CTMKR_FinalStats::CTMKR_FinalStats()
 {
     m_total_trades = 0;
     m_winning_trades = 0;

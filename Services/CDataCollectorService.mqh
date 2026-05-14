@@ -66,7 +66,7 @@ public:
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CTMKR_DataCollectorService::CDataCollectorService()
+CTMKR_DataCollectorService::CTMKR_DataCollectorService()
 {
     m_initial_balance = 0.0;
     m_initial_equity = 0.0;

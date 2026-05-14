@@ -46,7 +46,7 @@ public:
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CTMKR_SessionManager::CSessionManager(string api_key, string robot_version_uuid, long magic_number, CTMKR_Context* context)
+CTMKR_SessionManager::CTMKR_SessionManager(string api_key, string robot_version_uuid, long magic_number, CTMKR_Context* context)
 {
     m_api_key = api_key;
     m_robot_version_uuid = robot_version_uuid;

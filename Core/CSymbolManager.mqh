@@ -54,7 +54,7 @@ public:
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CTMKR_SymbolManager::CSymbolManager()
+CTMKR_SymbolManager::CTMKR_SymbolManager()
 {
     m_session_symbols = new CArrayObj();
     m_pending_change_results = NULL;

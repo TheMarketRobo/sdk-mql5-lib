@@ -60,7 +60,7 @@ private:
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CTMKR_TokenManager::CTokenManager()
+CTMKR_TokenManager::CTMKR_TokenManager()
 {
     m_jwt = "";
     m_expiration_timestamp = 0;

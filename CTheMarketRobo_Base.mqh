@@ -264,7 +264,7 @@ protected:
 //+------------------------------------------------------------------+
 //| Robot constructor                                                 |
 //+------------------------------------------------------------------+
-CTMKR_RobotBase::CTheMarketRobo_Base(string robot_version_uuid, ITMKR_RobotConfig* robot_config)
+CTMKR_RobotBase::CTMKR_RobotBase(string robot_version_uuid, ITMKR_RobotConfig* robot_config)
 {
     m_sdk_context = NULL;
     m_robot_config = robot_config;
@@ -283,7 +283,7 @@ CTMKR_RobotBase::CTheMarketRobo_Base(string robot_version_uuid, ITMKR_RobotConfi
 //+------------------------------------------------------------------+
 //| Indicator constructor (no config)                                 |
 //+------------------------------------------------------------------+
-CTMKR_RobotBase::CTheMarketRobo_Base(string robot_version_uuid)
+CTMKR_RobotBase::CTMKR_RobotBase(string robot_version_uuid)
 {
     m_sdk_context = NULL;
     m_robot_config = NULL;

@@ -21,7 +21,7 @@
 class CTMKR_HttpResponse : public CObject
 {
 public:
-    int tmkr_code;
+    int code;
     string body;
     CTMKR_JAVal* json_body;
 
@@ -30,7 +30,7 @@ public:
 };
 
 //+------------------------------------------------------------------+
-CTMKR_HttpResponse::CHttpResponse() : code(0), body(""), json_body(NULL) {}
+CTMKR_HttpResponse::CTMKR_HttpResponse() : code(0), body(""), json_body(NULL) {}
 
 //+------------------------------------------------------------------+
 CTMKR_HttpResponse::~CTMKR_HttpResponse() 
@@ -70,7 +70,7 @@ public:
 //+------------------------------------------------------------------+
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
-CTMKR_HttpService::CHttpService(ENUM_TMKR_PRODUCT_TYPE product_type)
+CTMKR_HttpService::CTMKR_HttpService(ENUM_TMKR_PRODUCT_TYPE product_type)
 {
     m_base_url = TMKR_API_BASE_URL;
     m_enable_logging = true;
