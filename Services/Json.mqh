@@ -163,12 +163,14 @@ string CJAVal::to_string()
         case JA_OBJECT:
         {
             string s = "{";
-            int total = m_obj.Total();
-            for(int i = 0; i < total; i++)
+            // Renamed from `total` to avoid shadowing common vendor globals
+            // (e.g. MQL4 EAs that declare `int total = 0;` at file scope).
+            int json_total = m_obj.Total();
+            for(int i = 0; i < json_total; i++)
             {
                 CJAObj *pair = m_obj.At(i);
                 s += "\"" + Escape(pair.m_key) + "\":" + pair.m_val.to_string();
-                if(i < total - 1)
+                if(i < json_total - 1)
                     s += ",";
             }
             s += "}";
@@ -177,12 +179,13 @@ string CJAVal::to_string()
         case JA_ARRAY:
         {
             string s = "[";
-            int total = m_arr.Total();
-            for(int i = 0; i < total; i++)
+            // Renamed from `total` for the same reason as above.
+            int json_total = m_arr.Total();
+            for(int i = 0; i < json_total; i++)
             {
                 CJAVal *val = m_arr.At(i);
                 s += val.to_string();
-                if(i < total - 1)
+                if(i < json_total - 1)
                     s += ",";
             }
             s += "]";

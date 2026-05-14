@@ -113,8 +113,10 @@ bool WinINetParseUrl(const string url, string &host, string &path, int &port)
 //+------------------------------------------------------------------+
 int _sdkWinINetErr(string title, long session = 0, long connection = 0, long request = 0)
 {
-    uint err = kernel32::GetLastError();
-    PrintFormat("SDK WinINet Error (%s): kernel32 error #%d", title, err);
+    // Renamed from `err` to avoid shadowing vendor globals — MQL4 EAs
+    // commonly declare `int err;` at file scope for trade error tracking.
+    uint sdk_last_err = kernel32::GetLastError();
+    PrintFormat("SDK WinINet Error (%s): kernel32 error #%d", title, sdk_last_err);
     if(request > 0)    InternetCloseHandle(request);
     if(connection > 0) InternetCloseHandle(connection);
     if(session > 0)    InternetCloseHandle(session);

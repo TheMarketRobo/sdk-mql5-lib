@@ -142,11 +142,14 @@ bool CHeartbeatManager::is_time_to_send()
 string CHeartbeatManager::get_iso_timestamp()
 {
     datetime current = TimeCurrent();
-    MqlDateTime dt;
-    TimeToStruct(current, dt);
-    
+    // Renamed from `dt` to avoid shadowing vendor globals — MQL EAs commonly
+    // declare `datetime dt = 0;` at file scope for per-bar timestamp tracking.
+    MqlDateTime ts_parts;
+    TimeToStruct(current, ts_parts);
+
     return StringFormat("%04d-%02d-%02dT%02d:%02d:%02d.000Z",
-                        dt.year, dt.mon, dt.day, dt.hour, dt.min, dt.sec);
+                        ts_parts.year, ts_parts.mon, ts_parts.day,
+                        ts_parts.hour, ts_parts.min, ts_parts.sec);
 }
 
 //+------------------------------------------------------------------+
