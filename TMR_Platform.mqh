@@ -91,9 +91,16 @@
 //|                                                                    |
 //| Both functions exist in MQL4 (build 600+) and MQL5.               |
 //| Thin wrappers ensure a consistent call-site across the SDK.       |
+//|                                                                    |
+//| The explicit `(ENUM_MQL_INFO_STRING)` / `(ENUM_MQL_INFO_INTEGER)`  |
+//| casts are mandatory under MQL5's strict type checking — passing a |
+//| bare int triggers `cannot convert enum` / `implicit conversion    |
+//| from 'unknown' to 'string'` at compile time. The wrapper keeps    |
+//| the call-site signature `int` so callers can pass any of the      |
+//| MQL_PROGRAM_* constants directly without a cast every time.       |
 //+------------------------------------------------------------------+
-string TMR_MQLInfoString(int property_id) { return MQLInfoString(property_id); }
-int TMR_MQLInfoInteger(int property_id)   { return (int)MQLInfoInteger(property_id); }
+string TMR_MQLInfoString(int property_id) { return MQLInfoString((ENUM_MQL_INFO_STRING)property_id); }
+int TMR_MQLInfoInteger(int property_id)   { return (int)MQLInfoInteger((ENUM_MQL_INFO_INTEGER)property_id); }
 
 //+------------------------------------------------------------------+
 //| OrderCalcMargin                                                   |
@@ -198,8 +205,12 @@ int TMR_MQLInfoInteger(int property_id)   { return (int)MQLInfoInteger(property_
 
    long TMR_ChartGetInteger(long chart_id, int prop_id)
    {
-      // CHART_WINDOWS_TOTAL is available in MQL4 via ChartGetInteger
-      return ChartGetInteger(chart_id, prop_id);
+      // CHART_WINDOWS_TOTAL is available in MQL4 via ChartGetInteger.
+      // The `(ENUM_CHART_PROPERTY_INTEGER)` cast disambiguates between the
+      // two ChartGetInteger overloads (2-arg returns long; 4-arg returns
+      // bool with output reference) and silences MQL5's strict-mode
+      // `cannot convert enum` error.
+      return ChartGetInteger(chart_id, (ENUM_CHART_PROPERTY_INTEGER)prop_id);
    }
 #else
    int TMR_ChartWindowFind(long chart_id, string indicator_name)
@@ -209,7 +220,9 @@ int TMR_MQLInfoInteger(int property_id)   { return (int)MQLInfoInteger(property_
 
    long TMR_ChartGetInteger(long chart_id, int prop_id)
    {
-      return ChartGetInteger(chart_id, prop_id);
+      // See the MQL4 branch comment — same cast rationale, the MQL5 strict
+      // compiler also requires it.
+      return ChartGetInteger(chart_id, (ENUM_CHART_PROPERTY_INTEGER)prop_id);
    }
 #endif
 

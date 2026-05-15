@@ -405,6 +405,16 @@ bool CTMKR_RobotBase::is_killed() const
 //| Functionally kill the indicator — clear all visual output,        |
 //| block all future calculation, and mark as dead.                   |
 //| This is the security fallback when ChartIndicatorDelete fails.    |
+//|                                                                    |
+//| MQL4 vs MQL5 indicator-API split:                                 |
+//|  - MQL4 uses the legacy `SetIndexStyle()` / `IndicatorShortName()` |
+//|    free functions to set per-buffer draw type and the chart-list  |
+//|    short name.                                                    |
+//|  - MQL5 deprecated those in favour of `PlotIndexSetInteger()`     |
+//|    (with `PLOT_DRAW_TYPE`) and `IndicatorSetString()` (with       |
+//|    `INDICATOR_SHORTNAME`). Calling the MQL4 names from MQL5 source |
+//|    is a hard compile error, so the guards below dispatch to the   |
+//|    platform-correct API.                                          |
 //+------------------------------------------------------------------+
 void CTMKR_RobotBase::kill_indicator()
 {
@@ -414,10 +424,20 @@ void CTMKR_RobotBase::kill_indicator()
 
     // Hide all indicator draw styles — lines/arrows/histograms disappear
     for(int tmkr_i = 0; tmkr_i < m_indicator_buffer_count; tmkr_i++)
+    {
+#ifdef __MQL4__
         SetIndexStyle(tmkr_i, DRAW_NONE);
+#else
+        PlotIndexSetInteger(tmkr_i, PLOT_DRAW_TYPE, DRAW_NONE);
+#endif
+    }
 
     // Blank the indicator name in chart's indicator list
+#ifdef __MQL4__
     IndicatorShortName("TMR: DISABLED");
+#else
+    IndicatorSetString(INDICATOR_SHORTNAME, "TMR: DISABLED");
+#endif
 
     // Force visual update so cleared draws take effect immediately
     ChartRedraw(0);
