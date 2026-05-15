@@ -36,7 +36,11 @@
 //+------------------------------------------------------------------+
 //| SDK Version                                                       |
 //+------------------------------------------------------------------+
-#define TMKR_SDK_VERSION "1.0.0"
+// v1.1.0 (2026-05-15) — Strategy Tester bypass + defense-in-depth detection.
+//   Required minimum version for products that must run in MT4/MT5
+//   Strategy Tester. Older SDKs don't have TMR_IsInTester() or the
+//   init_common tester gate.
+#define TMKR_SDK_VERSION "1.1.0"
 #define TMKR_UUID_LENGTH 36  // Standard UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 //+------------------------------------------------------------------+

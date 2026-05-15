@@ -116,9 +116,15 @@
       g_tmr_indicator_instance = new IndicatorClass();                                \
       if(CheckPointer(g_tmr_indicator_instance) == POINTER_INVALID)                   \
       {                                                                               \
-         TMKRUserError("Failed to start. Please try removing and re-adding.");         \
-         g_pending_removal = true;                                                    \
-         EventSetTimer(1);                                                            \
+         /* In tester there is no user to alert and OnTimer doesn't fire for */       \
+         /* MQL4 indicators; setting g_pending_removal would only cause      */       \
+         /* per-bar TMKRRemoveIndicatorFromChart spam. Fail silently.         */       \
+         if(!TMR_IsInTester())                                                        \
+         {                                                                            \
+            TMKRUserError("Failed to start. Please try removing and re-adding.");      \
+            g_pending_removal = true;                                                 \
+            EventSetTimer(1);                                                         \
+         }                                                                            \
          return INIT_SUCCEEDED;                                                       \
       }                                                                               \
       g_tmr_indicator_instance.set_indicator_short_name(g_indicator_short_name);      \
@@ -127,15 +133,19 @@
       int _tmr_init_result = g_tmr_indicator_instance.on_init(ApiKeyInput);           \
       if(_tmr_init_result != INIT_SUCCEEDED)                                          \
       {                                                                               \
-         g_pending_removal = g_tmr_indicator_instance.is_pending_removal();           \
-         if(!g_pending_removal)                                                       \
+         /* Same rationale as above — tester path skips the removal flow. */          \
+         if(!TMR_IsInTester())                                                        \
          {                                                                            \
-            TMKRUserError("Could not connect to TheMarketRobo service.");              \
-            g_pending_removal = true;                                                 \
+            g_pending_removal = g_tmr_indicator_instance.is_pending_removal();        \
+            if(!g_pending_removal)                                                    \
+            {                                                                         \
+               TMKRUserError("Could not connect to TheMarketRobo service.");           \
+               g_pending_removal = true;                                              \
+            }                                                                         \
+            EventSetTimer(1);                                                         \
          }                                                                            \
          delete g_tmr_indicator_instance;                                             \
          g_tmr_indicator_instance = NULL;                                             \
-         EventSetTimer(1);                                                            \
       }                                                                               \
       return INIT_SUCCEEDED;                                                          \
    }                                                                                  \

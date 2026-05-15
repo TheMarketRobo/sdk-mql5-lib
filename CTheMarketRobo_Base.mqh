@@ -99,8 +99,11 @@ public:
     bool is_symbol_change_requests_enabled() const { return false; }
     void print_sdk_configuration() const { if(SDKShouldLogInfo()) Print("SDK Info: SDK is disabled — no configuration to display."); }
     string get_robot_version_uuid() const { return m_robot_version_uuid; }
-    bool is_indicator_mode() const { return false; }
-    bool is_robot_mode() const { return true; }
+    // Stub mirrors the full class's NULL-context fallback: indicators are
+    // constructed with the 1-arg ctor (m_robot_config == NULL); robots
+    // pass a non-NULL IRobotConfig*.
+    bool is_indicator_mode() const { return (m_robot_config == NULL); }
+    bool is_robot_mode() const { return (m_robot_config != NULL); }
     void set_indicator_short_name(string short_name) {}
     void set_indicator_buffer_count(int count) {}
     bool is_pending_removal() const { return false; }
@@ -473,6 +476,36 @@ void CTMKR_RobotBase::kill_indicator()
 int CTMKR_RobotBase::init_common(string api_key, long magic_number, ENUM_TMKR_PRODUCT_TYPE product_type)
 {
     bool is_ind = (product_type == PRODUCT_TYPE_INDICATOR);
+
+    //----------------------------------------------------------------
+    // SDK Version + Tester Detection Diagnostic (always printed)
+    //
+    // Printed UNCONDITIONALLY (no log-level gate) so vendors can verify
+    // which SDK version their compiled .ex5/.ex4 contains and which
+    // tester-detection signal fired. If "Strategy Tester detected"
+    // does NOT appear below despite running in tester, capture this
+    // banner line and check (a) SDK version is current; (b) which flag
+    // is missing. See docs/STRATEGY_TESTER_GUIDE.md.
+    //----------------------------------------------------------------
+    int tmkr_flag_tester       = (int)MQLInfoInteger(MQL_TESTER);
+    int tmkr_flag_optimization = (int)MQLInfoInteger(MQL_OPTIMIZATION);
+    int tmkr_flag_visual       = (int)MQLInfoInteger(MQL_VISUAL_MODE);
+#ifdef __MQL5__
+    int tmkr_flag_frame   = (int)MQLInfoInteger(MQL_FRAME_MODE);
+    int tmkr_flag_forward = (int)MQLInfoInteger(MQL_FORWARD);
+#else
+    int tmkr_flag_frame   = -1;
+    int tmkr_flag_forward = -1;
+#endif
+    Print("SDK Info: TheMarketRobo SDK v", TMKR_SDK_VERSION,
+          " | platform=", TMR_PLATFORM,
+          " | flags=[MQL_TESTER=", tmkr_flag_tester,
+          ", MQL_OPTIMIZATION=", tmkr_flag_optimization,
+          ", MQL_VISUAL_MODE=", tmkr_flag_visual,
+          ", MQL_FRAME_MODE=", tmkr_flag_frame,
+          ", MQL_FORWARD=", tmkr_flag_forward, "]",
+          " | TMR_IsInTester=", (int)TMR_IsInTester(),
+          " | matched_signal=", TMR_TesterDetectionTrace());
 
     //----------------------------------------------------------------
     // Strategy Tester short-circuit

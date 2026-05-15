@@ -265,35 +265,74 @@ bool TMR_IsSymbolStringPropertyAvailable(int property_id)
 //|                                                                    |
 //| Works in both EAs and indicators on both platforms.                |
 //|                                                                    |
-//| Implementation note: we use MQLInfoInteger(MQL_TESTER) on both    |
-//| platforms via the TMR_MQLInfoInteger wrapper. MQL4's IsTesting()  |
-//| is documented for Expert Advisors and is unreliable for indicators|
-//| (returns false when an indicator is tested directly via the MT4   |
-//| Strategy Tester "Indicators" mode). MQLInfoInteger exists in MQL4 |
-//| build 600+ and reports tester state correctly for every program   |
-//| type. MQL_FRAME_MODE and MQL_FORWARD are MT5-only — guarded.       |
+//| Defense in depth (added 2026-05-15 after a real-world failure     |
+//| where MQLInfoInteger(MQL_TESTER) reportedly returned 0 inside the |
+//| MT5 tester — root cause was likely a stale local SDK):            |
+//|   Layer 1: MQLInfoInteger(MQL_TESTER/OPTIMIZATION/VISUAL_MODE)     |
+//|            — primary, works on MQL4 build 600+ and MQL5.           |
+//|   Layer 2: MT5-only MQL_FRAME_MODE / MQL_FORWARD.                  |
+//|   Layer 3: Legacy IsTesting() / IsOptimization() / IsVisualMode() |
+//|            — still works on MT5 as compat shims                    |
+//|            (https://www.mql5.com/en/forum/16906), canonical on    |
+//|            MQL4 EAs (https://www.mql5.com/en/forum/216978).        |
+//|                                                                    |
+//| Direct MQLInfoInteger calls (not via the TMR_MQLInfoInteger        |
+//| wrapper) — enum literals are strictly typed and don't need the     |
+//| `(ENUM_MQL_INFO_INTEGER)` cast the wrapper performs.                |
 //+------------------------------------------------------------------+
 bool TMR_IsInTester()
 {
-   if((bool)TMR_MQLInfoInteger(MQL_TESTER))       return true;
-   if((bool)TMR_MQLInfoInteger(MQL_OPTIMIZATION)) return true;
-   if((bool)TMR_MQLInfoInteger(MQL_VISUAL_MODE))  return true;
+   // Layer 1 — primary
+   if((bool)MQLInfoInteger(MQL_TESTER))       return true;
+   if((bool)MQLInfoInteger(MQL_OPTIMIZATION)) return true;
+   if((bool)MQLInfoInteger(MQL_VISUAL_MODE))  return true;
+
+   // Layer 2 — MT5-only flags
 #ifdef __MQL5__
-   // MQL5-only flags (added in newer MT5 builds, not present in MQL4).
-   if((bool)TMR_MQLInfoInteger(MQL_FRAME_MODE))   return true;
-   if((bool)TMR_MQLInfoInteger(MQL_FORWARD))      return true;
+   if((bool)MQLInfoInteger(MQL_FRAME_MODE)) return true;
+   if((bool)MQLInfoInteger(MQL_FORWARD))    return true;
 #endif
+
+   // Layer 3 — legacy fallback (works on both platforms)
+   if(IsTesting())      return true;
+   if(IsOptimization()) return true;
+   if(IsVisualMode())   return true;
+
    return false;
 }
 
 bool TMR_IsInOptimization()
 {
-   return (bool)TMR_MQLInfoInteger(MQL_OPTIMIZATION);
+   if((bool)MQLInfoInteger(MQL_OPTIMIZATION)) return true;
+   if(IsOptimization()) return true;
+   return false;
 }
 
 bool TMR_IsInVisualMode()
 {
-   return (bool)TMR_MQLInfoInteger(MQL_VISUAL_MODE);
+   if((bool)MQLInfoInteger(MQL_VISUAL_MODE)) return true;
+   if(IsVisualMode()) return true;
+   return false;
+}
+
+//+------------------------------------------------------------------+
+//| Returns the NAME of the first tester signal that matched, or     |
+//| "none" if no signal matched. Used by the SDK's init_common banner|
+//| so vendors can see exactly which detection path fired (or didn't).|
+//+------------------------------------------------------------------+
+string TMR_TesterDetectionTrace()
+{
+   if((bool)MQLInfoInteger(MQL_TESTER))       return "MQL_TESTER";
+   if((bool)MQLInfoInteger(MQL_OPTIMIZATION)) return "MQL_OPTIMIZATION";
+   if((bool)MQLInfoInteger(MQL_VISUAL_MODE))  return "MQL_VISUAL_MODE";
+#ifdef __MQL5__
+   if((bool)MQLInfoInteger(MQL_FRAME_MODE)) return "MQL_FRAME_MODE";
+   if((bool)MQLInfoInteger(MQL_FORWARD))    return "MQL_FORWARD";
+#endif
+   if(IsTesting())      return "IsTesting()";
+   if(IsOptimization()) return "IsOptimization()";
+   if(IsVisualMode())   return "IsVisualMode()";
+   return "none";
 }
 
 string TMR_GetTesterModeLabel()

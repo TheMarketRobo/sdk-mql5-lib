@@ -35,6 +35,26 @@ public:
     //==========================================================================
     
     virtual void define_schema() = 0;
+
+    /**
+     * Apply default values to every config field.
+     *
+     * Contract: MUST be idempotent — calling apply_defaults() N times in
+     * a row MUST leave the config in the exact same state as a single
+     * call. Implementations that append to arrays or accumulate counters
+     * will corrupt state. Use plain assignments and ArrayResize() with
+     * a fixed size — never ArrayResize(arr, ArraySize(arr) + N).
+     *
+     * The SDK calls this in two places:
+     *   1. Vendor's CMyConfig() constructor (recommended — see sample EA).
+     *   2. CTMKR_RobotBase::init_common() when Strategy Tester is
+     *      detected — so vendor on_tick() can read valid field values
+     *      without a server-pushed config.
+     *
+     * In live mode the same defaults are first overwritten by the
+     * /robot/start response. In tester mode they remain as the working
+     * configuration for the entire backtest.
+     */
     virtual void apply_defaults() = 0;
     
     //==========================================================================
