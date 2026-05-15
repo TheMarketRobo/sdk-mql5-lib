@@ -103,7 +103,10 @@
    {                                                                                  \
       g_indicator_short_name = ShortName;                                             \
       g_pending_removal = false;                                                      \
-      if(ApiKeyInput == "")                                                           \
+      /* In tester there is no user to read alerts and no API key needed.   */        \
+      /* Let the SDK's init_common() see the empty key and trip its own     */        \
+      /* tester gate; the indicator boots offline.                          */        \
+      if(ApiKeyInput == "" && !TMR_IsInTester())                                      \
       {                                                                               \
          TMKRUserError("API Key is required. Please set it in the indicator settings.");\
          g_pending_removal = true;                                                    \

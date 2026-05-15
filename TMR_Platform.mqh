@@ -253,5 +253,56 @@ bool TMR_IsSymbolStringPropertyAvailable(int property_id)
    return (property_id >= 0);
 }
 
+//+------------------------------------------------------------------+
+//| Strategy Tester Detection                                         |
+//|                                                                    |
+//| Returns true if the program is running inside the MT4/MT5 Strategy|
+//| Tester — including optimization passes, visual mode, forward      |
+//| testing, and frame mode. Used by the SDK to short-circuit session |
+//| start, HTTP requests, and timer arming, since WebRequest() and    |
+//| timer/chart events are blocked in tester (docs.mql4.com/runtime/  |
+//| testing and mql5.com/en/docs/runtime/testing).                    |
+//|                                                                    |
+//| Works in both EAs and indicators on both platforms.                |
+//|                                                                    |
+//| Implementation note: we use MQLInfoInteger(MQL_TESTER) on both    |
+//| platforms via the TMR_MQLInfoInteger wrapper. MQL4's IsTesting()  |
+//| is documented for Expert Advisors and is unreliable for indicators|
+//| (returns false when an indicator is tested directly via the MT4   |
+//| Strategy Tester "Indicators" mode). MQLInfoInteger exists in MQL4 |
+//| build 600+ and reports tester state correctly for every program   |
+//| type. MQL_FRAME_MODE and MQL_FORWARD are MT5-only — guarded.       |
+//+------------------------------------------------------------------+
+bool TMR_IsInTester()
+{
+   if((bool)TMR_MQLInfoInteger(MQL_TESTER))       return true;
+   if((bool)TMR_MQLInfoInteger(MQL_OPTIMIZATION)) return true;
+   if((bool)TMR_MQLInfoInteger(MQL_VISUAL_MODE))  return true;
+#ifdef __MQL5__
+   // MQL5-only flags (added in newer MT5 builds, not present in MQL4).
+   if((bool)TMR_MQLInfoInteger(MQL_FRAME_MODE))   return true;
+   if((bool)TMR_MQLInfoInteger(MQL_FORWARD))      return true;
+#endif
+   return false;
+}
+
+bool TMR_IsInOptimization()
+{
+   return (bool)TMR_MQLInfoInteger(MQL_OPTIMIZATION);
+}
+
+bool TMR_IsInVisualMode()
+{
+   return (bool)TMR_MQLInfoInteger(MQL_VISUAL_MODE);
+}
+
+string TMR_GetTesterModeLabel()
+{
+   if(!TMR_IsInTester()) return "live";
+   if(TMR_IsInOptimization()) return "tester:optimization";
+   if(TMR_IsInVisualMode())   return "tester:visual";
+   return "tester";
+}
+
 #endif // TMR_PLATFORM_MQH
 //+------------------------------------------------------------------+

@@ -12,6 +12,7 @@
 
 #include "Core/CSDKConstants.mqh"
 #include "Utils/CSDKLogger.mqh"
+#include "TMR_Platform.mqh"
 
 //+------------------------------------------------------------------+
 //| When SDK_ENABLED is NOT defined, provide a lightweight stub       |
@@ -101,9 +102,14 @@ public:
     bool is_indicator_mode() const { return false; }
     bool is_robot_mode() const { return true; }
     void set_indicator_short_name(string short_name) {}
+    void set_indicator_buffer_count(int count) {}
     bool is_pending_removal() const { return false; }
+    bool is_killed() const { return false; }
     void set_log_level(ENUM_TMKR_LOG_LEVEL tmkr_level) { TMKRSetLogLevel(tmkr_level); }
     ENUM_TMKR_LOG_LEVEL get_log_level() const { return TMKRGetLogLevel(); }
+    // Stub mode has no SDK to short-circuit, but vendor code may still
+    // check tester state — answer from the live platform query.
+    bool is_in_tester_mode() const { return TMR_IsInTester(); }
 };
 
 #else // SDK_ENABLED is defined — full SDK implementation follows
@@ -179,6 +185,7 @@ protected:
     bool            m_pending_removal;        // Deferred removal flag (set during init, executed on first tick/timer)
     bool            m_killed;                 // Indicator functionally dead (security: all output cleared, calc blocked)
     int             m_indicator_buffer_count; // Number of indicator buffers (for kill_indicator draw clearing)
+    bool            m_in_tester_mode;         // True when running in MT4/MT5 Strategy Tester — SDK is offline
 
 public:
     // Robot constructor — requires config object
@@ -246,6 +253,11 @@ public:
     void   set_indicator_buffer_count(int count);
     bool   is_killed() const;
 
+    // Returns true if the SDK detected MT4/MT5 Strategy Tester at init
+    // time and is running in offline mode (no auth, no HTTP, no
+    // heartbeats). on_tick / on_calculate still run normally.
+    bool   is_in_tester_mode() const;
+
     // Log level control — set before or after on_init()
     void   set_log_level(ENUM_TMKR_LOG_LEVEL tmkr_level);
     ENUM_TMKR_LOG_LEVEL get_log_level() const;
@@ -276,6 +288,7 @@ CTMKR_RobotBase::CTMKR_RobotBase(string robot_version_uuid, ITMKR_RobotConfig* r
     m_pending_removal = false;
     m_killed = false;
     m_indicator_buffer_count = 0;
+    m_in_tester_mode = false;
     m_max_heartbeat_failure_intervals = TMKR_DEFAULT_MAX_HEARTBEAT_FAILURE_INTERVALS;
     if(SDKShouldLogInfo()) Print("SDK Info: Robot Version UUID = ", m_robot_version_uuid);
 }
@@ -295,6 +308,7 @@ CTMKR_RobotBase::CTMKR_RobotBase(string robot_version_uuid)
     m_pending_removal = false;
     m_killed = false;
     m_indicator_buffer_count = 0;
+    m_in_tester_mode = false;
     m_max_heartbeat_failure_intervals = TMKR_DEFAULT_MAX_HEARTBEAT_FAILURE_INTERVALS;
     if(SDKShouldLogInfo()) Print("SDK Info: Indicator Version UUID = ", m_robot_version_uuid);
 }
@@ -402,6 +416,14 @@ bool CTMKR_RobotBase::is_killed() const
 }
 
 //+------------------------------------------------------------------+
+//| Returns true if SDK is running in offline tester mode             |
+//+------------------------------------------------------------------+
+bool CTMKR_RobotBase::is_in_tester_mode() const
+{
+    return m_in_tester_mode;
+}
+
+//+------------------------------------------------------------------+
 //| Functionally kill the indicator — clear all visual output,        |
 //| block all future calculation, and mark as dead.                   |
 //| This is the security fallback when ChartIndicatorDelete fails.    |
@@ -451,6 +473,48 @@ void CTMKR_RobotBase::kill_indicator()
 int CTMKR_RobotBase::init_common(string api_key, long magic_number, ENUM_TMKR_PRODUCT_TYPE product_type)
 {
     bool is_ind = (product_type == PRODUCT_TYPE_INDICATOR);
+
+    //----------------------------------------------------------------
+    // Strategy Tester short-circuit
+    //
+    // The MT4/MT5 Strategy Tester blocks WebRequest() and all network
+    // functions, blocks DLL imports on cloud agents, never fires the
+    // timer on MQL4, and never fires OnChartEvent in MQL5 indicators.
+    // Trying to start a session would only fail noisily and slow down
+    // every optimization pass.
+    //
+    // When tester is detected we:
+    //  1. Skip API key + UUID validation (vendor can leave them empty).
+    //  2. Skip CSDKContext creation — no HTTP, no DLLs, no managers.
+    //  3. Skip EventSetTimer (timer is a no-op in MQL4 tester anyway).
+    //  4. For robots: apply default config so on_tick() can read fields
+    //     as it would in production.
+    //  5. Return INIT_SUCCEEDED so the tester proceeds to OnTick/
+    //     OnCalculate and the developer's logic runs normally.
+    //----------------------------------------------------------------
+    if(TMR_IsInTester())
+    {
+        m_in_tester_mode = true;
+        Print("SDK Info: Strategy Tester detected (mode=", TMR_GetTesterModeLabel(),
+              ") — running in offline mode. No authentication, no HTTP, no heartbeats. ",
+              "Your ", (is_ind ? "indicator" : "robot"),
+              " logic will execute normally; SDK lifecycle is bypassed.");
+
+        // Apply defaults so vendor on_tick() can read config values
+        // exactly as they would in a live session. apply_defaults() is
+        // expected to be idempotent — most vendor configs call it in
+        // their own constructor, but we call it here too so configs
+        // that don't will still have valid field values in tester.
+        // Live mode would normally receive these via the /robot/start
+        // response; in tester there is no server, hence defaults.
+        if(!is_ind && CheckPointer(m_robot_config) != POINTER_INVALID)
+        {
+            m_robot_config.apply_defaults();
+            if(SDKShouldLogInfo()) Print("SDK Info: Tester mode — applied default robot config values.");
+        }
+
+        return INIT_SUCCEEDED;
+    }
 
     if(m_robot_version_uuid == "" || StringLen(m_robot_version_uuid) != TMKR_UUID_LENGTH)
     {
@@ -601,6 +665,12 @@ bool IsNonDestructiveDeinit(int tmkr_reason)
 //+------------------------------------------------------------------+
 void CTMKR_RobotBase::on_deinit(const int tmkr_reason)
 {
+    if(m_in_tester_mode)
+    {
+        if(SDKShouldLogInfo()) Print("SDK Info: Tester deinit (reason=", tmkr_reason, ").");
+        return;
+    }
+
     string tmkr_label = is_indicator_mode() ? "Indicator" : "EA";
     if(SDKShouldLogInfo()) Print("SDK Info: Deinitializing ", tmkr_label, " SDK (reason=", tmkr_reason, ")...");
 
@@ -634,6 +704,11 @@ void CTMKR_RobotBase::on_deinit(const int tmkr_reason)
 //+------------------------------------------------------------------+
 void CTMKR_RobotBase::on_timer()
 {
+    // Tester mode: SDK is offline, nothing to do on timer.
+    // (Defensive — we never call EventSetTimer in tester anyway, and
+    // MQL4 ignores OnTimer in tester regardless.)
+    if(m_in_tester_mode) return;
+
     // Security: indicator was killed — no processing allowed
     if(m_killed) return;
 
@@ -650,6 +725,10 @@ void CTMKR_RobotBase::on_timer()
 //+------------------------------------------------------------------+
 void CTMKR_RobotBase::on_chart_event(const int tmkr_id, const long &lparam, const double &dparam, const string &sparam)
 {
+    // Tester mode: SDK does not emit chart events, and MQL5 indicators
+    // do not receive any chart events in tester anyway. Bail early.
+    if(m_in_tester_mode) return;
+
     switch(tmkr_id)
     {
         case TMKR_EVENT_CONFIG_CHANGED:
