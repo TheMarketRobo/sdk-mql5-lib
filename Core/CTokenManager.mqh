@@ -322,29 +322,32 @@ string CTMKR_TokenManager::base64_url_decode(const string &encoded_string)
     
     for(int tmkr_i = 0; tmkr_i < input_len; tmkr_i += 4)
     {
-        uchar c0 = (uchar)StringGetCharacter(str_input, tmkr_i);
-        uchar c1 = (uchar)StringGetCharacter(str_input, tmkr_i + 1);
-        uchar c2 = (tmkr_i + 2 < input_len) ? (uchar)StringGetCharacter(str_input, tmkr_i + 2) : '=';
-        uchar c3 = (tmkr_i + 3 < input_len) ? (uchar)StringGetCharacter(str_input, tmkr_i + 3) : '=';
-        
-        int v0 = base64_char_to_value(c0);
-        int v1 = base64_char_to_value(c1);
-        int v2 = (c2 == '=') ? 0 : base64_char_to_value(c2);
-        int v3 = (c3 == '=') ? 0 : base64_char_to_value(c3);
-        
-        if(v0 < 0 || v1 < 0 || (c2 != '=' && v2 < 0) || (c3 != '=' && v3 < 0))
+        // tmkr_-prefixed to avoid colliding with vendor globals named c0..c3
+        // (some vendors declare these at file scope; MQL's strict compiler
+        // emits "declaration of 'c1' hides global variable" for the shadow).
+        uchar tmkr_c0 = (uchar)StringGetCharacter(str_input, tmkr_i);
+        uchar tmkr_c1 = (uchar)StringGetCharacter(str_input, tmkr_i + 1);
+        uchar tmkr_c2 = (tmkr_i + 2 < input_len) ? (uchar)StringGetCharacter(str_input, tmkr_i + 2) : '=';
+        uchar tmkr_c3 = (tmkr_i + 3 < input_len) ? (uchar)StringGetCharacter(str_input, tmkr_i + 3) : '=';
+
+        int v0 = base64_char_to_value(tmkr_c0);
+        int v1 = base64_char_to_value(tmkr_c1);
+        int v2 = (tmkr_c2 == '=') ? 0 : base64_char_to_value(tmkr_c2);
+        int v3 = (tmkr_c3 == '=') ? 0 : base64_char_to_value(tmkr_c3);
+
+        if(v0 < 0 || v1 < 0 || (tmkr_c2 != '=' && v2 < 0) || (tmkr_c3 != '=' && v3 < 0))
         {
             Print("JWT Error: Invalid Base64 character in input.");
             return "";
         }
-        
+
         uint combined = ((uint)v0 << 18) | ((uint)v1 << 12) | ((uint)v2 << 6) | (uint)v3;
-        
+
         if(output_index < output_len)
             output_bytes[output_index++] = (uchar)((combined >> 16) & 0xFF);
-        if(output_index < output_len && c2 != '=')
+        if(output_index < output_len && tmkr_c2 != '=')
             output_bytes[output_index++] = (uchar)((combined >> 8) & 0xFF);
-        if(output_index < output_len && c3 != '=')
+        if(output_index < output_len && tmkr_c3 != '=')
             output_bytes[output_index++] = (uchar)(combined & 0xFF);
     }
     

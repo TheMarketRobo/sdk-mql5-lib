@@ -272,9 +272,11 @@ bool TMR_IsSymbolStringPropertyAvailable(int property_id)
 //|            — primary, works on MQL4 build 600+ and MQL5.           |
 //|   Layer 2: MT5-only MQL_FRAME_MODE / MQL_FORWARD.                  |
 //|   Layer 3: Legacy IsTesting() / IsOptimization() / IsVisualMode() |
-//|            — still works on MT5 as compat shims                    |
-//|            (https://www.mql5.com/en/forum/16906), canonical on    |
-//|            MQL4 EAs (https://www.mql5.com/en/forum/216978).        |
+//|            — MQL4-canonical only, guarded by `#ifdef __MQL4__`.    |
+//|            Earlier MT5 builds accepted them as shims (forum 16906),|
+//|            but MetaEditor 5 now emits `undeclared identifier`      |
+//|            (vendor compile repro 2026-05-17). Canonical reference  |
+//|            for MQL4: https://www.mql5.com/en/forum/216978.         |
 //|                                                                    |
 //| Direct MQLInfoInteger calls (not via the TMR_MQLInfoInteger        |
 //| wrapper) — enum literals are strictly typed and don't need the     |
@@ -293,10 +295,13 @@ bool TMR_IsInTester()
    if((bool)MQLInfoInteger(MQL_FORWARD))    return true;
 #endif
 
-   // Layer 3 — legacy fallback (works on both platforms)
+   // Layer 3 — MQL4-only legacy fallback (MetaEditor 5 rejects these as
+   // `undeclared identifier`, so they MUST stay under __MQL4__).
+#ifdef __MQL4__
    if(IsTesting())      return true;
    if(IsOptimization()) return true;
    if(IsVisualMode())   return true;
+#endif
 
    return false;
 }
@@ -304,14 +309,18 @@ bool TMR_IsInTester()
 bool TMR_IsInOptimization()
 {
    if((bool)MQLInfoInteger(MQL_OPTIMIZATION)) return true;
+#ifdef __MQL4__
    if(IsOptimization()) return true;
+#endif
    return false;
 }
 
 bool TMR_IsInVisualMode()
 {
    if((bool)MQLInfoInteger(MQL_VISUAL_MODE)) return true;
+#ifdef __MQL4__
    if(IsVisualMode()) return true;
+#endif
    return false;
 }
 
@@ -329,9 +338,11 @@ string TMR_TesterDetectionTrace()
    if((bool)MQLInfoInteger(MQL_FRAME_MODE)) return "MQL_FRAME_MODE";
    if((bool)MQLInfoInteger(MQL_FORWARD))    return "MQL_FORWARD";
 #endif
+#ifdef __MQL4__
    if(IsTesting())      return "IsTesting()";
    if(IsOptimization()) return "IsOptimization()";
    if(IsVisualMode())   return "IsVisualMode()";
+#endif
    return "none";
 }
 

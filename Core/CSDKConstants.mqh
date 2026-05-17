@@ -36,11 +36,18 @@
 //+------------------------------------------------------------------+
 //| SDK Version                                                       |
 //+------------------------------------------------------------------+
+// v1.1.1 (2026-05-17) — fix MQL5 compile breakage from v1.1.0:
+//   - TMR_Platform.mqh: legacy IsTesting/IsOptimization/IsVisualMode
+//     calls (Layer 3) now wrapped in `#ifdef __MQL4__`. MetaEditor 5
+//     emits `undeclared identifier` for them despite older docs claiming
+//     compat-shim status.
+//   - CTokenManager.mqh: base64 loop locals c0..c3 renamed to tmkr_c0..c3
+//     so they don't shadow vendor globals with the same names.
 // v1.1.0 (2026-05-15) — Strategy Tester bypass + defense-in-depth detection.
 //   Required minimum version for products that must run in MT4/MT5
 //   Strategy Tester. Older SDKs don't have TMR_IsInTester() or the
 //   init_common tester gate.
-#define TMKR_SDK_VERSION "1.1.0"
+#define TMKR_SDK_VERSION "1.1.1"
 #define TMKR_UUID_LENGTH 36  // Standard UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 //+------------------------------------------------------------------+
