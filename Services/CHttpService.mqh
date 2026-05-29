@@ -10,6 +10,7 @@
 #include "Json.mqh"
 #include "../Core/CSDKConstants.mqh"
 #include "../Utils/CSDKLogger.mqh"
+#include "../Utils/CSDKUserErrors.mqh"
 #include "CWinINetHttpService.mqh"
 
 #define HTTP_TIMEOUT 5000
@@ -163,8 +164,14 @@ CTMKR_HttpResponse* CTMKR_HttpService::post_webrequest(string endpoint, string j
 
     if(res == -1)
     {
+        int tmkr_err = GetLastError();
         response.code = -1;
-        response.body = "WebRequest failed. Error code: " + (string)GetLastError();
+        response.body = "WebRequest failed. Error code: " + (string)tmkr_err;
+        // Always surface the TMKR code on a single Experts line so the user can
+        // search it — WebRequest 4060 (URL not allow-listed) lands here.
+        TMKRErrorCoded(GetCodeForMqlError(tmkr_err),
+                       "WebRequest failed (MQL error " + (string)tmkr_err + "). " +
+                       GetUserFriendlyErrorMessage(tmkr_err));
         if(m_enable_logging)
         {
             Print("============================================================");
@@ -242,6 +249,9 @@ CTMKR_HttpResponse* CTMKR_HttpService::post_wininet(string endpoint, string jwt_
     {
         response.code = -1;
         response.body = "WinINet request failed. Check DLL imports are enabled and network connectivity.";
+        // Indicators reach the network via DLLs; surface the DLL-imports code.
+        TMKRErrorCoded(TMKR_ERR_3010,
+                       "Indicator network request failed. Enable 'Allow DLL imports' (indicator Properties > Common) and check connectivity.");
         if(m_enable_logging)
         {
             Print("============================================================");

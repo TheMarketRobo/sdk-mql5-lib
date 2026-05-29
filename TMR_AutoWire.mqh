@@ -108,7 +108,7 @@
       /* tester gate; the indicator boots offline.                          */        \
       if(ApiKeyInput == "" && !TMR_IsInTester())                                      \
       {                                                                               \
-         TMKRUserError("API Key is required. Please set it in the indicator settings.");\
+         TMKRUserErrorCoded(TMKR_ERR_1002, "API Key is required. Please set it in the indicator settings.");\
          g_pending_removal = true;                                                    \
          EventSetTimer(1);                                                            \
          return INIT_SUCCEEDED;                                                       \
@@ -121,7 +121,7 @@
          /* per-bar TMKRRemoveIndicatorFromChart spam. Fail silently.         */       \
          if(!TMR_IsInTester())                                                        \
          {                                                                            \
-            TMKRUserError("Failed to start. Please try removing and re-adding.");      \
+            TMKRUserErrorCoded(TMKR_ERR_9010, "Failed to start. Please try removing and re-adding.");\
             g_pending_removal = true;                                                 \
             EventSetTimer(1);                                                         \
          }                                                                            \
@@ -139,7 +139,7 @@
             g_pending_removal = g_tmr_indicator_instance.is_pending_removal();        \
             if(!g_pending_removal)                                                    \
             {                                                                         \
-               TMKRUserError("Could not connect to TheMarketRobo service.");           \
+               TMKRUserErrorCoded(TMKR_ERR_3020, "Could not connect to TheMarketRobo service.");\
                g_pending_removal = true;                                              \
             }                                                                         \
             EventSetTimer(1);                                                         \

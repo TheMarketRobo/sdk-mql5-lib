@@ -36,6 +36,15 @@
 //+------------------------------------------------------------------+
 //| SDK Version                                                       |
 //+------------------------------------------------------------------+
+// v1.2.0 (2026-05-30) — searchable error codes. Every user-facing alert
+//   and connectivity/auth/session/termination log line now starts with a
+//   canonical TMKR-#### code (single line, code-first) plus the docs URL
+//   themarketrobo.com/problems/<code>. Codes are generated into
+//   Core/CSDKErrorCatalog.generated.mqh from the single source of truth at
+//   aws/contracts/schemas/error_catalog/catalog.json. New helpers in
+//   Utils/CSDKUserErrors.mqh: TMKRUserErrorCoded(), TMKRErrorCoded(),
+//   TMKRWarnCoded(), GetCodeForMqlError(), GetCodeForHTTPStatus(). The legacy
+//   TMKRUserError()/GetUserFriendly*() helpers remain for backward compat.
 // v1.1.1 (2026-05-17) — fix MQL5 compile breakage from v1.1.0:
 //   - TMR_Platform.mqh: legacy IsTesting/IsOptimization/IsVisualMode
 //     calls (Layer 3) now wrapped in `#ifdef __MQL4__`. MetaEditor 5
@@ -47,7 +56,7 @@
 //   Required minimum version for products that must run in MT4/MT5
 //   Strategy Tester. Older SDKs don't have TMR_IsInTester() or the
 //   init_common tester gate.
-#define TMKR_SDK_VERSION "1.1.1"
+#define TMKR_SDK_VERSION "1.2.0"
 #define TMKR_UUID_LENGTH 36  // Standard UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 //+------------------------------------------------------------------+

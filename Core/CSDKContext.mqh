@@ -408,8 +408,10 @@ void CTMKR_Context::on_timer()
         m_consecutive_heartbeat_failures++;
         if(m_consecutive_heartbeat_failures >= m_options.get_max_heartbeat_failure_intervals())
         {
-            Print("SDK Error: Connection lost — ", m_consecutive_heartbeat_failures,
-                  " consecutive heartbeat failures (max ", m_options.get_max_heartbeat_failure_intervals(),
+            TMKRErrorCoded(TMKR_ERR_4002,
+                  "Connection lost — " + IntegerToString(m_consecutive_heartbeat_failures) +
+                  " consecutive heartbeat failures (max " +
+                  IntegerToString(m_options.get_max_heartbeat_failure_intervals()) +
                   "). Removing product from chart.");
             string tmkr_reason = "Connection lost: maximum heartbeat failure intervals (" +
                             IntegerToString(m_options.get_max_heartbeat_failure_intervals()) + ") exceeded.";
@@ -432,7 +434,7 @@ void CTMKR_Context::on_timer()
     else if(response.code == 409)
     {
         // Sequence error - sync with server and retry
-        if(SDKShouldLogWarning()) Print("SDK Warning: Heartbeat sequence mismatch (HTTP 409), syncing...");
+        TMKRWarnCoded(TMKR_ERR_4001, "Heartbeat sequence mismatch (HTTP 409) — syncing with server.");
         if(CheckPointer(response.json_body) != POINTER_INVALID)
         {
             if(heartbeat_manager.handle_sequence_error(response.json_body))
@@ -454,14 +456,17 @@ void CTMKR_Context::on_timer()
     }
     else
     {
-        Print("SDK Error: Heartbeat failed with HTTP code: ", response.code);
+        TMKRErrorCoded(GetCodeForHTTPStatus(response.code),
+                       "Heartbeat failed with HTTP code " + (string)response.code + ".");
         Print("SDK Error: Response body: ", response.body);
         
         m_consecutive_heartbeat_failures++;
         if(m_consecutive_heartbeat_failures >= m_options.get_max_heartbeat_failure_intervals())
         {
-            Print("SDK Error: Connection lost — ", m_consecutive_heartbeat_failures,
-                  " consecutive heartbeat failures (max ", m_options.get_max_heartbeat_failure_intervals(),
+            TMKRErrorCoded(TMKR_ERR_4002,
+                  "Connection lost — " + IntegerToString(m_consecutive_heartbeat_failures) +
+                  " consecutive heartbeat failures (max " +
+                  IntegerToString(m_options.get_max_heartbeat_failure_intervals()) +
                   "). Removing product from chart.");
             string tmkr_reason = "Connection lost: maximum heartbeat failure intervals (" +
                             IntegerToString(m_options.get_max_heartbeat_failure_intervals()) + ") exceeded.";

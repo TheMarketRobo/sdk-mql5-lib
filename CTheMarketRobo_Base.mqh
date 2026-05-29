@@ -551,37 +551,38 @@ int CTMKR_RobotBase::init_common(string api_key, long magic_number, ENUM_TMKR_PR
 
     if(m_robot_version_uuid == "" || StringLen(m_robot_version_uuid) != TMKR_UUID_LENGTH)
     {
-        Print("SDK Error: Invalid robot_version_uuid. Must be a valid UUID (36 characters).");
+        TMKRErrorCoded(TMKR_ERR_1001, "Invalid robot_version_uuid. Must be a valid UUID (36 characters).");
         if(is_ind)
         {
-            TMKRUserError("Setup error — invalid product configuration. Please contact support.");
+            TMKRUserErrorCoded(TMKR_ERR_1001, "Setup error — invalid product configuration. Please contact support.");
             m_pending_removal = true;
         }
         return INIT_FAILED;
     }
-    
+
     if(api_key == "")
     {
-        Print("SDK Error: API Key is required. Please provide a valid API key.");
+        TMKRErrorCoded(TMKR_ERR_1002, "API Key is required. Please provide a valid API key.");
         if(is_ind)
         {
-            TMKRUserError("API Key is required. Please set it in the indicator settings.");
+            TMKRUserErrorCoded(TMKR_ERR_1002, "API Key is required. Please set it in the indicator settings.");
             m_pending_removal = true;
         }
         else
-            Alert("TheMarketRobo: API Key is required!");
+            TMKRUserErrorCoded(TMKR_ERR_1002, "API Key is required!");
         return INIT_FAILED;
     }
-    
+
     if(product_type == PRODUCT_TYPE_ROBOT && CheckPointer(m_robot_config) == POINTER_INVALID)
     {
-        Print("SDK Error: Robot configuration is not valid. Robots must provide an IRobotConfig instance.");
+        TMKRErrorCoded(TMKR_ERR_1003, "Robot configuration is not valid. Robots must provide an IRobotConfig instance.");
         return INIT_FAILED;
     }
-    
+
     if(is_ind && m_indicator_short_name == "")
     {
-        Print("SDK SECURITY WARNING: set_indicator_short_name() was not called before on_init(). "
+        TMKRWarnCoded(TMKR_ERR_1004,
+              "set_indicator_short_name() was not called before on_init(). "
               "Server-side termination will NOT be able to remove this indicator from the chart. "
               "Call set_indicator_short_name() in OnInit() BEFORE calling on_init().");
     }
@@ -597,10 +598,10 @@ int CTMKR_RobotBase::init_common(string api_key, long magic_number, ENUM_TMKR_PR
     m_sdk_context = new CTMKR_Context(api_key, m_robot_version_uuid, magic_number, m_robot_config, product_type);
     if(CheckPointer(m_sdk_context) == POINTER_INVALID)
     {
-        Print("SDK Error: Failed to create SDK Context.");
+        TMKRErrorCoded(TMKR_ERR_9010, "Failed to create SDK Context.");
         if(is_ind)
         {
-            TMKRUserError("Failed to start. Please try removing and re-adding the indicator.");
+            TMKRUserErrorCoded(TMKR_ERR_9010, "Failed to start. Please try removing and re-adding the indicator.");
             m_pending_removal = true;
         }
         return INIT_FAILED;
@@ -619,7 +620,7 @@ int CTMKR_RobotBase::init_common(string api_key, long magic_number, ENUM_TMKR_PR
     // The kill file persists across timeframe changes to prevent session restart.
     if(is_ind && m_sdk_context.check_kill_file())
     {
-        TMKRUserError("This indicator session was terminated. Please remove it from the chart.");
+        TMKRUserErrorCoded(TMKR_ERR_1005, "This indicator session was terminated. Please remove it from the chart.");
         m_killed = true;
         EventSetTimer(1);  // Timer fires → on_timer returns immediately due to m_killed
         return INIT_SUCCEEDED;
@@ -641,12 +642,12 @@ int CTMKR_RobotBase::init_common(string api_key, long magic_number, ENUM_TMKR_PR
         
         if(is_ind)
         {
-            TMKRUserError("Could not connect to TheMarketRobo service. Please check your internet connection and try again.");
+            TMKRUserErrorCoded(TMKR_ERR_3020, "Could not connect to TheMarketRobo service. Please check your internet connection and try again.");
             m_pending_removal = true;
         }
         else
         {
-            Alert("TheMarketRobo: Could not connect to the service. The robot will be removed.");
+            TMKRUserErrorCoded(TMKR_ERR_3020, "Could not connect to the service. The robot will be removed.");
             ExpertRemove();
         }
         return INIT_FAILED;
@@ -913,14 +914,12 @@ void CTMKR_RobotBase::handle_termination_event(string event_json)
     
     if(is_robot_mode())
     {
-        string tmkr_message = "Session terminated by server. Reason: " + tmkr_reason;
-        Print(tmkr_message);
-        Alert(tmkr_message);
+        TMKRUserErrorCoded(TMKR_ERR_6001, "Session terminated by server. Reason: " + tmkr_reason);
         ExpertRemove();
     }
     else
     {
-        TMKRUserErrorWithDetails(
+        TMKRUserErrorCodedWithDetails(TMKR_ERR_6001,
             "Session ended. The indicator will be removed from the chart.",
             "Server termination reason: " + tmkr_reason);
         remove_indicator_from_chart();
@@ -937,10 +936,10 @@ void CTMKR_RobotBase::handle_termination_requested_event(string event_json)
 
     string tmkr_reason = event_data["reason"].get_string();
     
-    Print("SDK Error: SERVER REQUESTED SESSION TERMINATION. Reason: ", tmkr_reason,
-          ". ", (is_robot_mode() ? "The Expert Advisor will now terminate..." 
+    TMKRErrorCoded(TMKR_ERR_6001, "SERVER REQUESTED SESSION TERMINATION. Reason: " + tmkr_reason +
+          ". " + (is_robot_mode() ? "The Expert Advisor will now terminate..."
                                   : "The Indicator session will now terminate..."));
-    
+
     on_termination_requested(event_json);
 }
 
@@ -957,12 +956,12 @@ void CTMKR_RobotBase::on_termination_requested(string event_json)
     
     if(is_robot_mode())
     {
-        Alert("TheMarketRobo: Server requested termination: " + tmkr_reason);
+        TMKRUserErrorCoded(TMKR_ERR_6001, "Server requested termination: " + tmkr_reason);
         ExpertRemove();
     }
     else
     {
-        TMKRUserErrorWithDetails(
+        TMKRUserErrorCodedWithDetails(TMKR_ERR_6001,
             "Session stopped by server. The indicator will be removed from the chart.",
             "Termination reason: " + tmkr_reason);
         remove_indicator_from_chart();
@@ -982,14 +981,12 @@ void CTMKR_RobotBase::handle_token_refresh_event(string event_json)
     {
         if(is_robot_mode())
         {
-            string tmkr_message = "TheMarketRobo: Authentication failed. The robot will be removed to prevent an unauthorized session.";
-            Print(tmkr_message);
-            Alert(tmkr_message);
+            TMKRUserErrorCoded(TMKR_ERR_6002, "Authentication failed. The robot will be removed to prevent an unauthorized session.");
             ExpertRemove();
         }
         else
         {
-            TMKRUserError("Authentication failed. The indicator will be removed from the chart.");
+            TMKRUserErrorCoded(TMKR_ERR_6002, "Authentication failed. The indicator will be removed from the chart.");
             remove_indicator_from_chart();
         }
     }
