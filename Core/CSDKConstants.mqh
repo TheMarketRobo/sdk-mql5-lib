@@ -68,14 +68,19 @@
  * The base URL for TheMarketRobo API. This is a hardcoded SDK constant
  * and is NOT configurable by the robot programmer or customer.
  *
- * Current: Staging environment
- * Production: https://api.themarketrobo.com/
+ * Default: PRODUCTION. To target staging, define TMKR_STAGING before
+ * including the SDK and recompile. This compile-time gate prevents
+ * accidental connections to the wrong environment while ensuring shipped
+ * production robots default to production.
  *
- * Note: To switch between staging and production, this constant must
- * be changed and the SDK recompiled. This is intentional to prevent
- * accidental connections to the wrong environment.
+ *   Production (default):    https://api.themarketrobo.com
+ *   Staging  (TMKR_STAGING): https://api.staging.themarketrobo.com
  */
-#define TMKR_API_BASE_URL "https://api.staging.themarketrobo.com"
+#ifdef TMKR_STAGING
+   #define TMKR_API_BASE_URL "https://api.staging.themarketrobo.com"
+#else
+   #define TMKR_API_BASE_URL "https://api.themarketrobo.com"
+#endif
 
 //+------------------------------------------------------------------+
 //| Default Configuration Values                                      |
