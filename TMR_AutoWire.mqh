@@ -31,7 +31,7 @@
 #define TMR_AUTOWIRE_MQH
 
 #ifndef THEMARKETROBO_SDK_MQH
-   #tmkr_error "TMR_AutoWire.mqh requires TheMarketRobo_SDK.mqh — include the SDK first"
+   #error "TMR_AutoWire.mqh requires TheMarketRobo_SDK.mqh — include the SDK first"
 #endif
 
 //+------------------------------------------------------------------+

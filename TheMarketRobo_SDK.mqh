@@ -160,6 +160,13 @@
 // OnTick/OnChartEvent boilerplate into a single macro call.
 #include "TMR_AutoWire.mqh"
 
+// Backwards-compatibility aliases for the pre-TMKR-rename public API
+// (CTheMarketRobo_Base, IRobotConfig, CJAVal, CConfigDependency, ...).
+// MUST stay the LAST include: aliases are plain token defines and the
+// real definitions above must compile before the legacy names map onto
+// them.
+#include "TMKR_Compat.mqh"
+
 #endif // THEMARKETROBO_SDK_MQH
 //+------------------------------------------------------------------+
 

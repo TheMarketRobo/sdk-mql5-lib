@@ -36,6 +36,16 @@
 //+------------------------------------------------------------------+
 //| SDK Version                                                       |
 //+------------------------------------------------------------------+
+// v1.2.1 (2026-07-09) — restore the pre-TMKR-rename backwards-compat
+//   aliases the docs/samples promise (NEW TMKR_Compat.mqh, included last
+//   from TheMarketRobo_SDK.mqh): CTheMarketRobo_Base, CTheMarketRobo_Bot_Base,
+//   IRobotConfig, CJAVal/CJAObj + JA_*, CConfigField/Schema/Option/Dependency
+//   + CONFIG_FIELD_* + CONDITION_EQUALS, ENUM_SDK_LOG_LEVEL + SDK_LOG_* +
+//   SDKSet/GetLogLevel, SDKRemoveIndicatorFromChart, SDKUserError(WithDetails).
+//   The 2026 TMKR rename (3a87e84) had renamed every definition in place
+//   without shipping these aliases, so pre-rename vendor code and the
+//   bundled samples could not compile. Also repairs the rename-mangled
+//   `#tmkr_error` preprocessor directive in TMR_AutoWire.mqh (→ `#error`).
 // v1.2.0 (2026-05-30) — searchable error codes. Every user-facing alert
 //   and connectivity/auth/session/termination log line now starts with a
 //   canonical TMKR-#### code (single line, code-first) plus the docs URL
@@ -56,7 +66,7 @@
 //   Required minimum version for products that must run in MT4/MT5
 //   Strategy Tester. Older SDKs don't have TMR_IsInTester() or the
 //   init_common tester gate.
-#define TMKR_SDK_VERSION "1.2.0"
+#define TMKR_SDK_VERSION "1.2.1"
 #define TMKR_UUID_LENGTH 36  // Standard UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 //+------------------------------------------------------------------+
