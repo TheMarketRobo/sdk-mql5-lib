@@ -36,6 +36,13 @@
 //+------------------------------------------------------------------+
 //| SDK Version                                                       |
 //+------------------------------------------------------------------+
+// v1.2.2 (2026-07-10) — fire the config-change event. CConfigurationManager
+//   ::process_change_request now calls Fire_Config_Change_Event() per accepted
+//   change (mirrors CSymbolManager), so the vendor on_config_changed() hook runs.
+//   Before this it never fired: the event was defined in Utils/CSDK_Events.mqh
+//   but had no call site, so config values applied + acked without notifying the
+//   robot. Symbol changes already fired correctly. MIN_REQUIRED_SDK_VERSION
+//   unchanged (this is a fix, not a floor bump).
 // v1.2.1 (2026-07-09) — restore the pre-TMKR-rename backwards-compat
 //   aliases the docs/samples promise (NEW TMKR_Compat.mqh, included last
 //   from TheMarketRobo_SDK.mqh): CTheMarketRobo_Base, CTheMarketRobo_Bot_Base,
@@ -66,7 +73,7 @@
 //   Required minimum version for products that must run in MT4/MT5
 //   Strategy Tester. Older SDKs don't have TMR_IsInTester() or the
 //   init_common tester gate.
-#define TMKR_SDK_VERSION "1.2.1"
+#define TMKR_SDK_VERSION "1.2.2"
 #define TMKR_UUID_LENGTH 36  // Standard UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 //+------------------------------------------------------------------+

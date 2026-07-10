@@ -189,6 +189,8 @@ void CTMKR_ConfigurationManager::process_change_request(const CTMKR_JAVal &chang
             string tmkr_reason = "";
             if(m_robot_config.validate_field(field_name, new_value_str, tmkr_reason))
             {
+                // Capture the pre-update value for the change event (see the fire below).
+                string tmkr_old_value = m_robot_config.get_field_as_string(field_name);
                 m_robot_config.update_field(field_name, new_value_str);
                 
                 // accepted: true
@@ -203,6 +205,17 @@ void CTMKR_ConfigurationManager::process_change_request(const CTMKR_JAVal &chang
                 
                 accepted_count++;
                 if(SDKShouldLogInfo()) Print("SDK Info: Config field '", field_name, "' updated to '", new_value_str, "'");
+
+                // v1.2.2 — fire the config-change event so the vendor's
+                // on_config_changed() hook runs (mirrors CSymbolManager). The event
+                // was defined in CSDK_Events.mqh but had no call site before this
+                // release, so on_config_changed() never fired even though the value
+                // applied and the ack rode the next heartbeat.
+                STMKR_ConfigChangeEvent tmkr_config_event;
+                tmkr_config_event.field_name = field_name;
+                tmkr_config_event.old_value  = tmkr_old_value;
+                tmkr_config_event.new_value  = new_value_str;
+                Fire_Config_Change_Event(0, tmkr_config_event);
             }
             else
             {
