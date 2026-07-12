@@ -36,6 +36,34 @@
 //+------------------------------------------------------------------+
 //| SDK Version                                                       |
 //+------------------------------------------------------------------+
+// v1.3.0 (2026-07-12) — the symbol rail tells the truth. `active_to_trade` was
+//   implemented as SymbolSelect(symbol, active) — a Market Watch DATA SUBSCRIPTION,
+//   not a trading gate — and the ACK was decided from its return value, before the
+//   strategy was ever consulted. Two proven production consequences:
+//     (a) SymbolSelect(sym,false) is refused by MQL while a symbol is in use, and an
+//         EA's own chart symbol always is ⇒ a single-symbol robot could NEVER be told
+//         to stop trading. The primary use case returned SYMBOL_UNAVAILABLE every time.
+//     (b) The only route to the strategy — Fire_Symbol_Change_Event → on_symbol_changed
+//         — is EventChartCustom(): asynchronous and void. It fired AFTER accepted_count++
+//         and after the result JSON was built, so the strategy could not veto. The SDK
+//         ACKed accepted:true for changes the expert never applied, and the platform
+//         stored them as landed.
+//   The contract (session-global.yaml) already said `accepted` = "accepted AND APPLIED
+//   by the robot" and `applied_active_to_trade` = "the ACTUAL value applied" — the SDK
+//   simply could not honour it, because it had no synchronous way to ask.
+//   NEW Interfaces/ITMKR_SymbolGate.mqh — the symbol-side counterpart of
+//   ITMKR_RobotConfig::update_field(): a SYNCHRONOUS call whose return decides the ACK.
+//   Register with CTMKR_RobotBase::set_symbol_gate() BEFORE on_init(). CSymbolManager
+//   now asks the gate first, applies the flag itself, keeps SymbolSelect only on the
+//   ACTIVATE path (where ensuring the terminal carries the symbol's data is genuinely
+//   useful), reports the real applied value on rejection, and distinguishes
+//   SYMBOL_NOT_TRADED ("the robot won't") from SYMBOL_UNAVAILABLE ("the terminal can't").
+//   BACKWARDS COMPATIBLE: no gate ⇒ every change accepted (the v1.2.x default), minus
+//   the SymbolSelect miscarriage. MIN_REQUIRED_SDK_VERSION unchanged.
+//   KNOWN, NOT FIXED HERE: CSessionSymbol.mqh:109 seeds active_to_trade from
+//   SYMBOL_VISIBLE (Market Watch visibility) — the same category error on the READ side,
+//   which is why session_symbols reports every visible symbol rather than the robot's
+//   trading set. The gate seam added here is what a fix would hang off.
 // v1.2.2 (2026-07-10) — fire the config-change event. CConfigurationManager
 //   ::process_change_request now calls Fire_Config_Change_Event() per accepted
 //   change (mirrors CSymbolManager), so the vendor on_config_changed() hook runs.
@@ -73,7 +101,7 @@
 //   Required minimum version for products that must run in MT4/MT5
 //   Strategy Tester. Older SDKs don't have TMR_IsInTester() or the
 //   init_common tester gate.
-#define TMKR_SDK_VERSION "1.2.2"
+#define TMKR_SDK_VERSION "1.3.0"
 #define TMKR_UUID_LENGTH 36  // Standard UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 //+------------------------------------------------------------------+

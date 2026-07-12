@@ -119,6 +119,7 @@
 
 // Interfaces (developer config classes extend IRobotConfig)
 #include "Interfaces/IRobotConfig.mqh"
+#include "Interfaces/ITMKR_SymbolGate.mqh"
 
 // Logger (global log level + level-check helpers — include before other utils)
 #include "Utils/CSDKLogger.mqh"

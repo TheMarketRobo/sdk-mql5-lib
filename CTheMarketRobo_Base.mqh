@@ -22,6 +22,7 @@
 #ifndef TMKR_SDK_ENABLED
 
 #include "Interfaces/IRobotConfig.mqh"
+#include "Interfaces/ITMKR_SymbolGate.mqh"
 
 class CTMKR_RobotBase
 {
@@ -97,6 +98,7 @@ public:
     bool is_config_change_requests_enabled() const { return false; }
     void set_enable_symbol_change_requests(bool enable) {}
     bool is_symbol_change_requests_enabled() const { return false; }
+    void set_symbol_gate(ITMKR_SymbolGate* tmkr_gate) {}
     void print_sdk_configuration() const { if(SDKShouldLogInfo()) Print("SDK Info: SDK is disabled — no configuration to display."); }
     string get_robot_version_uuid() const { return m_robot_version_uuid; }
     // Stub mirrors the full class's NULL-context fallback: indicators are
@@ -122,6 +124,7 @@ public:
 #include "Utils/CSDK_Events.mqh"
 #include "Utils/CSDKUserErrors.mqh"
 #include "Interfaces/IRobotConfig.mqh"
+#include "Interfaces/ITMKR_SymbolGate.mqh"
 
 /**
  * @class CTheMarketRobo_Base
@@ -184,6 +187,7 @@ protected:
     int             m_max_heartbeat_failure_intervals;
     bool            m_enable_config_change_requests;
     bool            m_enable_symbol_change_requests;
+    ITMKR_SymbolGate* m_symbol_gate;          // NOT owned; registered before on_init(), handed to the context there
     string          m_indicator_short_name;   // For ChartIndicatorDelete self-removal
     bool            m_pending_removal;        // Deferred removal flag (set during init, executed on first tick/timer)
     bool            m_killed;                 // Indicator functionally dead (security: all output cleared, calc blocked)
@@ -237,6 +241,7 @@ public:
     bool is_config_change_requests_enabled() const;
     
     void set_enable_symbol_change_requests(bool enable);
+    void set_symbol_gate(ITMKR_SymbolGate* tmkr_gate);
     bool is_symbol_change_requests_enabled() const;
     
     void set_max_heartbeat_failure_intervals(int intervals);
@@ -287,6 +292,7 @@ CTMKR_RobotBase::CTMKR_RobotBase(string robot_version_uuid, ITMKR_RobotConfig* r
     m_token_refresh_threshold_seconds = TMKR_DEFAULT_TOKEN_REFRESH_THRESHOLD;
     m_enable_config_change_requests = true;
     m_enable_symbol_change_requests = true;
+    m_symbol_gate = NULL;
     m_indicator_short_name = "";
     m_pending_removal = false;
     m_killed = false;
@@ -307,6 +313,7 @@ CTMKR_RobotBase::CTMKR_RobotBase(string robot_version_uuid)
     m_token_refresh_threshold_seconds = TMKR_DEFAULT_TOKEN_REFRESH_THRESHOLD;
     m_enable_config_change_requests = false; // Indicators never use config changes
     m_enable_symbol_change_requests = false; // Indicators never use symbol changes
+    m_symbol_gate = NULL;                    // Indicators have no trading set to gate
     m_indicator_short_name = "";
     m_pending_removal = false;
     m_killed = false;
@@ -609,11 +616,15 @@ int CTMKR_RobotBase::init_common(string api_key, long magic_number, ENUM_TMKR_PR
     
     m_sdk_context.set_token_refresh_threshold_seconds(m_token_refresh_threshold_seconds);
     m_sdk_context.set_max_heartbeat_failure_intervals(m_max_heartbeat_failure_intervals);
-    
+
     // Config/symbol toggle setters are no-ops for indicators (guarded in CSDKOptions)
     m_sdk_context.set_enable_config_change_requests(m_enable_config_change_requests);
     m_sdk_context.set_enable_symbol_change_requests(m_enable_symbol_change_requests);
-    
+
+    // The gate is normally registered before on_init(), i.e. before the context existed —
+    // hand the stored pointer over now that the symbol manager is alive.
+    m_sdk_context.set_symbol_gate(m_symbol_gate);
+
     print_sdk_configuration();
 
     // Security: check if this indicator was previously killed (terminated by server).
@@ -871,6 +882,21 @@ void CTMKR_RobotBase::set_enable_symbol_change_requests(bool enable)
     m_enable_symbol_change_requests = enable;
     if(CheckPointer(m_sdk_context) != POINTER_INVALID)
         m_sdk_context.set_enable_symbol_change_requests(enable);
+}
+
+//+------------------------------------------------------------------+
+//| Register the strategy's symbol gate (v1.3.0)                      |
+//|                                                                   |
+//| Call BEFORE on_init(): the gate is stored and handed to the       |
+//| symbol manager when the context is built. The gate is NOT owned — |
+//| it must outlive this robot. With no gate the SDK accepts every    |
+//| symbol change, which is the v1.2.x default.                       |
+//+------------------------------------------------------------------+
+void CTMKR_RobotBase::set_symbol_gate(ITMKR_SymbolGate* tmkr_gate)
+{
+    m_symbol_gate = tmkr_gate;
+    if(CheckPointer(m_sdk_context) != POINTER_INVALID)
+        m_sdk_context.set_symbol_gate(tmkr_gate);
 }
 
 bool CTMKR_RobotBase::is_symbol_change_requests_enabled() const

@@ -68,6 +68,8 @@ public:
     
     void set_enable_symbol_change_requests(bool enable);
     bool is_symbol_change_requests_enabled() const;
+
+    void set_symbol_gate(ITMKR_SymbolGate* tmkr_gate);
     
     void set_max_heartbeat_failure_intervals(int intervals);
     int  get_max_heartbeat_failure_intervals() const;
@@ -547,6 +549,15 @@ void CTMKR_Context::set_enable_symbol_change_requests(bool enable)
         m_options.set_enable_symbol_change_requests(enable);
     if(CheckPointer(symbol_manager) != POINTER_INVALID)
         symbol_manager.set_enabled(enable);
+}
+
+//+------------------------------------------------------------------+
+//| Register the strategy's symbol gate (v1.3.0)                      |
+//+------------------------------------------------------------------+
+void CTMKR_Context::set_symbol_gate(ITMKR_SymbolGate* tmkr_gate)
+{
+    if(CheckPointer(symbol_manager) != POINTER_INVALID)
+        symbol_manager.set_symbol_gate(tmkr_gate);
 }
 
 bool CTMKR_Context::is_symbol_change_requests_enabled() const
