@@ -12,7 +12,9 @@
 //--- Constants for token refresh thresholds
 #define TMKR_MIN_REFRESH_THRESHOLD  60
 #define TMKR_MAX_REFRESH_THRESHOLD  3600
-#define TMKR_DEFAULT_REFRESH_THRESHOLD 300
+// v1.3.1: aligned with TMKR_DEFAULT_TOKEN_REFRESH_THRESHOLD — the old value
+// (300) equalled the backend's token lifetime, the immediate-refresh footgun.
+#define TMKR_DEFAULT_REFRESH_THRESHOLD TMKR_DEFAULT_TOKEN_REFRESH_THRESHOLD
 
 /**
  * @class CSDKOptions

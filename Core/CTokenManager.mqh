@@ -7,6 +7,7 @@
 #define CTOKEN_MANAGER_MQH
 
 #include <Object.mqh>
+#include "CSDKConstants.mqh"
 #include "../Services/Json.mqh"
 #include "../Utils/CSDKLogger.mqh"
 
@@ -19,9 +20,20 @@
  * Tokens are refreshed BEFORE expiration, not after. The refresh threshold is configurable.
  *
  * ## Default Behavior
- * - Default refresh threshold: 300 seconds (5 minutes) before expiration
- * - Token is refreshed when: current_time >= (expiration_time - refresh_threshold)
+ * - Default refresh threshold: 60 seconds (TMKR_DEFAULT_TOKEN_REFRESH_THRESHOLD)
+ * - Token is refreshed when: current_time >= (expiration_time - effective_threshold)
  * - This ensures the robot always has a valid token for API calls
+ *
+ * ## Loop safety (v1.3.1)
+ * The EFFECTIVE threshold is clamped to half the token's real lifetime (exp - iat,
+ * falling back to the server's expires_in). A configured threshold >= the token
+ * lifetime (e.g. threshold 300 s against 300 s tokens) previously made the refresh
+ * predicate true from the moment each token was issued — the 1-second SDK timer
+ * then produced ~1 POST /robot/refresh per second, forever. With the clamp, a
+ * 300 s token refreshes once at ~T+150 s regardless of the configured value.
+ * Additionally, refresh signals carry a TMKR_TOKEN_REFRESH_RETRY_SECONDS cooldown
+ * so a FAILING refresh near expiry retries at that cadence instead of every tick;
+ * a successfully stored fresh token resets the cooldown.
  */
 class CTMKR_TokenManager : public CObject
 {
@@ -31,6 +43,7 @@ private:
     long   m_issued_at_timestamp;
     int    m_refresh_threshold_seconds;
     int    m_expires_in;
+    long   m_last_refresh_signal;   // TimeGMT() of the last should_refresh_token()==true (retry cooldown)
 
 public:
     CTMKR_TokenManager();
@@ -50,8 +63,11 @@ public:
     
     int    get_refresh_threshold_seconds() const;
     void   set_refresh_threshold_seconds(int seconds);
+    int    get_effective_refresh_threshold_seconds() const;
 
 private:
+    long   get_token_lifetime_seconds() const;
+    void   warn_if_threshold_clamped() const;
     bool   decode_token_payload(string jwt);
     string base64_url_decode(const string &encoded_string);
     int    base64_char_to_value(uchar tmkr_c);
@@ -66,8 +82,10 @@ CTMKR_TokenManager::CTMKR_TokenManager()
     m_expiration_timestamp = 0;
     m_issued_at_timestamp = 0;
     m_expires_in = 0;
-    // Default to 60 seconds - must be less than JWT expiration (default 300s)
-    m_refresh_threshold_seconds = 60;
+    m_last_refresh_signal = 0;
+    // Default to 60 seconds; the effective threshold is additionally clamped to
+    // half the token's real lifetime at decision time (see should_refresh_token).
+    m_refresh_threshold_seconds = TMKR_DEFAULT_TOKEN_REFRESH_THRESHOLD;
 }
 
 //+------------------------------------------------------------------+
@@ -92,8 +110,12 @@ void CTMKR_TokenManager::set_token(string jwt)
     }
     else
     {
+        // Fresh token: clear the refresh-retry cooldown so the next refresh
+        // is scheduled purely from this token's own lifetime.
+        m_last_refresh_signal = 0;
+        warn_if_threshold_clamped();
         if(SDKShouldLogInfo())
-            Print("SDK Info: Token set successfully. Expires at: ", 
+            Print("SDK Info: Token set successfully. Expires at: ",
                   TimeToString(m_expiration_timestamp, TIME_DATE|TIME_SECONDS));
     }
 }
@@ -113,6 +135,8 @@ void CTMKR_TokenManager::restore_token(string jwt, int expires_in)
     }
     else
     {
+        m_last_refresh_signal = 0;
+        warn_if_threshold_clamped();
         if(SDKShouldLogInfo())
             Print("SDK Info: Token restored. Expires at: ",
                   TimeToString(m_expiration_timestamp, TIME_DATE|TIME_SECONDS));
@@ -188,20 +212,77 @@ int CTMKR_TokenManager::get_refresh_threshold_seconds() const
 }
 
 //+------------------------------------------------------------------+
+//| Token lifetime in seconds (exp - iat, fallback expires_in)        |
+//+------------------------------------------------------------------+
+long CTMKR_TokenManager::get_token_lifetime_seconds() const
+{
+    if(m_expiration_timestamp > 0 && m_issued_at_timestamp > 0 &&
+       m_expiration_timestamp > m_issued_at_timestamp)
+        return m_expiration_timestamp - m_issued_at_timestamp;
+    if(m_expires_in > 0)
+        return m_expires_in;
+    return 0; // unknown — no clamp possible
+}
+
+//+------------------------------------------------------------------+
+//| Effective refresh threshold: configured value clamped to half     |
+//| the token's real lifetime. A threshold >= the lifetime would make |
+//| the refresh predicate true from the moment the token is issued    |
+//| (the ~1 refresh/second self-DoS observed in production).          |
+//+------------------------------------------------------------------+
+int CTMKR_TokenManager::get_effective_refresh_threshold_seconds() const
+{
+    long effective_threshold = m_refresh_threshold_seconds;
+    long lifetime_seconds = get_token_lifetime_seconds();
+    if(lifetime_seconds > 0)
+    {
+        long half_life = lifetime_seconds / 2;
+        if(effective_threshold > half_life)
+            effective_threshold = half_life;
+    }
+    return (int)effective_threshold;
+}
+
+//+------------------------------------------------------------------+
+//| One warning per received token when the clamp is engaged          |
+//+------------------------------------------------------------------+
+void CTMKR_TokenManager::warn_if_threshold_clamped() const
+{
+    int effective_threshold = get_effective_refresh_threshold_seconds();
+    if(effective_threshold < m_refresh_threshold_seconds && SDKShouldLogWarning())
+        Print("SDK Warning: Token refresh threshold (", m_refresh_threshold_seconds,
+              "s) is at least half the token lifetime (", get_token_lifetime_seconds(),
+              "s). Using effective threshold ", effective_threshold,
+              "s to avoid an immediate-refresh loop.");
+}
+
+//+------------------------------------------------------------------+
 //| Checks if the token should be refreshed proactively               |
 //+------------------------------------------------------------------+
 bool CTMKR_TokenManager::should_refresh_token()
 {
-    if(m_expiration_timestamp == 0 || m_jwt == "") 
+    if(m_expiration_timestamp == 0 || m_jwt == "")
         return false;
 
     // Use TimeGMT() instead of TimeCurrent() for two reasons:
     // 1. TimeCurrent() doesn't advance when market is closed (weekends/holidays)
     // 2. JWT exp claim is a Unix UTC timestamp, so we should compare with UTC time
     long current_time = TimeGMT();
-    long refresh_time = m_expiration_timestamp - m_refresh_threshold_seconds;
-    
-    return (current_time >= refresh_time);
+    long refresh_time = m_expiration_timestamp - get_effective_refresh_threshold_seconds();
+
+    if(current_time < refresh_time)
+        return false;
+
+    // Retry cooldown: this predicate is polled every timer tick (1 s). Without a
+    // cooldown, a refresh that FAILS while the token is inside the refresh window
+    // is retried once per second. Signal at most once per cooldown period; a
+    // successfully stored fresh token resets it (set_token/restore_token).
+    if(m_last_refresh_signal != 0 &&
+       (current_time - m_last_refresh_signal) < TMKR_TOKEN_REFRESH_RETRY_SECONDS)
+        return false;
+
+    m_last_refresh_signal = current_time;
+    return true;
 }
 
 //+------------------------------------------------------------------+
@@ -220,9 +301,9 @@ int CTMKR_TokenManager::get_seconds_until_expiration() const
 //+------------------------------------------------------------------+
 int CTMKR_TokenManager::get_seconds_until_refresh() const
 {
-    if(m_expiration_timestamp == 0) 
+    if(m_expiration_timestamp == 0)
         return 0;
-    long refresh_time = m_expiration_timestamp - m_refresh_threshold_seconds;
+    long refresh_time = m_expiration_timestamp - get_effective_refresh_threshold_seconds();
     // Use TimeGMT() for accurate comparison with JWT exp (Unix UTC timestamp)
     return (int)(refresh_time - TimeGMT());
 }

@@ -36,6 +36,29 @@
 //+------------------------------------------------------------------+
 //| SDK Version                                                       |
 //+------------------------------------------------------------------+
+// v1.3.1 (2026-07-19) — token-refresh self-DoS fix. CTokenManager::
+//   should_refresh_token() compared TimeGMT() >= exp - threshold with no
+//   knowledge of the token's actual lifetime. Emitted robots call
+//   set_token_refresh_threshold(300) while the backend issues
+//   expires_in:300 tokens, so refresh_time == iat: the predicate was true
+//   from the moment each token was issued, and the 1-second SDK timer
+//   (EventSetTimer(1)) produced ~1 POST /robot/refresh per second — 1033
+//   refreshes vs 18 heartbeats in one 17-minute production session
+//   (trade-audit P24 evidence). Each successful refresh minted a fresh
+//   300 s token that was already "due", so the loop never settled. Fix,
+//   all inside CTokenManager: (a) the EFFECTIVE refresh threshold is
+//   clamped to half the token's real lifetime (exp - iat, falling back to
+//   expires_in), so a 300 s token refreshes once at ~T+150 s regardless of
+//   the configured threshold; (b) refresh signals carry a
+//   TMKR_TOKEN_REFRESH_RETRY_SECONDS (30 s) cooldown so a FAILING refresh
+//   inside the refresh window retries every 30 s instead of every tick;
+//   (c) a successfully stored fresh token resets the cooldown, and a
+//   warning logs once per token when the clamp engages. Also aligned the
+//   dormant CSDKOptions default (was 300 — the pathological value) with
+//   TMKR_DEFAULT_TOKEN_REFRESH_THRESHOLD (60). set_token_refresh_threshold
+//   keeps its [60, 3600] bounds — the clamp applies at decision time
+//   against each token actually received. No API change;
+//   MIN_REQUIRED_SDK_VERSION unchanged (behavioral fix).
 // v1.3.0 (2026-07-12) — the symbol rail tells the truth. `active_to_trade` was
 //   implemented as SymbolSelect(symbol, active) — a Market Watch DATA SUBSCRIPTION,
 //   not a trading gate — and the ACK was decided from its return value, before the
@@ -101,7 +124,7 @@
 //   Required minimum version for products that must run in MT4/MT5
 //   Strategy Tester. Older SDKs don't have TMR_IsInTester() or the
 //   init_common tester gate.
-#define TMKR_SDK_VERSION "1.3.0"
+#define TMKR_SDK_VERSION "1.3.1"
 #define TMKR_UUID_LENGTH 36  // Standard UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 //+------------------------------------------------------------------+
@@ -135,11 +158,23 @@
  * Default token refresh threshold in seconds.
  * Tokens will be refreshed this many seconds before expiration.
  * Minimum: 60 seconds, Maximum: 3600 seconds
- * 
- * Note: This MUST be less than the JWT expiration time (default 300 seconds).
- * If set equal to or greater than expiration, refresh will trigger immediately!
+ *
+ * Loop safety (v1.3.1): the EFFECTIVE threshold is clamped at decision time
+ * to half the token's real lifetime (exp - iat, fallback expires_in), so a
+ * configured value >= the JWT expiration (default 300 seconds) can no longer
+ * put the refresh predicate permanently in the past — the historical
+ * ~1 refresh/second loop. See CTokenManager::get_effective_refresh_threshold_seconds().
  */
 #define TMKR_DEFAULT_TOKEN_REFRESH_THRESHOLD 60
+
+/**
+ * Minimum spacing between token-refresh ATTEMPTS in seconds.
+ * should_refresh_token() is polled on every 1-second timer tick; without a
+ * cooldown a refresh that fails while the token is inside the refresh window
+ * is retried once per second. A successfully stored fresh token resets the
+ * cooldown, so this only paces retries after a FAILED or in-flight refresh.
+ */
+#define TMKR_TOKEN_REFRESH_RETRY_SECONDS 30
 
 /**
  * Default heartbeat interval in seconds.

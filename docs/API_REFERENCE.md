@@ -113,7 +113,7 @@ void set_token_refresh_threshold(int seconds)
 **Default:** 60 seconds (`SDK_DEFAULT_TOKEN_REFRESH_THRESHOLD` in CSDKConstants.mqh)  
 **Range:** 60–3600 seconds  
 
-**Note:** If set equal to or greater than the JWT expiration time (e.g. 300 seconds), refresh will trigger immediately.
+**Note (v1.3.1):** The EFFECTIVE threshold is clamped to half the token's real lifetime (`exp - iat`, fallback `expires_in`), so a value equal to or greater than the JWT expiration time (e.g. 300 seconds against 300-second tokens) no longer triggers an immediate-refresh loop — such a token refreshes once at ~half its life. Failed refresh attempts are additionally paced by `TMKR_TOKEN_REFRESH_RETRY_SECONDS` (30 s) instead of retrying every timer tick.
 
 ---
 

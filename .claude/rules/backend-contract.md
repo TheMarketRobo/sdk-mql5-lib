@@ -23,5 +23,5 @@ MQL4 sessions omit 5 MQL5-only fields (`account_margin_mode`, `account_currency_
 ## Operational invariants
 
 - **Heartbeat sequence**: Monotonically increasing counter. Server returns 409 on mismatch; SDK resyncs from response.
-- **Token refresh**: Proactive — happens `SDK_DEFAULT_TOKEN_REFRESH_THRESHOLD` (60s) before JWT expiry, not after.
+- **Token refresh**: Proactive — happens `SDK_DEFAULT_TOKEN_REFRESH_THRESHOLD` (60s) before JWT expiry, not after. v1.3.1: the effective threshold is clamped to half the token's real lifetime (a configured threshold ≥ the lifetime used to make the predicate permanently true → ~1 refresh/sec self-DoS), and failed attempts are paced by `TMKR_TOKEN_REFRESH_RETRY_SECONDS` (30s).
 - **Product type**: Determined server-side from database via `robot_version_uuid`, not from SDK payload.
