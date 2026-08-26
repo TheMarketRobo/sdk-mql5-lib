@@ -26,8 +26,25 @@
 #define WININET_INTERNET_FLAG_SECURE              0x00800000
 #define WININET_INTERNET_FLAG_KEEP_CONNECTION     0x00400000
 #define WININET_INTERNET_FLAG_NO_AUTO_REDIRECT    0x00200000
-#define WININET_INTERNET_FLAG_IGNORE_CERT_CN      0x00001000
-#define WININET_INTERNET_FLAG_IGNORE_CERT_DATE    0x00002000
+
+//--- TLS certificate validation ------------------------------------------
+//  These two flags are INTERNET_FLAG_IGNORE_CERT_CN_INVALID /
+//  _DATE_INVALID. Setting them tells WinINet to accept a certificate whose
+//  hostname does not match and/or whose validity window has expired. Until
+//  SDK v1.3.2 they were part of the unconditional flag set, so every request
+//  this transport made — each carrying the vendor API key and the session
+//  token — accepted any CA-issued certificate for any name. (Audit
+//  state-path SDK-1 / MQL-1, HIGH.)
+//
+//  They are now compiled in ONLY when a developer opts in explicitly by
+//  defining TMKR_INSECURE_TLS_DEBUG *before* including the SDK. That macro
+//  must never be defined in a shipped build: it is not defined anywhere in
+//  this tree, and CI (mql5-sample-lib .github/workflows/ci.yml, job
+//  `sdk-tls-flags`) fails if it becomes unconditional again.
+#ifdef TMKR_INSECURE_TLS_DEBUG
+   #define WININET_INTERNET_FLAG_IGNORE_CERT_CN      0x00001000
+   #define WININET_INTERNET_FLAG_IGNORE_CERT_DATE    0x00002000
+#endif
 
 #define WININET_HTTP_ADDREQ_FLAG_REPLACE  0x80000000
 #define WININET_HTTP_ADDREQ_FLAG_ADD      0x20000000
@@ -174,11 +191,17 @@ int WinINetPost(const string host,
     uint tmkr_flags = WININET_INTERNET_FLAG_RELOAD
                | WININET_INTERNET_FLAG_PRAGMA_NOCACHE
                | WININET_INTERNET_FLAG_KEEP_CONNECTION
-               | WININET_INTERNET_FLAG_NO_AUTO_REDIRECT
-               | WININET_INTERNET_FLAG_IGNORE_CERT_CN
-               | WININET_INTERNET_FLAG_IGNORE_CERT_DATE;
+               | WININET_INTERNET_FLAG_NO_AUTO_REDIRECT;
     if(port == 443)
         tmkr_flags |= WININET_INTERNET_FLAG_SECURE;
+#ifdef TMKR_INSECURE_TLS_DEBUG
+    //  Opt-in ONLY — see the flag definitions above. Never ship a build that
+    //  defines TMKR_INSECURE_TLS_DEBUG.
+    tmkr_flags |= WININET_INTERNET_FLAG_IGNORE_CERT_CN
+               |  WININET_INTERNET_FLAG_IGNORE_CERT_DATE;
+    Print("SDK Warning: TMKR_INSECURE_TLS_DEBUG is defined — TLS hostname and "
+          "expiry validation are DISABLED for this build. Never ship this.");
+#endif
 
     long request = HttpOpenRequestW(connection, buff, buff2, nill, nill, nill2, tmkr_flags, 0);
     if(request <= 0)

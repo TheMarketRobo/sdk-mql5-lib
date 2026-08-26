@@ -36,6 +36,22 @@
 //+------------------------------------------------------------------+
 //| SDK Version                                                       |
 //+------------------------------------------------------------------+
+// v1.3.2 (2026-08-25) — TLS certificate validation is enforced again.
+//   Services/CWinINetHttpService.mqh built its WinINet request flags with
+//   INTERNET_FLAG_IGNORE_CERT_CN_INVALID | _DATE_INVALID set
+//   UNCONDITIONALLY, so the indicator transport accepted any CA-issued
+//   certificate for any hostname, expired or not — on every request, each
+//   carrying the vendor API key and the session token. Unknown-CA was still
+//   rejected, so the attack needs a certificate for a domain the attacker
+//   controls; with one, any on-path position yields the key and the token.
+//   Both flags now compile in ONLY under an explicit, opt-in
+//   TMKR_INSECURE_TLS_DEBUG macro that is defined nowhere in the shipped
+//   tree, and the wrapper repo's CI job `sdk-tls-flags` fails if they become
+//   unconditional again. The EA transport (CHttpService/WebRequest) was
+//   never affected. Behaviour change for anyone who was relying on a
+//   mismatched or expired certificate: those requests now fail.
+//   (Audit `state-path` SDK-1 / MQL-1, HIGH; plan state-path-hardening P11.)
+//   MIN_REQUIRED_SDK_VERSION unchanged — this is a fix, not a floor bump.
 // v1.3.1 (2026-07-19) — token-refresh self-DoS fix. CTokenManager::
 //   should_refresh_token() compared TimeGMT() >= exp - threshold with no
 //   knowledge of the token's actual lifetime. Emitted robots call
@@ -124,7 +140,7 @@
 //   Required minimum version for products that must run in MT4/MT5
 //   Strategy Tester. Older SDKs don't have TMR_IsInTester() or the
 //   init_common tester gate.
-#define TMKR_SDK_VERSION "1.3.1"
+#define TMKR_SDK_VERSION "1.3.2"
 #define TMKR_UUID_LENGTH 36  // Standard UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 //+------------------------------------------------------------------+
