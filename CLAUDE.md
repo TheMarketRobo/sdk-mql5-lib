@@ -18,6 +18,67 @@ The parent repo (`mql5-sample-lib`) contains sample integrations and MetaQuotes 
 
 MQL4/MQL5 (C++-like). Files are `.mqh` headers — no standalone compilation. Compilation requires MetaEditor (MetaTrader IDE); there is no CLI build system. The only way to test is to compile in MetaEditor and attach to a chart.
 
+## CI and local verification
+
+**"No compiler" is not "nothing can be checked."** Until ci-cd-hardening P13 (2026-09-06) this
+repo had no `.github/` at all — no CI, no required check — while being **public, anonymously
+clonable, and in the build path of every vendor robot** (audit ledger L-7, cited inside N-17). It
+now has both.
+
+**Tier 3 — the full required-checks mirror:**
+
+```bash
+bash tools/verify-local.sh
+```
+
+It mirrors `.github/workflows/ci.yml`'s aggregator, `required-checks`
+(`needs: [sdk-tls-flags, secret-defaults, commitlint]`), one local gate per required job — and the
+two source gates are **the same scripts CI runs**, not transcriptions of them:
+
+| CI job | Local gate | What it defends |
+|---|---|---|
+| `sdk-tls-flags` | `tools/gate-sdk-tls-flags.sh` | `TMKR_INSECURE_TLS_DEBUG` is `#define`d nowhere, and every `IGNORE_CERT` mention sits inside a guard region or a comment. This is the SDK-1/MQL-1 defect: `CWinINetHttpService` once set `INTERNET_FLAG_IGNORE_CERT_CN_INVALID \| _DATE_INVALID` unconditionally, so every request — each carrying the vendor API key and the session token — accepted any CA-issued certificate for any hostname |
+| `secret-defaults` | `tools/gate-secret-defaults.sh` | No credential-shaped `input string` default (or `.chr`/`.set` profile value) is non-empty. Scans by **name shape**, not by path, so the next site cannot be added silently |
+| `commitlint` | the packages ci.yml installs, config pinned at `tools/commitlint.config.cjs`, over `merge-base(origin/main)..HEAD`. An **empty** range reports `NOTE`, never `PASS` |
+
+There is deliberately **no `sdk-version-consistency` job here**: three of that gate's four assertion
+sites (the `CLAUDE.md` claim, `.release-please-manifest.json`, the release tag) live in the wrapper
+repo, so a copy here could only check the `#define` against itself. **The wrapper owns version
+identity; this repo owns the source invariants.**
+
+**Why both repos run the two source gates.** `mql5-sample-lib` scans the union of both trees through
+the `Include/themarketrobo` gitlink — but only on a *wrapper* PR, and only at the sha the pointer
+pins. A change merged here reaches this repo's `main`, and every clone of it, before any wrapper PR
+exists to look. Two checks over the same code from opposite sides of one gitlink is the point, not
+duplication.
+
+**Tier 1–2:** `commit-msg` only, and deliberately no `pre-commit`/`pre-push` — there is nothing for
+one to run (no linter, no formatter, no compiler on any laptop's PATH), and a hook that runs nothing
+is a hook people learn to bypass.
+
+```bash
+bash tools/install-hooks.sh          # wires core.hooksPath -> .githooks
+bash tools/install-hooks.sh --check  # report only
+```
+
+🚨 **Never enable `extensions.worktreeConfig` in this repo.** It is a submodule, and its shared
+config carries `core.worktree` — the only line connecting the modules dir to the checkout. Enabling
+the extension revokes the exception that makes `core.worktree` readable from the shared config, git
+loses the work tree, and `git status` reports **every tracked file as deleted**, in every worktree
+of the submodule at once. (Measured 2026-09-06; recovery is `git config --unset
+extensions.worktreeConfig`.) `tools/install-hooks.sh` detects the submodule case and writes
+`--local` instead — this is why it is a script and not one `git config` line.
+
+`tools/commit-msg.sh`, `tools/lint-workflows.sh` and `tools/lib/verify-local-gate0.sh` are
+**byte-identical copies** of hub's masters; `verify-local.sh`'s `gate0` `cmp`s all three. 🚫 Fix a
+bug in hub and re-copy — never in place. The verb also red-proves the hook (a bad subject must be
+REFUSED) and runs `tools/lint-workflows.sh` (`actionlint` + `zizmor --pedantic` against the
+shrink-only `.github/zizmor-baseline.txt`); both are local-only and labelled as such in its header.
+
+**Maintenance contract:** any change to `required-checks`'s `needs:` list, or to a mirrored step's
+commands, updates `tools/verify-local.sh`'s header, `.github/required-checks.snapshot` and this
+section **in the same PR**. Full fleet contract: hub's `.claude/rules/local-verification.md`.
+
 ## Directory Map
 
 - `TheMarketRobo_SDK.mqh` — single public include (pulls in everything)

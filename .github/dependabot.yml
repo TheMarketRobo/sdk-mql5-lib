@@ -1,0 +1,24 @@
+version: 2
+
+# ci-cd-hardening P13. Shape copied from the wrapper repo `mql5-sample-lib`, which took
+# it from `trade-backend` — minor+patch grouped into one PR per ecosystem to keep noise
+# low, majors arrive individually for deliberate review.
+#
+# `commit-message.prefix` is NOT cosmetic here: this repo runs a commitlint gate, and
+# Dependabot's default subject ("Bump X from A to B") is sentence-case, which
+# config-conventional's `subject-case` rule REJECTS. Without an explicit prefix every
+# Dependabot PR would open red. The commit-msg hook refuses that exact subject too —
+# `tools/verify-local.sh` red-proves it with that literal string.
+#
+# Actions-only: this is an MQL5 header SDK with no package manifest. The actions it
+# tracks are the three in .github/workflows/ci.yml, all SHA-pinned with a `# vN`
+# trailing comment so Dependabot can still recognise and bump them.
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    commit-message: { prefix: chore, include: scope }
+    groups:
+      actions-minor-patch:
+        update-types: [minor, patch]
