@@ -1,0 +1,15 @@
+# required-checks snapshot — GENERATED, do not hand-edit.
+# Regenerate: bash scripts/gen-required-checks-snapshot.sh mql5-sample-lib/Include/themarketrobo .github/workflows/ci.yml
+# Verify:     bash scripts/gen-required-checks-snapshot.sh mql5-sample-lib/Include/themarketrobo .github/workflows/ci.yml --check
+#
+# Three views of "what is required", recorded together so verify-ci-invariants.sh can
+# assert they agree. They can disagree, and when they do a PR either hangs forever on a
+# context nothing reports, or merges past a gate that reported red.
+repo: mql5-sample-lib/Include/themarketrobo
+workflow: .github/workflows/ci.yml
+workflow_name: CI
+aggregator: required-checks
+needs: sdk-tls-flags,secret-defaults,commitlint
+conditional_needs:
+ruleset_contexts:
+ruleset_read: 2026-09-06 UTC (read live from GitHub on 2026-09-06)

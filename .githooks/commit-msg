@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# sdk-mql5-lib commit-msg — the shared template, with this repo's type vocabulary.
+# (ci-cd-hardening P13, ledger L-13. Install: bash tools/install-hooks.sh)
+#
+# The RULES live once, in tools/commit-msg.sh — a byte-identical copy of hub's
+# scripts/templates/commit-msg.sh. This file is the thin per-repo shim that supplies the
+# vocabulary, which is the only thing that legitimately differs between repos.
+# 🚫 Never fork the rules into this file: tools/verify-local.sh `cmp`s the template
+# against hub's master (gate0_assert_template), and a forked rule set is drift by
+# definition.
+#
+# ── WHY ONLY commit-msg, AND NO pre-commit / pre-push ────────────────────────────────
+# The same stance as the wrapper repo, for the same reason plus one of its own. The
+# wrapper's tiers 1–2 were skipped because its stock MetaQuotes sources are UTF-16LE +
+# CRLF and the fleet's text hooks would rewrite and corrupt them. This repo's own 29
+# .mqh files are UTF-8, so that hazard is the wrapper's — but there is nothing here for
+# a pre-commit hook to DO: no linter, no formatter, no compiler (MetaEditor is the only
+# thing that builds .mqh, and it is not on any laptop's PATH). A hook that runs nothing
+# is a hook people learn to bypass.
+#
+# commit-msg is different: it has real work, and it reads $1 (.git/COMMIT_EDITMSG,
+# always UTF-8, written by git) and writes nothing at all.
+#
+# ── WHY IT IS WORTH HAVING HERE ──────────────────────────────────────────────────────
+# This repo's `commitlint` job is inside `required-checks` (ci-cd-hardening P13), and a
+# red aggregator here blocks the SDK change, which blocks the wrapper's pointer bump,
+# which blocks the release. Found at `git commit` time it costs one re-word.
+
+set -u
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
+
+ROOT="$(git rev-parse --show-toplevel)"
+
+# This repo's REAL vocabulary. `.github/dependabot.yml` sets `commit-message.prefix: chore`.
+# Releases here are tags cut by hand from the wrapper's release-please flow, so no bot
+# subject other than Dependabot's reaches this repo.
+# Kept equal to the conventional set the CI job's `@commitlint/config-conventional`
+# enforces: this repo pins no custom type-enum, so adding a type here alone would let a
+# commit through the hook and red the PR.
+export COMMIT_MSG_TYPES="build chore ci docs feat fix perf refactor revert style test"
+
+exec bash "$ROOT/tools/commit-msg.sh" "$@"

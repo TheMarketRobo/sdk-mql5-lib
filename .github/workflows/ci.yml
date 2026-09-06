@@ -1,0 +1,169 @@
+# CI for sdk-mql5-lib (ci-cd-hardening P13, 2026-09-06 — this repo had ZERO CI, no
+# `.github/` at all, and no required check, while being PUBLIC and sitting in the build
+# path of every vendor robot. Ledger L-7, cited inside N-17.)
+#
+# ── WHAT THIS REPO IS, AND WHY THE WRAPPER'S CI WAS NOT ENOUGH ───────────────────────
+# This is the SDK itself. `TheMarketRobo/mql5-sample-lib` consumes it as the submodule
+# `Include/themarketrobo` and runs the same two source gates over the union of both
+# trees — but only on a WRAPPER pull request, and only against the sha the wrapper
+# PINS. A change merged here reaches this repo's `main`, and every `git clone` of it,
+# before any wrapper PR exists to look. Two checks over the same code from opposite
+# sides of one gitlink is deliberate: neither is redundant, because they fire at
+# different moments on different trees.
+#
+# Three substantive jobs + the aggregation context:
+#   sdk-tls-flags   — the indicator transport may not waive TLS hostname/expiry
+#                     validation (audit state-path SDK-1 / MQL-1, HIGH).
+#   secret-defaults — no credential-shaped input or profile value ships a non-empty
+#                     default in this PUBLIC repo (SDK-5, HIGH).
+#   commitlint      — conventional-commit gate (PR range; pushed head otherwise).
+#
+# There is deliberately NO `sdk-version-consistency` job here: three of that gate's four
+# assertion sites (the CLAUDE.md claim, `.release-please-manifest.json`, the release tag)
+# live in the wrapper, so a copy here could only check the `#define` against itself.
+# The wrapper owns version identity; this repo owns the source invariants.
+#
+# The substantive gates are implemented ONCE, in tools/gate-*.sh, and called by both
+# this workflow and tools/verify-local.sh. Do not inline gate logic here: a local mirror
+# that re-implements a check is a local mirror that will disagree with CI.
+#
+# Design rules carried from delivery-overhaul P1 (the "gates that could not fail"
+# ledger) and ci-cd-hardening P2: no `paths:` filter on `pull_request` (a required
+# context that never reports blocks the PR forever), no step-level `if:` skips, every
+# third-party action pinned by commit sha, and `required-checks` asserts each
+# `needs.*.result == 'success'` rather than trusting `needs:` alone.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+    # `paths-ignore` is the sanctioned shape ON PUSH only. Kept short on purpose: every
+    # `.mqh` here is a gate input, and `docs/**` is the only tree no gate reads.
+    # 🚫 Never mirror this as a `paths:` filter under `pull_request`.
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - '.claude/**'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sdk-tls-flags:
+    name: TLS validation enforced (SDK-1 / MQL-1)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false   # reads files only (zizmor `artipacked`)
+
+      - name: No unguarded IGNORE_CERT; the debug guard is never defined
+        run: bash tools/gate-sdk-tls-flags.sh
+
+  secret-defaults:
+    name: No credential ships as a default (SDK-5)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false   # reads files only (zizmor `artipacked`)
+
+      - name: Credential-shaped inputs and profile values must be empty
+        run: bash tools/gate-secret-defaults.sh
+
+  commitlint:
+    name: commitlint (conventional commits)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout (full history — range lint)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # The whole range is fetched HERE; nothing after this step talks to the
+          # network, so the token need not be left behind (zizmor `artipacked`).
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "24"
+
+      - name: Cache npm
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.npm
+          # Keyed on the two pinned packages this step installs — nothing else lands in
+          # this cache. ⚠️ A cache written on a feature branch is NOT readable from
+          # `main`, so the first genuine hit is the SECOND run on `main`. Do not claim a
+          # saving from this before measuring it.
+          key: sdk-mql5-lib-npm-${{ runner.os }}-commitlint19
+          restore-keys: |
+            sdk-mql5-lib-npm-${{ runner.os }}-
+
+      - name: Lint commit messages
+        # Installed into the WORKSPACE (not an `npx -p` sandbox): commitlint resolves
+        # `-x` extends from the process cwd, so a sandbox-only install dies with
+        # MODULE_NOT_FOUND — a trap the wrapper repo already paid for once.
+        #
+        # Every `${{ }}` is read through `env:` rather than interpolated into the script
+        # body (zizmor `template-injection`). Actions substitutes an expression into
+        # `run:` as raw TEXT before bash parses it, so a value carrying a quote or a `;`
+        # becomes shell syntax. These three are an event name and two shas — not
+        # attacker-controlled today — but "this field happens to be hex" is a property
+        # of the field, not of the pattern, and the pattern is what gets copied.
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -u
+          npm install --no-save --no-audit --no-fund --loglevel=error \
+            @commitlint/cli@19 @commitlint/config-conventional@19
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            npx --no-install commitlint -x @commitlint/config-conventional \
+              --from "$PR_BASE_SHA" --to "$PR_HEAD_SHA" --verbose
+          else
+            npx --no-install commitlint -x @commitlint/config-conventional --last --verbose
+          fi
+
+  required-checks:
+    # The single context the branch ruleset requires (added to `main-protection` by
+    # ci-cd-hardening P14 — until then this job runs and reports but gates nothing).
+    # It `needs:` every real job and asserts each actually SUCCEEDED: `needs:` alone is
+    # satisfied by a SKIPPED dependency under `if: always()`, which is how a
+    # green-but-vacuous run happens (delivery-overhaul P1 defect #4).
+    name: required-checks
+    if: always()
+    needs: [sdk-tls-flags, secret-defaults, commitlint]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Assert every gate succeeded
+        run: |
+          set -u
+          fail=0
+          for pair in "sdk-tls-flags:${{ needs.sdk-tls-flags.result }}" \
+                      "secret-defaults:${{ needs.secret-defaults.result }}" \
+                      "commitlint:${{ needs.commitlint.result }}"; do
+            job="${pair%%:*}"; res="${pair##*:}"
+            printf '  %-24s %s\n' "$job" "$res"
+            [ "$res" = "success" ] || fail=1
+          done
+          if [ "$fail" -ne 0 ]; then
+            echo "::error title=required-checks failed::At least one gate did not SUCCEED (a skipped or cancelled job counts as a failure here — that is the whole point of this job)."
+            exit 1
+          fi
+          echo "All gates succeeded."
