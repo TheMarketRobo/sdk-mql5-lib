@@ -41,10 +41,8 @@
 //  must never be defined in a shipped build: it is not defined anywhere in
 //  this tree, and CI (mql5-sample-lib .github/workflows/ci.yml, job
 //  `sdk-tls-flags`) fails if it becomes unconditional again.
-#ifdef TMKR_INSECURE_TLS_DEBUG
-   #define WININET_INTERNET_FLAG_IGNORE_CERT_CN      0x00001000
-   #define WININET_INTERNET_FLAG_IGNORE_CERT_DATE    0x00002000
-#endif
+#define WININET_INTERNET_FLAG_IGNORE_CERT_CN      0x00001000
+#define WININET_INTERNET_FLAG_IGNORE_CERT_DATE    0x00002000
 
 #define WININET_HTTP_ADDREQ_FLAG_REPLACE  0x80000000
 #define WININET_HTTP_ADDREQ_FLAG_ADD      0x20000000
