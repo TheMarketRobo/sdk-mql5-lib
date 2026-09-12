@@ -115,6 +115,9 @@ public:
     // Stub mode has no SDK to short-circuit, but vendor code may still
     // check tester state — answer from the live platform query.
     bool is_in_tester_mode() const { return TMR_IsInTester(); }
+    // Stub mode never starts a session, so there is never a refusal.
+    ENUM_TMKR_START_REFUSAL get_start_refusal() const { return TMKR_START_NOT_ATTEMPTED; }
+    string get_start_refusal_code() const { return ""; }
 };
 
 #else // SDK_ENABLED is defined — full SDK implementation follows
@@ -193,6 +196,8 @@ protected:
     bool            m_killed;                 // Indicator functionally dead (security: all output cleared, calc blocked)
     int             m_indicator_buffer_count; // Number of indicator buffers (for kill_indicator draw clearing)
     bool            m_in_tester_mode;         // True when running in MT4/MT5 Strategy Tester — SDK is offline
+    ENUM_TMKR_START_REFUSAL m_start_refusal;  // Why on_init() could not start a session
+    string          m_start_refusal_code;     // The TMKR-#### alerted for that refusal ("" when none)
 
 public:
     // Robot constructor — requires config object
@@ -266,6 +271,13 @@ public:
     // heartbeats). on_tick / on_calculate still run normally.
     bool   is_in_tester_mode() const;
 
+    // Why on_init() could not start a session: TMKR_START_OK after a start
+    // or a resumed indicator session; TMKR_START_NOT_ATTEMPTED when no start
+    // was tried (Strategy Tester, local validation, kill file). The trader has
+    // already been alerted with the reason — read these to react in code.
+    ENUM_TMKR_START_REFUSAL get_start_refusal() const;
+    string get_start_refusal_code() const;
+
     // Log level control — set before or after on_init()
     void   set_log_level(ENUM_TMKR_LOG_LEVEL tmkr_level);
     ENUM_TMKR_LOG_LEVEL get_log_level() const;
@@ -298,6 +310,8 @@ CTMKR_RobotBase::CTMKR_RobotBase(string robot_version_uuid, ITMKR_RobotConfig* r
     m_killed = false;
     m_indicator_buffer_count = 0;
     m_in_tester_mode = false;
+    m_start_refusal = TMKR_START_NOT_ATTEMPTED;
+    m_start_refusal_code = "";
     m_max_heartbeat_failure_intervals = TMKR_DEFAULT_MAX_HEARTBEAT_FAILURE_INTERVALS;
     if(SDKShouldLogInfo()) Print("SDK Info: Robot Version UUID = ", m_robot_version_uuid);
 }
@@ -319,6 +333,8 @@ CTMKR_RobotBase::CTMKR_RobotBase(string robot_version_uuid)
     m_killed = false;
     m_indicator_buffer_count = 0;
     m_in_tester_mode = false;
+    m_start_refusal = TMKR_START_NOT_ATTEMPTED;
+    m_start_refusal_code = "";
     m_max_heartbeat_failure_intervals = TMKR_DEFAULT_MAX_HEARTBEAT_FAILURE_INTERVALS;
     if(SDKShouldLogInfo()) Print("SDK Info: Indicator Version UUID = ", m_robot_version_uuid);
 }
@@ -431,6 +447,19 @@ bool CTMKR_RobotBase::is_killed() const
 bool CTMKR_RobotBase::is_in_tester_mode() const
 {
     return m_in_tester_mode;
+}
+
+//+------------------------------------------------------------------+
+//| Why on_init() could not start a session (see ENUM_TMKR_START_REFUSAL)
+//+------------------------------------------------------------------+
+ENUM_TMKR_START_REFUSAL CTMKR_RobotBase::get_start_refusal() const
+{
+    return m_start_refusal;
+}
+
+string CTMKR_RobotBase::get_start_refusal_code() const
+{
+    return m_start_refusal_code;
 }
 
 //+------------------------------------------------------------------+
@@ -642,28 +671,54 @@ int CTMKR_RobotBase::init_common(string api_key, long magic_number, ENUM_TMKR_PR
     if(is_ind && m_sdk_context.try_restore_session())
     {
         if(SDKShouldLogInfo()) Print("SDK Info: Session resumed successfully!");
+        m_start_refusal = TMKR_START_OK;
         EventSetTimer(1);
         return INIT_SUCCEEDED;
     }
 
     if(!m_sdk_context.start())
     {
+        // Tell the trader WHY the server refused (expired license, key not
+        // recognized, max sessions, ...) instead of reporting every refusal
+        // as a connection problem. Copy the reason out BEFORE the context —
+        // and the session manager that holds it — is deleted.
+        string tmkr_message = "The product could not start. Please remove it and add it again.";
+        string tmkr_detail  = "POST /robot/start was not sent (no session manager).";
+        m_start_refusal      = TMKR_START_NOT_ATTEMPTED;
+        m_start_refusal_code = "";
+        CTMKR_SessionManager* tmkr_session = m_sdk_context.session_manager;
+        if(CheckPointer(tmkr_session) != POINTER_INVALID)
+        {
+            m_start_refusal      = tmkr_session.get_start_refusal();
+            m_start_refusal_code = tmkr_session.get_start_refusal_code();
+            tmkr_message         = tmkr_session.get_start_refusal_message();
+            if(tmkr_session.get_start_http_status() > 0)
+                tmkr_detail = "POST /robot/start answered HTTP " + IntegerToString(tmkr_session.get_start_http_status());
+            else
+                tmkr_detail = "POST /robot/start got no HTTP response";
+            if(tmkr_session.get_start_refusal_detail() != "")
+                tmkr_detail = tmkr_detail + ": " + tmkr_session.get_start_refusal_detail();
+        }
+        if(m_start_refusal_code == "")
+            m_start_refusal_code = TMKR_ERR_9010;
+
         delete m_sdk_context;
         m_sdk_context = NULL;
-        
+
         if(is_ind)
         {
-            TMKRUserErrorCoded(TMKR_ERR_3020, "Could not connect to TheMarketRobo service. Please check your internet connection and try again.");
+            TMKRUserErrorCodedWithDetails(m_start_refusal_code, tmkr_message, tmkr_detail);
             m_pending_removal = true;
         }
         else
         {
-            TMKRUserErrorCoded(TMKR_ERR_3020, "Could not connect to the service. The robot will be removed.");
+            TMKRUserErrorCodedWithDetails(m_start_refusal_code, tmkr_message + " The robot will be removed.", tmkr_detail);
             ExpertRemove();
         }
         return INIT_FAILED;
     }
 
+    m_start_refusal = TMKR_START_OK;
     if(SDKShouldLogInfo()) Print("SDK Info: Session started successfully!");
     EventSetTimer(1);
     return INIT_SUCCEEDED;

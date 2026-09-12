@@ -13,6 +13,7 @@
 #include "CSDKLogger.mqh"
 #include "../TMR_Platform.mqh"
 #include "../Core/CSDKErrorCatalog.generated.mqh"
+#include "../Core/CSDKConstants.mqh"
 
 //+------------------------------------------------------------------+
 //| SDK User-Facing Error Utility                                     |
@@ -190,6 +191,116 @@ string GetCodeForHTTPStatus(int http_code)
     if(http_code == 429)                  return TMKR_ERR_3050;  // rate limited
     if(http_code >= 500)                  return TMKR_ERR_9001;  // server error
     return TMKR_ERR_9001;
+}
+
+//+------------------------------------------------------------------+
+//| Session start refusals                                            |
+//|                                                                    |
+//| A refused POST /robot/start answers RFC 7807 problem+json whose   |
+//| "code" is the canonical TMKR-####. These helpers turn that code   |
+//| (or, only when the body carries none, the HTTP status) into a     |
+//| typed reason and a short, non-technical sentence for the trader.  |
+//|                                                                    |
+//| Anti-oracle: an unknown, malformed, deleted or rotated-out key    |
+//| all answer the SAME TMKR-2001, so its sentence never guesses.     |
+//+------------------------------------------------------------------+
+
+// True when tmkr_s is a canonical code: "TMKR-" followed by four digits.
+bool TMKRIsCanonicalCode(string tmkr_s)
+{
+    if(StringLen(tmkr_s) != 9) return false;
+    if(StringSubstr(tmkr_s, 0, 5) != "TMKR-") return false;
+    for(int tmkr_i = 5; tmkr_i < 9; tmkr_i++)
+    {
+        ushort tmkr_ch = StringGetCharacter(tmkr_s, tmkr_i);
+        if(tmkr_ch < '0' || tmkr_ch > '9') return false;
+    }
+    return true;
+}
+
+// Classify a refused /robot/start. A canonical code from the response body
+// wins; the HTTP status is a fallback for bodies that carry no code.
+ENUM_TMKR_START_REFUSAL TMKRStartRefusalFor(string tmkr_code, int http_code)
+{
+    if(TMKRIsCanonicalCode(tmkr_code))
+    {
+        if(tmkr_code == TMKR_ERR_2001) return TMKR_START_KEY_NOT_RECOGNIZED;
+        if(tmkr_code == TMKR_ERR_2005) return TMKR_START_LICENSE_EXPIRED;
+        if(tmkr_code == TMKR_ERR_2006) return TMKR_START_LICENSE_INACTIVE;
+        if(tmkr_code == TMKR_ERR_2008) return TMKR_START_VERSION_NOT_COVERED;
+        if(tmkr_code == TMKR_ERR_2009) return TMKR_START_SUBMISSION_NOT_TESTABLE;
+        if(tmkr_code == TMKR_ERR_4004) return TMKR_START_MAX_SESSIONS;
+        if(tmkr_code == TMKR_ERR_3050) return TMKR_START_RATE_LIMITED;
+        if(tmkr_code == TMKR_ERR_4008 || tmkr_code == TMKR_ERR_4009 || tmkr_code == TMKR_ERR_4010)
+            return TMKR_START_REQUEST_REJECTED;
+        if(StringSubstr(tmkr_code, 5, 1) == "9") return TMKR_START_SERVER_ERROR;
+        return TMKR_START_UNKNOWN;
+    }
+    if(http_code == 0 || http_code == -1) return TMKR_START_NO_CONNECTION;
+    if(http_code == 429)                  return TMKR_START_RATE_LIMITED;
+    if(http_code >= 500)                  return TMKR_START_SERVER_ERROR;
+    // A 401/403 with no machine-readable code did not come from the licence
+    // gate, which always sends one (e.g. an edge proxy's HTML page) — so do
+    // not claim a key or licence problem.
+    return TMKR_START_UNKNOWN;
+}
+
+// The code to alert for a refusal: the server's own code when it sent one,
+// otherwise the catalog code that fits the reason.
+string TMKRStartRefusalCode(ENUM_TMKR_START_REFUSAL tmkr_reason, string tmkr_code, int http_code)
+{
+    if(TMKRIsCanonicalCode(tmkr_code)) return tmkr_code;
+    if(tmkr_reason == TMKR_START_CONFIG_INVALID || tmkr_reason == TMKR_START_NOT_ATTEMPTED)
+        return TMKR_ERR_9010;
+    if(tmkr_reason == TMKR_START_UNKNOWN) return TMKR_ERR_3020;  // bodyless 4xx: never a key/session code
+    return GetCodeForHTTPStatus(http_code);                      // 0/-1 → 3020, 429 → 3050, 5xx → 9001
+}
+
+// Short, non-technical sentence for the trader. Numbers from the problem's
+// "context" are used only when the server sent them (pass -1 when absent).
+string TMKRStartRefusalMessage(ENUM_TMKR_START_REFUSAL tmkr_reason,
+                               long tmkr_active_sessions, long tmkr_max_sessions,
+                               long tmkr_retry_after, bool tmkr_demo_only, int http_code)
+{
+    switch(tmkr_reason)
+    {
+        case TMKR_START_OK:
+            return "";
+        case TMKR_START_NOT_ATTEMPTED:
+            return "The product could not start. Please remove it and add it again.";
+        case TMKR_START_KEY_NOT_RECOGNIZED:
+            return "API key not recognized. Check that the key in this product's settings matches the one in your account.";
+        case TMKR_START_LICENSE_EXPIRED:
+            return "Your license has expired or has not started yet. Check its dates in your account.";
+        case TMKR_START_LICENSE_INACTIVE:
+            if(tmkr_demo_only)
+                return "This license only runs on a demo account. Use a demo account, or a license for this account type.";
+            return "Your license is not active. Check its status in your account.";
+        case TMKR_START_VERSION_NOT_COVERED:
+            return "This version of the product is not covered by your license. Use the version your license covers.";
+        case TMKR_START_SUBMISSION_NOT_TESTABLE:
+            return "This test license cannot start a session: the submission is not in a testable state.";
+        case TMKR_START_MAX_SESSIONS:
+            if(tmkr_active_sessions >= 0 && tmkr_max_sessions > 0)
+                return "Maximum concurrent sessions reached (" + IntegerToString(tmkr_active_sessions) + " of " +
+                       IntegerToString(tmkr_max_sessions) + " in use). Stop this product on another chart or terminal, then try again.";
+            return "Maximum concurrent sessions reached. Stop this product on another chart or terminal, then try again.";
+        case TMKR_START_RATE_LIMITED:
+            if(tmkr_retry_after > 0)
+                return "Too many start attempts. Please wait " + IntegerToString(tmkr_retry_after) + " seconds and try again.";
+            return "Too many start attempts. Please wait a moment and try again.";
+        case TMKR_START_REQUEST_REJECTED:
+            return "The server rejected the start request. Please contact support.";
+        case TMKR_START_SERVER_ERROR:
+            return "The service is temporarily unavailable. Please try again later.";
+        case TMKR_START_NO_CONNECTION:
+            return "Could not connect to TheMarketRobo service. Please check your internet connection and try again.";
+        case TMKR_START_CONFIG_INVALID:
+            return "The product's settings from the server could not be applied. Please contact support.";
+        default:
+            break;
+    }
+    return "The service refused to start this product (HTTP " + IntegerToString(http_code) + "). Please contact support.";
 }
 
 //+------------------------------------------------------------------+
