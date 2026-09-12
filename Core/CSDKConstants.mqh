@@ -36,6 +36,16 @@
 //+------------------------------------------------------------------+
 //| SDK Version                                                       |
 //+------------------------------------------------------------------+
+// v1.3.3 (2026-09-12) — version-identity bump only; NO SDK source change.
+//   The wrapper repo's release version and this define move in lockstep
+//   (mql5-sample-lib tools/gate-sdk-version-consistency.sh, sites 1 and 3),
+//   so the mql5-sample-lib v1.3.3 release carries this number with it. That
+//   release is wrapper-side: blanked committed key defaults, TLS enforcement
+//   and the SDK identity gates. Every commit HERE since v1.3.2 is CI,
+//   githooks or workflow plumbing — no header, transport or manager changed,
+//   and MIN_REQUIRED_SDK_VERSION is unchanged. The v1.3.3 git tag is NOT yet
+//   published on this repo; the wrapper declares that lag in
+//   SDK_RELEASE_PENDING.md (pending_sdk_tag: v1.3.3).
 // v1.3.2 (2026-08-25) — TLS certificate validation is enforced again.
 //   Services/CWinINetHttpService.mqh built its WinINet request flags with
 //   INTERNET_FLAG_IGNORE_CERT_CN_INVALID | _DATE_INVALID set
@@ -140,7 +150,7 @@
 //   Required minimum version for products that must run in MT4/MT5
 //   Strategy Tester. Older SDKs don't have TMR_IsInTester() or the
 //   init_common tester gate.
-#define TMKR_SDK_VERSION "1.3.2"
+#define TMKR_SDK_VERSION "1.3.3"
 #define TMKR_UUID_LENGTH 36  // Standard UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 //+------------------------------------------------------------------+
