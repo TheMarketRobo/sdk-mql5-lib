@@ -36,6 +36,21 @@
 //+------------------------------------------------------------------+
 //| SDK Version                                                       |
 //+------------------------------------------------------------------+
+// v1.4.0 (2026-09-12) — typed session-start refusals (decision D-02).
+//   A refused POST /robot/start was alerted as TMKR-3020 "Could not connect
+//   ... check your internet connection" whatever the server said, so an
+//   expired license, an unrecognized key and the concurrent-session limit all
+//   read as a network fault. The SDK now reads the RFC 7807 problem the server
+//   returns (its TMKR-#### code, detail and context), classifies it as an
+//   ENUM_TMKR_START_REFUSAL and alerts that reason on one code-first line
+//   (TMKRStartRefusalFor/Code/Message in Utils/CSDKUserErrors.mqh). Vendor code
+//   can read it after on_init() with get_start_refusal() and
+//   get_start_refusal_code() — also present, returning NOT_ATTEMPTED, in
+//   TMR_SDK_DISABLED builds. TMKR-2001 stays ONE reason by design: the server
+//   does not reveal whether a key was mistyped, revoked or rotated, and the
+//   SDK never guesses. Also fixes start_session() reading response.code from
+//   a NULL response. Additive: MIN_REQUIRED_SDK_VERSION unchanged. v1.4.0 is
+//   the first SDK tag since v1.3.2 — v1.3.3 (below) was never tagged.
 // v1.3.3 (2026-09-12) — version-identity bump only; NO SDK source change.
 //   The wrapper repo's release version and this define move in lockstep
 //   (mql5-sample-lib tools/gate-sdk-version-consistency.sh, sites 1 and 3),
@@ -43,9 +58,9 @@
 //   release is wrapper-side: blanked committed key defaults, TLS enforcement
 //   and the SDK identity gates. Every commit HERE since v1.3.2 is CI,
 //   githooks or workflow plumbing — no header, transport or manager changed,
-//   and MIN_REQUIRED_SDK_VERSION is unchanged. The v1.3.3 git tag is NOT yet
-//   published on this repo; the wrapper declares that lag in
-//   SDK_RELEASE_PENDING.md (pending_sdk_tag: v1.3.3).
+//   and MIN_REQUIRED_SDK_VERSION is unchanged. The v1.3.3 git tag was never
+//   published: the wrapper declared that lag in SDK_RELEASE_PENDING.md until
+//   v1.4.0 repaid it with a real SDK change.
 // v1.3.2 (2026-08-25) — TLS certificate validation is enforced again.
 //   Services/CWinINetHttpService.mqh built its WinINet request flags with
 //   INTERNET_FLAG_IGNORE_CERT_CN_INVALID | _DATE_INVALID set
@@ -150,7 +165,7 @@
 //   Required minimum version for products that must run in MT4/MT5
 //   Strategy Tester. Older SDKs don't have TMR_IsInTester() or the
 //   init_common tester gate.
-#define TMKR_SDK_VERSION "1.3.3"
+#define TMKR_SDK_VERSION "1.4.0"
 #define TMKR_UUID_LENGTH 36  // Standard UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 //+------------------------------------------------------------------+
