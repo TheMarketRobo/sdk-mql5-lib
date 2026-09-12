@@ -118,7 +118,8 @@ gate0_assert_template() {  # gate0_assert_template <local-copy> <hub-master>
   local local_copy="$1" master="$2"
   if [ ! -f "$master" ]; then
     echo "gate0: NOTICE — hub master $master not reachable from here; template not asserted." >&2
-    echo "  (A standalone clone of a submodule has no hub tree. CI's hub-ci asserts it.)" >&2
+    echo "  (A standalone clone of a submodule has no hub tree, and no CI job compares the copy," >&2
+    echo "   so run this repo's verify:local from inside a hub checkout to assert it.)" >&2
     return 0
   fi
   if cmp -s "$local_copy" "$master"; then
