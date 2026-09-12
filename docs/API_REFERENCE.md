@@ -56,6 +56,38 @@ virtual int on_init(string api_key)
 
 **Note:** The API base URL is now hardcoded in the SDK (`SDK_API_BASE_URL` constant). Robot configuration must follow the [Robot Config Component Schema](schemas/robot_config_component_schema/README.md); the Vendor Portal validates it at submission.
 
+**When the server refuses the session:** `on_init()` returns `INIT_FAILED`, alerts the trader with the reason on one code-first line — e.g. `[TMKR-2005] TheMarketRobo: Your license has expired or has not started yet. …` — prints the server's technical detail to the Experts log, and removes the product (robots call `ExpertRemove()`, indicators remove themselves on the next tick). Before SDK v1.4.0 every refusal was reported as `TMKR-3020` "Could not connect".
+
+---
+
+#### get_start_refusal / get_start_refusal_code
+
+```cpp
+ENUM_TMKR_START_REFUSAL get_start_refusal() const
+string get_start_refusal_code() const
+```
+
+**Returns:** why `on_init()` could not start a session, and the `TMKR-####` code the SDK alerted for it (`""` when there was no refusal). The trader has already been told — read these only if your code wants to react.
+
+| `ENUM_TMKR_START_REFUSAL` | Code | Meaning |
+|---|---|---|
+| `TMKR_START_OK` | — | Session started (or an indicator session resumed) |
+| `TMKR_START_NOT_ATTEMPTED` | `TMKR-9010` if a start failed internally | No start was attempted (Strategy Tester, local validation, kill file) |
+| `TMKR_START_KEY_NOT_RECOGNIZED` | `TMKR-2001` | API key not recognized. The server answers an unknown, mistyped, deleted or rotated-out key identically, so the SDK cannot say which |
+| `TMKR_START_LICENSE_EXPIRED` | `TMKR-2005` | License expired or not yet started |
+| `TMKR_START_LICENSE_INACTIVE` | `TMKR-2006` | License not active (or restricted to another account type) |
+| `TMKR_START_VERSION_NOT_COVERED` | `TMKR-2008` | This build is not covered by the license |
+| `TMKR_START_SUBMISSION_NOT_TESTABLE` | `TMKR-2009` | Test license whose submission is not in a testable state |
+| `TMKR_START_MAX_SESSIONS` | `TMKR-4004` | Concurrent-session limit reached |
+| `TMKR_START_RATE_LIMITED` | `TMKR-3050` | Too many start attempts |
+| `TMKR_START_REQUEST_REJECTED` | `TMKR-4008`–`4010` | The request failed server validation |
+| `TMKR_START_SERVER_ERROR` | `TMKR-9xxx` / HTTP 5xx | Server-side failure |
+| `TMKR_START_NO_CONNECTION` | `TMKR-3020` | No HTTP response (network, WebRequest allow-list, DLL imports) |
+| `TMKR_START_CONFIG_INVALID` | `TMKR-9010` | The server's initial configuration failed validation |
+| `TMKR_START_UNKNOWN` | the server's code, else `TMKR-3020` | Any other refusal |
+
+A code the SDK does not know yet is still shown verbatim, with its `themarketrobo.com/problems/<code>` link. Added in SDK v1.4.0; in `TMR_SDK_DISABLED` builds `get_start_refusal()` always returns `TMKR_START_NOT_ATTEMPTED`.
+
 ---
 
 #### on_deinit

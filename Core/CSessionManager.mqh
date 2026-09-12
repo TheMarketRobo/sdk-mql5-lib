@@ -10,6 +10,7 @@
 #include "../Models/CFinalStats.mqh"
 #include "../Utils/CSDK_Events.mqh"
 #include "../Utils/CSDKLogger.mqh"
+#include "../Utils/CSDKUserErrors.mqh"
 
 class CTMKR_Context;
 
@@ -27,6 +28,19 @@ private:
     bool m_is_active;
     CTMKR_Context* m_context;
 
+    // Why the last start_session() did not start a session (see ENUM_TMKR_START_REFUSAL)
+    ENUM_TMKR_START_REFUSAL m_start_refusal;
+    string m_start_refusal_code;      // TMKR-#### to alert ("" until a start is attempted)
+    string m_start_refusal_detail;    // the server's problem "detail", for the Experts log
+    int    m_start_http_status;       // HTTP status of the refusal (-1 = no response)
+    long   m_start_active_sessions;   // problem context, -1 when the server sent none
+    long   m_start_max_sessions;
+    long   m_start_retry_after;
+    bool   m_start_demo_only;         // context carried allowed_trade_modes (demo-only licence)
+
+    void set_start_refusal(ENUM_TMKR_START_REFUSAL tmkr_reason, string tmkr_code, string tmkr_detail, int http_status);
+    void record_start_refusal(int http_status, CTMKR_JAVal* body);
+
 public:
     CTMKR_SessionManager(string api_key, string robot_version_uuid, long magic_number, CTMKR_Context* context);
     ~CTMKR_SessionManager();
@@ -39,6 +53,13 @@ public:
     bool is_session_active() const;
     ulong get_session_id() const;
     string get_api_key() const;
+
+    // Typed start refusal — valid after start_session() returns
+    ENUM_TMKR_START_REFUSAL get_start_refusal() const;
+    string get_start_refusal_code() const;
+    string get_start_refusal_detail() const;
+    int    get_start_http_status() const;
+    string get_start_refusal_message() const;
 };
 
 #include "CSDKContext.mqh"
@@ -54,6 +75,14 @@ CTMKR_SessionManager::CTMKR_SessionManager(string api_key, string robot_version_
     m_session_id = 0;
     m_is_active = false;
     m_context = context;
+    m_start_refusal = TMKR_START_NOT_ATTEMPTED;
+    m_start_refusal_code = "";
+    m_start_refusal_detail = "";
+    m_start_http_status = 0;
+    m_start_active_sessions = -1;
+    m_start_max_sessions = -1;
+    m_start_retry_after = -1;
+    m_start_demo_only = false;
 }
 
 //+------------------------------------------------------------------+
@@ -85,6 +114,68 @@ ulong CTMKR_SessionManager::get_session_id() const
 string CTMKR_SessionManager::get_api_key() const
 {
     return m_api_key;
+}
+
+//+------------------------------------------------------------------+
+//| Typed start refusal getters                                       |
+//+------------------------------------------------------------------+
+ENUM_TMKR_START_REFUSAL CTMKR_SessionManager::get_start_refusal() const { return m_start_refusal; }
+string CTMKR_SessionManager::get_start_refusal_code() const   { return m_start_refusal_code; }
+string CTMKR_SessionManager::get_start_refusal_detail() const { return m_start_refusal_detail; }
+int    CTMKR_SessionManager::get_start_http_status() const    { return m_start_http_status; }
+
+string CTMKR_SessionManager::get_start_refusal_message() const
+{
+    return TMKRStartRefusalMessage(m_start_refusal, m_start_active_sessions, m_start_max_sessions,
+                                   m_start_retry_after, m_start_demo_only, m_start_http_status);
+}
+
+//+------------------------------------------------------------------+
+//| Record a start refusal                                            |
+//+------------------------------------------------------------------+
+void CTMKR_SessionManager::set_start_refusal(ENUM_TMKR_START_REFUSAL tmkr_reason, string tmkr_code,
+                                             string tmkr_detail, int http_status)
+{
+    m_start_refusal = tmkr_reason;
+    m_start_refusal_code = tmkr_code;
+    m_start_refusal_detail = tmkr_detail;
+    m_start_http_status = http_status;
+}
+
+//+------------------------------------------------------------------+
+//| Classify a non-200 /robot/start from its RFC 7807 problem body.   |
+//| "code" (TMKR-####) and "detail" are top-level; extension members |
+//| (active_sessions, max_sessions, retry_after, allowed_trade_modes) |
+//| sit under "context". Every lookup tolerates an absent field.      |
+//+------------------------------------------------------------------+
+void CTMKR_SessionManager::record_start_refusal(int http_status, CTMKR_JAVal* body)
+{
+    string tmkr_code = "";
+    string tmkr_detail = "";
+    m_start_active_sessions = -1;
+    m_start_max_sessions = -1;
+    m_start_retry_after = -1;
+    m_start_demo_only = false;
+
+    if(CheckPointer(body) != POINTER_INVALID)
+    {
+        CTMKR_JAVal* tmkr_node = body["code"];
+        if(CheckPointer(tmkr_node) != POINTER_INVALID) tmkr_code = tmkr_node.get_string();
+        tmkr_node = body["detail"];
+        if(CheckPointer(tmkr_node) != POINTER_INVALID) tmkr_detail = tmkr_node.get_string();
+
+        CTMKR_JAVal* tmkr_ctx = body["context"];
+        if(CheckPointer(tmkr_ctx) != POINTER_INVALID)
+        {
+            if(tmkr_ctx.has_key("active_sessions")) m_start_active_sessions = tmkr_ctx["active_sessions"].get_long();
+            if(tmkr_ctx.has_key("max_sessions"))    m_start_max_sessions    = tmkr_ctx["max_sessions"].get_long();
+            if(tmkr_ctx.has_key("retry_after"))     m_start_retry_after     = tmkr_ctx["retry_after"].get_long();
+            if(tmkr_ctx.has_key("allowed_trade_modes")) m_start_demo_only   = true;
+        }
+    }
+
+    ENUM_TMKR_START_REFUSAL tmkr_reason = TMKRStartRefusalFor(tmkr_code, http_status);
+    set_start_refusal(tmkr_reason, TMKRStartRefusalCode(tmkr_reason, tmkr_code, http_status), tmkr_detail, http_status);
 }
 
 //+------------------------------------------------------------------+
@@ -189,10 +280,19 @@ bool CTMKR_SessionManager::start_session()
     CTMKR_HttpResponse* response = m_context.http_service.post("/robot/start", "api-key-start", payload_str);
     delete payload;
 
-    if(CheckPointer(response) == POINTER_INVALID || response.code != 200)
+    if(CheckPointer(response) == POINTER_INVALID)
+    {
+        // No response object at all (allocation failure) — never dereference it.
+        set_start_refusal(TMKR_START_NO_CONNECTION, TMKR_ERR_3020, "", -1);
+        Print("SDK Error: Start session failed. No HTTP response.");
+        return false;
+    }
+
+    if(response.code != 200)
     {
         Print("SDK Error: Start session failed. Code: ", response.code, ", Body: ", response.body);
-        if(response != NULL) delete response;
+        record_start_refusal(response.code, response.json_body);
+        delete response;
         return false;
     }
     
@@ -250,6 +350,8 @@ bool CTMKR_SessionManager::start_session()
         {
             Print("SDK Error: Initial configuration from server failed validation. Session NOT active - heartbeats will NOT be sent!");
             m_is_active = false;
+            set_start_refusal(TMKR_START_CONFIG_INVALID, TMKR_ERR_9010,
+                              "Initial configuration from the server failed validation", 200);
         }
         
         // Process any initial change requests (robots only)
@@ -267,6 +369,7 @@ bool CTMKR_SessionManager::start_session()
     }
 
     delete response;
+    if(m_is_active) set_start_refusal(TMKR_START_OK, "", "", 200);
     return m_is_active;
 }
 

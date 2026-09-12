@@ -294,6 +294,41 @@ enum ENUM_TMKR_PRODUCT_TYPE
 #define TMKR_PRODUCT_TYPE_INDICATOR "indicator"
 
 //+------------------------------------------------------------------+
+//| Session Start Refusal Reasons                                     |
+//+------------------------------------------------------------------+
+/**
+ * Why on_init() could not start a session with POST /robot/start.
+ *
+ * A refused start answers RFC 7807 problem+json whose "code" is the
+ * canonical TMKR-####. The SDK classifies it (TMKRStartRefusalFor() in
+ * Utils/CSDKUserErrors.mqh), alerts the trader with a matching sentence,
+ * and keeps the reason readable after on_init() through
+ * get_start_refusal() / get_start_refusal_code().
+ *
+ * TMKR_START_KEY_NOT_RECOGNIZED is deliberately ONE reason. The server
+ * answers an unknown, malformed, deleted or rotated-out key with the same
+ * TMKR-2001 so the endpoint is not an oracle for "this key once existed" —
+ * the SDK cannot tell a typo from a revocation, and never claims to.
+ */
+enum ENUM_TMKR_START_REFUSAL
+{
+    TMKR_START_NOT_ATTEMPTED = 0,       // No start was attempted (tester, local validation, kill file)
+    TMKR_START_OK,                      // Session started (or an indicator session resumed)
+    TMKR_START_KEY_NOT_RECOGNIZED,      // TMKR-2001 — API key not recognized
+    TMKR_START_LICENSE_EXPIRED,         // TMKR-2005 — license expired or not yet started
+    TMKR_START_LICENSE_INACTIVE,        // TMKR-2006 — license not active (or not for this account type)
+    TMKR_START_VERSION_NOT_COVERED,     // TMKR-2008 — this build is not covered by the license
+    TMKR_START_SUBMISSION_NOT_TESTABLE, // TMKR-2009 — test license whose submission is not testable
+    TMKR_START_MAX_SESSIONS,            // TMKR-4004 — concurrent-session limit reached
+    TMKR_START_RATE_LIMITED,            // TMKR-3050 — too many start attempts
+    TMKR_START_REQUEST_REJECTED,        // TMKR-4008/4009/4010 — request failed server validation
+    TMKR_START_SERVER_ERROR,            // TMKR-9xxx or HTTP 5xx — server-side failure
+    TMKR_START_NO_CONNECTION,           // TMKR-3020 — no HTTP response (network, WebRequest, DLLs)
+    TMKR_START_CONFIG_INVALID,          // TMKR-9010 — the server's initial config failed validation
+    TMKR_START_UNKNOWN                  // Any other refusal — the server's own code is still shown
+};
+
+//+------------------------------------------------------------------+
 //| Log Levels                                                        |
 //+------------------------------------------------------------------+
 /**
