@@ -11,5 +11,5 @@ workflow_name: CI
 aggregator: required-checks
 needs: sdk-tls-flags,secret-defaults,commitlint
 conditional_needs:
-ruleset_contexts:
-ruleset_read: 2026-09-06 UTC (read live from GitHub on 2026-09-06)
+ruleset_contexts: required-checks
+ruleset_read: 2026-09-16 UTC (read live from GitHub on 2026-09-16)
