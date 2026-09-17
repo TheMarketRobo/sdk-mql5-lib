@@ -36,6 +36,21 @@
 //+------------------------------------------------------------------+
 //| SDK Version                                                       |
 //+------------------------------------------------------------------+
+// v1.4.1 (2026-09-17) — TMKR_NO_WININET: an EA that ships no DLL imports.
+//   An EA never calls kernel32.dll or wininet.dll — it uses WebRequest() — but
+//   Services/CHttpService.mqh included CWinINetHttpService.mqh unconditionally,
+//   and MetaEditor records an import-table entry for every imported DLL whether
+//   or not the code runs. So every SDK-integrated EA shipped as a product the
+//   terminal reports as requiring DLL imports, and a customer running with
+//   "Allow DLL imports" off saw a warning on a robot that needs none. Defining
+//   TMKR_NO_WININET before the SDK include now compiles out the include, the
+//   post_wininet() declaration and its body, so neither #import block reaches
+//   the binary. Indicators must NOT define it: WebRequest() returns 4014 from
+//   indicator context, so WinINet is their only transport —
+//   CWinINetHttpService.mqh #errors if it is reached with the macro defined,
+//   and post() refuses with TMKR-3011 naming the macro rather than failing as a
+//   network error. No behaviour change when the macro is undefined, which is
+//   every existing build. Additive: MIN_REQUIRED_SDK_VERSION unchanged.
 // v1.4.0 (2026-09-12) — typed session-start refusals (decision D-02).
 //   A refused POST /robot/start was alerted as TMKR-3020 "Could not connect
 //   ... check your internet connection" whatever the server said, so an
@@ -165,7 +180,7 @@
 //   Required minimum version for products that must run in MT4/MT5
 //   Strategy Tester. Older SDKs don't have TMR_IsInTester() or the
 //   init_common tester gate.
-#define TMKR_SDK_VERSION "1.4.0"
+#define TMKR_SDK_VERSION "1.4.1"
 #define TMKR_UUID_LENGTH 36  // Standard UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 //+------------------------------------------------------------------+
