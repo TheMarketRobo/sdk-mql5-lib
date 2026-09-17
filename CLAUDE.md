@@ -123,6 +123,13 @@ The tool uses the same SDK patterns documented here. When modifying SDK classes 
 ## Key Things to Know
 
 - **Log level for production**: Final products must set `SDK_LOG_ERROR` before `on_init()`. Debug/info logging is for development only.
-- **Indicator DLL requirement**: End users must enable "Allow DLL imports" for indicators. EAs need no DLLs.
+- **Indicator DLL requirement**: End users must enable "Allow DLL imports" for indicators. EAs that
+  define `TMKR_NO_WININET` before the include need no DLLs — the macro compiles out
+  `CWinINetHttpService.mqh`, so the `wininet.dll` / `kernel32.dll` `#import` blocks never reach the
+  binary and the terminal stops reporting the EA as needing DLL imports. Without the macro an EA
+  never *calls* those DLLs (it uses `WebRequest()`), but it still ships an import table entry for
+  them, which is what made "EAs need no DLLs" false in the compiled product. Indicators must NOT
+  define it: `WebRequest()` returns 4014 from indicator context, so WinINet is their only transport
+  — `CWinINetHttpService.mqh` `#error`s if it is reached with the macro defined.
 - **Config schema**: Only robots have configs. The schema must match the [Robot Config Component Schema](docs/schemas/robot_config_component_schema/README.md) — the Vendor Portal validates it at submission.
 - Heartbeat sequence / token refresh / server-side product-type rules → see `.claude/rules/backend-contract.md`.
