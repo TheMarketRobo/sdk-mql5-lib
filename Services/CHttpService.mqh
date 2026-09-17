@@ -11,7 +11,23 @@
 #include "../Core/CSDKConstants.mqh"
 #include "../Utils/CSDKLogger.mqh"
 #include "../Utils/CSDKUserErrors.mqh"
+
+//--- WinINet transport (indicators only) -----------------------------------
+//  CWinINetHttpService.mqh carries `#import "kernel32.dll"` and
+//  `#import "wininet.dll"`. MetaEditor records an import table entry for every
+//  imported DLL in the compiled binary whether or not the code runs, so an EA
+//  that only ever uses WebRequest() still ships as a product the terminal
+//  reports as requiring DLL imports — and a customer running with "Allow DLL
+//  imports" off sees the warning on a robot that does not need one.
+//
+//  An EA (or script) that will never take the indicator path can define
+//  TMKR_NO_WININET *before* including the SDK. The include, the dispatch and
+//  post_wininet() are then all compiled out and the two #import blocks never
+//  reach the binary. Indicators must NOT define it: WebRequest() returns 4014
+//  from indicator context, so WinINet is the only transport they have.
+#ifndef TMKR_NO_WININET
 #include "CWinINetHttpService.mqh"
+#endif
 
 #define HTTP_TIMEOUT 5000
 
@@ -57,7 +73,9 @@ private:
     int    m_wininet_port;
 
     CTMKR_HttpResponse* post_webrequest(string endpoint, string jwt_token, string &tmkr_data);
+#ifndef TMKR_NO_WININET
     CTMKR_HttpResponse* post_wininet(string endpoint, string jwt_token, string &tmkr_data);
+#endif
 
 public:
     CTMKR_HttpService(ENUM_TMKR_PRODUCT_TYPE product_type = PRODUCT_TYPE_ROBOT);
@@ -82,12 +100,21 @@ CTMKR_HttpService::CTMKR_HttpService(ENUM_TMKR_PRODUCT_TYPE product_type)
 
     if(m_product_type == PRODUCT_TYPE_INDICATOR)
     {
+#ifdef TMKR_NO_WININET
+        // WinINetParseUrl() lives in CWinINetHttpService.mqh, which this build
+        // excluded. An indicator cannot reach the network here — post() below
+        // refuses every request with TMKR-3011 and says why.
+        TMKRErrorCoded(TMKR_ERR_3011,
+                       "This build defines TMKR_NO_WININET, which removes the only network "
+                       "transport an indicator has. Remove the #define — it is for EAs only.");
+#else
         WinINetParseUrl(m_base_url, m_wininet_host, m_wininet_base_path, m_wininet_port);
         if(SDKShouldLogInfo())
         {
             Print("SDK Info: API Base URL = ", m_base_url, " (using WinINet for indicator)");
             Print("SDK Info: WinINet target: ", m_wininet_host, ":", m_wininet_port);
         }
+#endif
     }
     else
     {
@@ -125,7 +152,21 @@ void CTMKR_HttpService::set_logging(bool enable)
 CTMKR_HttpResponse* CTMKR_HttpService::post(string endpoint, string jwt_token, string &tmkr_data)
 {
     if(m_product_type == PRODUCT_TYPE_INDICATOR)
+    {
+#ifdef TMKR_NO_WININET
+        CTMKR_HttpResponse* refused = new CTMKR_HttpResponse();
+        if(refused == NULL) return NULL;
+        refused.code = -1;
+        refused.body = "Indicator transport removed at compile time by TMKR_NO_WININET.";
+        TMKRErrorCoded(TMKR_ERR_3011,
+                       "Indicator network request refused: this build defines TMKR_NO_WININET, "
+                       "which compiles out the WinINet transport. Remove the #define and "
+                       "recompile — TMKR_NO_WININET is for EAs only.");
+        return refused;
+#else
         return post_wininet(endpoint, jwt_token, tmkr_data);
+#endif
+    }
     return post_webrequest(endpoint, jwt_token, tmkr_data);
 }
 
@@ -213,6 +254,7 @@ CTMKR_HttpResponse* CTMKR_HttpService::post_webrequest(string endpoint, string j
     return response;
 }
 
+#ifndef TMKR_NO_WININET
 //+------------------------------------------------------------------+
 //| POST via WinINet.dll (works from indicators)                     |
 //+------------------------------------------------------------------+
@@ -292,6 +334,7 @@ CTMKR_HttpResponse* CTMKR_HttpService::post_wininet(string endpoint, string jwt_
 
     return response;
 }
+#endif // TMKR_NO_WININET
 
 #endif
 //+------------------------------------------------------------------+

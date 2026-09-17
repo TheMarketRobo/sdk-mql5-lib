@@ -12,7 +12,7 @@ This guide will help you create your first trading robot using TheMarketRobo SDK
 - Valid TheMarketRobo API key
 - Robot version UUID from TheMarketRobo platform
 - Basic MQL4 or MQL5 knowledge
-- **Indicators only:** "Allow DLL imports" must be enabled in MT4/MT5 (the SDK uses `kernel32.dll` and `wininet.dll` for HTTP communication in indicators; EAs use the built-in `WebRequest()` instead)
+- **Indicators only:** "Allow DLL imports" must be enabled in MT4/MT5 (the SDK uses `kernel32.dll` and `wininet.dll` for HTTP communication in indicators; EAs use the built-in `WebRequest()` instead, and since v1.4.1 an EA that defines `TMKR_NO_WININET` before the include ships with no DLL imports at all)
 
 > **Programmer obligations (required)**  
 > You must not include any name, link, or address that redirects customers to the vendor or any third party. The product must always be identified as **The Market Robo** with the sole URL **https://www.themarketrobo.com/**. You must not implement any function or behaviour that triggers after a certain time or condition (e.g. alerts or messages) that introduce or promote third parties or other programmers. See [PROGRAMMER_OBLIGATIONS.md](../PROGRAMMER_OBLIGATIONS.md) for the full list and legal effect.
@@ -450,7 +450,7 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
 
 ### DLL Imports for Indicators
 
-The SDK uses `kernel32.dll` and `wininet.dll` for HTTP communication in Custom Indicators (since `WebRequest()` is not available in indicators). Ensure **"Allow DLL imports"** is checked when attaching the indicator to a chart in MT4 or MT5. Expert Advisors (Robots) do NOT require DLL imports.
+The SDK uses `kernel32.dll` and `wininet.dll` for HTTP communication in Custom Indicators (since `WebRequest()` is not available in indicators). Ensure **"Allow DLL imports"** is checked when attaching the indicator to a chart in MT4 or MT5. Expert Advisors (Robots) never *call* those DLLs — they use the built-in `WebRequest()` — but until SDK v1.4.1 they still compiled the `#import` blocks in, so the terminal reported them as requiring DLL imports. Since v1.4.1 an EA can `#define TMKR_NO_WININET` **before** including `<themarketrobo/TheMarketRobo_SDK.mqh>`; the WinINet transport is then compiled out entirely and the EA really does require no DLLs. Do **not** define it in an indicator — the SDK `#error`s, because WinINet is an indicator's only transport.
 
 ### Running Without the SDK (`SDK_ENABLED`)
 

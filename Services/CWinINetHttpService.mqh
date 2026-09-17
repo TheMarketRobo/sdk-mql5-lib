@@ -12,6 +12,15 @@
 #ifndef CWININET_HTTP_SERVICE_MQH
 #define CWININET_HTTP_SERVICE_MQH
 
+//  TMKR_NO_WININET (SDK v1.4.1) asks the SDK to leave the wininet.dll /
+//  kernel32.dll #import blocks below out of the compiled binary. Reaching this
+//  file with that macro defined is a contradiction — something still wants the
+//  transport this build removed — so refuse at compile time rather than emit an
+//  EA that silently declares a DLL import table again.
+#ifdef TMKR_NO_WININET
+   #error "TMKR_NO_WININET is defined, so CWinINetHttpService.mqh must not be included. Indicators cannot define TMKR_NO_WININET: WebRequest() returns 4014 from indicator context, so WinINet is their only transport. Remove the #define, or remove the direct include."
+#endif
+
 #include "../Core/CSDKConstants.mqh"
 #include "../Utils/CSDKLogger.mqh"
 #include "../TMR_Platform.mqh"

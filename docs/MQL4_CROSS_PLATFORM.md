@@ -78,7 +78,7 @@ MQL5's `OrderCalcMargin()` has no MQL4 equivalent. The wrapper `TMR_OrderCalcMar
 
 ### WebRequest (Indicators)
 
-`WebRequest()` cannot be called from indicators on **either** platform (error 4014 on MQL5, similar on MQL4). The SDK routes indicator HTTP traffic through `CWinINetHttpService` using `kernel32.dll` + `wininet.dll` DLL imports. EAs use `WebRequest()` directly — no DLLs needed.
+`WebRequest()` cannot be called from indicators on **either** platform (error 4014 on MQL5, similar on MQL4). The SDK routes indicator HTTP traffic through `CWinINetHttpService` using `kernel32.dll` + `wininet.dll` DLL imports. EAs use `WebRequest()` directly — no DLL is ever called — and an EA that defines `TMKR_NO_WININET` before the include (SDK v1.4.1+) compiles the imports out too, so the binary declares none.
 
 ### Sleep (Indicators)
 

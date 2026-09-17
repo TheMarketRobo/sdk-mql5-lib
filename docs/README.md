@@ -497,6 +497,35 @@ These imports are defined in [`Services/CWinINetHttpService.mqh`](../Services/CW
 
 **Expert Advisors (EAs/Robots) do NOT use any DLLs** — they use the built-in MQL4/MQL5 `WebRequest()` function.
 
+### EAs with no DLL imports at all (`TMKR_NO_WININET`, SDK v1.4.1+)
+
+An EA never *calls* `kernel32.dll` or `wininet.dll`, but until v1.4.1 it still **compiled the two
+`#import` blocks in**, because `Services/CHttpService.mqh` included `CWinINetHttpService.mqh`
+unconditionally. MetaEditor records an import-table entry for every imported DLL whether or not the
+code runs, so the terminal reported an SDK-integrated EA as requiring DLL imports, and a customer
+running with "Allow DLL imports" off saw a warning on a robot that needs none.
+
+Define the macro **before** the SDK include to compile the transport out:
+
+```cpp
+#define TMKR_NO_WININET            // EAs and scripts only — never in an indicator
+#include <themarketrobo/TheMarketRobo_SDK.mqh>
+```
+
+| State | Compiled binary |
+|-------|-----------------|
+| default | `#import "kernel32.dll"` + `#import "wininet.dll"` present (unused by an EA) |
+| `TMKR_NO_WININET` defined | no `#import` at all; `post_wininet()` and the include are gone |
+
+🚫 **Never define it in an indicator.** `WebRequest()` returns 4014 from indicator context, so
+WinINet is the only transport an indicator has. `CWinINetHttpService.mqh` `#error`s if it is reached
+with the macro defined, and if an indicator somehow reaches `post()` anyway it is refused with
+`TMKR-3011` naming the macro rather than failing as a network error.
+
+`TMR_SDK_DISABLED` (below) is the bigger hammer — it removes the whole SDK, including the imports.
+`TMKR_NO_WININET` keeps sessions, heartbeats and config management and removes only the DLL
+transport an EA cannot use.
+
 ### Indicator Setup Requirement
 
 End users must enable **"Allow DLL imports"** in MetaTrader 4 or MetaTrader 5 for any indicator that uses the SDK:
