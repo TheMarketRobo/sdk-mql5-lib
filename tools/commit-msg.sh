@@ -89,7 +89,7 @@ say() { printf '  ✖ %s\n' "$*" >&2; fail=1; }
 # fleet vocabulary uses one — trade-backend's CI type-enum accepts `i18n`. With the digit class
 # missing, such a subject failed this SHAPE check before the allow-list was ever consulted, so
 # the hook refused a type its own CI accepts and no allow-list edit could have fixed it.
-if ! printf '%s' "$SUBJECT" | grep -Eq '^[a-z0-9-]+(\([^)]+\))?!?: .+'; then
+if ! grep -Eq '^[a-z0-9-]+(\([^)]+\))?!?: .+' <<<"$SUBJECT"; then
   say "subject is not conventional: expected '<type>(<scope>)!: <description>'"
   say "  got: $SUBJECT"
 else
