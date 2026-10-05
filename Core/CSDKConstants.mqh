@@ -36,6 +36,20 @@
 //+------------------------------------------------------------------+
 //| SDK Version                                                       |
 //+------------------------------------------------------------------+
+// v1.4.2 (2026-10-05) — credentials masked in the HTTP transport's log prints.
+//   At TMKR_LOG_ALL, the level the SDK starts at until a product lowers it,
+//   Services/CHttpService.mqh printed every request's headers and body and
+//   every response body to the Experts log, so a kept log held the session
+//   JWT (after "Authorization: Bearer " and in the jwt/jwt_token fields) and
+//   the product's api_key from the /robot/start body (MQL52026 #215). Those
+//   prints, in both transports (WebRequest and WinINet), and the two "Error:"
+//   prints of a transport failure now go through TmrRedactForLog(): the
+//   bearer token prints as "Bearer ***" and the string value of api_key,
+//   token, session_token, access_token, refresh_token, jwt and jwt_token as
+//   "***". Banners, the URL, the host and the status code print as before;
+//   only log text changes. The error-level prints of a server refusal body in
+//   Core/CSessionManager.mqh and Core/CSDKContext.mqh are unchanged.
+//   Additive: MIN_REQUIRED_SDK_VERSION unchanged.
 // v1.4.1 (2026-09-17) — TMKR_NO_WININET: an EA that ships no DLL imports.
 //   An EA never calls kernel32.dll or wininet.dll — it uses WebRequest() — but
 //   Services/CHttpService.mqh included CWinINetHttpService.mqh unconditionally,
@@ -180,7 +194,7 @@
 //   Required minimum version for products that must run in MT4/MT5
 //   Strategy Tester. Older SDKs don't have TMR_IsInTester() or the
 //   init_common tester gate.
-#define TMKR_SDK_VERSION "1.4.1"
+#define TMKR_SDK_VERSION "1.4.2"
 #define TMKR_UUID_LENGTH 36  // Standard UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 //+------------------------------------------------------------------+
