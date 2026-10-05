@@ -31,6 +31,118 @@
 
 #define HTTP_TIMEOUT 5000
 
+//--- Credential redaction for logging (MQL52026#215) ------------------------
+//  The debug prints in this file echo request headers and request/response
+//  bodies to the Experts log, and those logs are kept (MT-CVS keeps them on
+//  box #3). Every such print goes through TmrRedactForLog(), which masks the
+//  token after "Bearer " and the string value of every credential key the SDK
+//  sends or receives: api_key (/robot/start), jwt_token (/robot/refresh), jwt
+//  (both responses) and the generic token names.
+//  Plain StringFind/StringSubstr/StringGetCharacter only, so the same code
+//  compiles as MQL4 and MQL5. Every StringSubstr prefix length below is > 0
+//  by construction: MQL4 reads a length of 0 as "to the end of the string".
+
+bool TmrIsJsonSpace(ushort tmkr_c)
+{
+    return (tmkr_c == ' ' || tmkr_c == '\t' || tmkr_c == '\n' || tmkr_c == '\r');
+}
+
+//--- "Bearer <token>" -> "Bearer ***"; the token runs to a space, quote or line end
+string TmrRedactBearer(string tmkr_text)
+{
+    string tmkr_out = tmkr_text;
+    string tmkr_scheme = "Bearer ";
+    int tmkr_from = 0;
+    while(tmkr_from < StringLen(tmkr_out))
+    {
+        int tmkr_at = StringFind(tmkr_out, tmkr_scheme, tmkr_from);
+        if(tmkr_at < 0)
+            break;
+        int tmkr_len = StringLen(tmkr_out);
+        int tmkr_start = tmkr_at + StringLen(tmkr_scheme);
+        int tmkr_end = tmkr_start;
+        while(tmkr_end < tmkr_len)
+        {
+            ushort tmkr_c = StringGetCharacter(tmkr_out, tmkr_end);
+            if(TmrIsJsonSpace(tmkr_c) || tmkr_c == '"')
+                break;
+            tmkr_end++;
+        }
+        tmkr_from = tmkr_start;
+        if(tmkr_end > tmkr_start)
+        {
+            string tmkr_tail = "";
+            if(tmkr_end < tmkr_len)
+                tmkr_tail = StringSubstr(tmkr_out, tmkr_end);
+            tmkr_out = StringSubstr(tmkr_out, 0, tmkr_start) + "***" + tmkr_tail;
+            tmkr_from = tmkr_start + 3;
+        }
+    }
+    return tmkr_out;
+}
+
+//--- "<key>": "<value>" -> "<key>": "***" (string values only; null or a number is no secret)
+string TmrRedactJsonValue(string tmkr_text, string tmkr_key)
+{
+    string tmkr_out = tmkr_text;
+    string tmkr_needle = "\"" + tmkr_key + "\"";
+    int tmkr_from = 0;
+    while(tmkr_from < StringLen(tmkr_out))
+    {
+        int tmkr_at = StringFind(tmkr_out, tmkr_needle, tmkr_from);
+        if(tmkr_at < 0)
+            break;
+        int tmkr_len = StringLen(tmkr_out);
+        int tmkr_pos = tmkr_at + StringLen(tmkr_needle);
+        tmkr_from = tmkr_pos;
+        while(tmkr_pos < tmkr_len && TmrIsJsonSpace(StringGetCharacter(tmkr_out, tmkr_pos)))
+            tmkr_pos++;
+        if(tmkr_pos >= tmkr_len || StringGetCharacter(tmkr_out, tmkr_pos) != ':')
+            continue;   // the name appeared as a value, not as a key
+        tmkr_pos++;
+        while(tmkr_pos < tmkr_len && TmrIsJsonSpace(StringGetCharacter(tmkr_out, tmkr_pos)))
+            tmkr_pos++;
+        if(tmkr_pos >= tmkr_len || StringGetCharacter(tmkr_out, tmkr_pos) != '"')
+            continue;
+        int tmkr_start = tmkr_pos + 1;
+        int tmkr_end = tmkr_start;
+        while(tmkr_end < tmkr_len)
+        {
+            ushort tmkr_c = StringGetCharacter(tmkr_out, tmkr_end);
+            if(tmkr_c == '"')
+                break;
+            if(tmkr_c == '\\')
+                tmkr_end++;   // skip the escaped character
+            tmkr_end++;
+        }
+        tmkr_from = tmkr_start;
+        if(tmkr_end > tmkr_start)
+        {
+            // A value cut off before its closing quote is masked to the end.
+            string tmkr_tail = "";
+            if(tmkr_end < tmkr_len)
+                tmkr_tail = StringSubstr(tmkr_out, tmkr_end);
+            tmkr_out = StringSubstr(tmkr_out, 0, tmkr_start) + "***" + tmkr_tail;
+            tmkr_from = tmkr_start + 3;
+        }
+    }
+    return tmkr_out;
+}
+
+//--- The one entry point every header/body print uses
+string TmrRedactForLog(string tmkr_text)
+{
+    string tmkr_out = TmrRedactBearer(tmkr_text);
+    tmkr_out = TmrRedactJsonValue(tmkr_out, "api_key");
+    tmkr_out = TmrRedactJsonValue(tmkr_out, "token");
+    tmkr_out = TmrRedactJsonValue(tmkr_out, "session_token");
+    tmkr_out = TmrRedactJsonValue(tmkr_out, "access_token");
+    tmkr_out = TmrRedactJsonValue(tmkr_out, "refresh_token");
+    tmkr_out = TmrRedactJsonValue(tmkr_out, "jwt");
+    tmkr_out = TmrRedactJsonValue(tmkr_out, "jwt_token");
+    return tmkr_out;
+}
+
 /**
  * @class CHttpResponse
  * @brief Represents the response from an HTTP request.
@@ -191,8 +303,8 @@ CTMKR_HttpResponse* CTMKR_HttpService::post_webrequest(string endpoint, string j
         Print("| SENDING HTTP REQUEST                                      |");
         Print("============================================================");
         Print("URL: ", m_base_url + endpoint);
-        Print("Headers: \n", headers);
-        Print("Body: \n", tmkr_data);
+        Print("Headers: \n", TmrRedactForLog(headers));
+        Print("Body: \n", TmrRedactForLog(tmkr_data));
         Print("============================================================");
     }
 
@@ -218,7 +330,7 @@ CTMKR_HttpResponse* CTMKR_HttpService::post_webrequest(string endpoint, string j
             Print("============================================================");
             Print("| HTTP REQUEST FAILED                                       |");
             Print("============================================================");
-            Print("Error: ", response.body);
+            Print("Error: ", TmrRedactForLog(response.body));
             Print("============================================================");
         }
     }
@@ -233,7 +345,7 @@ CTMKR_HttpResponse* CTMKR_HttpService::post_webrequest(string endpoint, string j
             Print("| HTTP RESPONSE RECEIVED                                    |");
             Print("============================================================");
             Print("Status Code: ", res);
-            Print("Body: \n", response.body);
+            Print("Body: \n", TmrRedactForLog(response.body));
             Print("============================================================");
         }
 
@@ -275,8 +387,8 @@ CTMKR_HttpResponse* CTMKR_HttpService::post_wininet(string endpoint, string jwt_
         Print("| SENDING HTTP REQUEST (WinINet)                            |");
         Print("============================================================");
         Print("URL: https://", m_wininet_host, ":", m_wininet_port, full_path);
-        Print("Headers: \n", headers_str);
-        Print("Body: \n", tmkr_data);
+        Print("Headers: \n", TmrRedactForLog(headers_str));
+        Print("Body: \n", TmrRedactForLog(tmkr_data));
         Print("============================================================");
     }
 
@@ -299,7 +411,7 @@ CTMKR_HttpResponse* CTMKR_HttpService::post_wininet(string endpoint, string jwt_
             Print("============================================================");
             Print("| HTTP REQUEST FAILED (WinINet)                             |");
             Print("============================================================");
-            Print("Error: ", response.body);
+            Print("Error: ", TmrRedactForLog(response.body));
             Print("============================================================");
         }
     }
@@ -314,7 +426,7 @@ CTMKR_HttpResponse* CTMKR_HttpService::post_wininet(string endpoint, string jwt_
             Print("| HTTP RESPONSE RECEIVED (WinINet)                          |");
             Print("============================================================");
             Print("Status Code: ", tmkr_status);
-            Print("Body: \n", response.body);
+            Print("Body: \n", TmrRedactForLog(response.body));
             Print("============================================================");
         }
 
