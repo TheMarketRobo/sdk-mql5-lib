@@ -460,7 +460,7 @@ void CTMKR_Context::on_timer()
     {
         TMKRErrorCoded(GetCodeForHTTPStatus(response.code),
                        "Heartbeat failed with HTTP code " + (string)response.code + ".");
-        Print("SDK Error: Response body: ", response.body);
+        Print("SDK Error: Response body: ", TmrRedactForLog(response.body));
         
         m_consecutive_heartbeat_failures++;
         if(m_consecutive_heartbeat_failures >= m_options.get_max_heartbeat_failure_intervals())
