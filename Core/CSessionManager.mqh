@@ -297,7 +297,21 @@ bool CTMKR_SessionManager::start_session()
     }
     
     CTMKR_JAVal* body = response.json_body;
-    
+
+    // A 200 whose body did not parse (json_body NULL) or carries no jwt cannot start a session, and
+    // reading through it stopped the program with "invalid pointer access" (sdk-mql5-lib #20):
+    // operator[] returns NULL for a missing key or a non-object. Refuse it as a server-side failure.
+    CTMKR_JAVal* tmkr_jwt_node = NULL;
+    if(CheckPointer(body) != POINTER_INVALID) tmkr_jwt_node = body["jwt"];
+    if(CheckPointer(tmkr_jwt_node) == POINTER_INVALID || tmkr_jwt_node.get_string() == "")
+    {
+        Print("SDK Error: Start session failed. Code: 200, but the response carries no session token.");
+        set_start_refusal(TMKR_START_SERVER_ERROR, TMKR_ERR_9001,
+                          "The server answered 200 without a session token", 200);
+        delete response;
+        return false;
+    }
+
     // Server returns session_id as string, need to parse it
     CTMKR_JAVal* session_id_node = body["session_id"];
     if(CheckPointer(session_id_node) != POINTER_INVALID)
@@ -318,7 +332,7 @@ bool CTMKR_SessionManager::start_session()
     // Pass session ID to heartbeat manager
     m_context.heartbeat_manager.set_session_id(m_session_id);
     
-    m_context.token_manager.set_token(body["jwt"].get_string());
+    m_context.token_manager.set_token(tmkr_jwt_node.get_string());
     
     CTMKR_JAVal* expires_in_node = body["expires_in"];
     if(CheckPointer(expires_in_node) != POINTER_INVALID)
@@ -450,6 +464,17 @@ bool CTMKR_SessionManager::refresh_token()
     
     CTMKR_JAVal* payload = new CTMKR_JAVal(TMKR_JA_OBJECT);
     CTMKR_JAVal* token_val = new CTMKR_JAVal();
+    if(payload == NULL || token_val == NULL)
+    {
+        // An allocation failure: never call through a NULL pointer (sdk-mql5-lib #20).
+        if(payload != NULL) delete payload;
+        if(token_val != NULL) delete token_val;
+        STMKR_TokenRefreshEvent tmkr_alloc_event;
+        tmkr_alloc_event.success = false;
+        tmkr_alloc_event.message = "Token refresh failed. Could not allocate the request payload.";
+        Fire_Token_Refresh_Event(0, tmkr_alloc_event);
+        return false;
+    }
     token_val.set_string(current_token);
     payload.Add("jwt_token", token_val);
     
@@ -468,9 +493,25 @@ bool CTMKR_SessionManager::refresh_token()
     }
     else if(response.code == 200)
     {
-        m_context.token_manager.set_token(response.json_body["jwt"].get_string());
-        success = true;
-        tmkr_message = "Token refreshed successfully";
+        // A 200 whose body is not JSON (json_body NULL) or carries no jwt is a failed refresh, not a
+        // crash: operator[] returns NULL for a missing key or a non-object (sdk-mql5-lib #20).
+        string tmkr_new_jwt = "";
+        CTMKR_JAVal* tmkr_refresh_body = response.json_body;
+        if(CheckPointer(tmkr_refresh_body) != POINTER_INVALID)
+        {
+            CTMKR_JAVal* tmkr_jwt_node = tmkr_refresh_body["jwt"];
+            if(CheckPointer(tmkr_jwt_node) != POINTER_INVALID) tmkr_new_jwt = tmkr_jwt_node.get_string();
+        }
+        if(tmkr_new_jwt != "")
+        {
+            m_context.token_manager.set_token(tmkr_new_jwt);
+            success = true;
+            tmkr_message = "Token refreshed successfully";
+        }
+        else
+        {
+            tmkr_message = "Token refresh failed. Code: 200, no jwt in body";
+        }
         delete response;
     }
     else
