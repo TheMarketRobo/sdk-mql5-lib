@@ -290,7 +290,7 @@ bool CTMKR_SessionManager::start_session()
 
     if(response.code != 200)
     {
-        Print("SDK Error: Start session failed. Code: ", response.code, ", Body: ", response.body);
+        Print("SDK Error: Start session failed. Code: ", response.code, ", Body: ", TmrRedactForLog(response.body));
         record_start_refusal(response.code, response.json_body);
         delete response;
         return false;
@@ -410,7 +410,13 @@ bool CTMKR_SessionManager::end_session(string tmkr_reason, CTMKR_FinalStats* fin
     bool success = false;
     string tmkr_message = "";
     
-    if(CheckPointer(response) != POINTER_INVALID && response.code == 200)
+    if(CheckPointer(response) == POINTER_INVALID)
+    {
+        // No response object at all (allocation failure) — never dereference it.
+        tmkr_message = "End session failed. No HTTP response.";
+        Print("SDK Error: ", tmkr_message);
+    }
+    else if(response.code == 200)
     {
         m_is_active = false;
         success = true;
@@ -420,9 +426,9 @@ bool CTMKR_SessionManager::end_session(string tmkr_reason, CTMKR_FinalStats* fin
     }
     else
     {
-        tmkr_message = "End session failed. Code: " + (string)response.code + ", Body: " + response.body;
+        tmkr_message = "End session failed. Code: " + (string)response.code + ", Body: " + TmrRedactForLog(response.body);
         Print("SDK Error: ", tmkr_message);
-        if(response != NULL) delete response;
+        delete response;
     }
     
     STMKR_TerminationEvent end_event;
@@ -455,7 +461,12 @@ bool CTMKR_SessionManager::refresh_token()
     bool success = false;
     string tmkr_message = "";
     
-    if(CheckPointer(response) != POINTER_INVALID && response.code == 200)
+    if(CheckPointer(response) == POINTER_INVALID)
+    {
+        // No response object at all (allocation failure) — never dereference it.
+        tmkr_message = "Token refresh failed. No HTTP response.";
+    }
+    else if(response.code == 200)
     {
         m_context.token_manager.set_token(response.json_body["jwt"].get_string());
         success = true;
@@ -464,7 +475,7 @@ bool CTMKR_SessionManager::refresh_token()
     }
     else
     {
-        tmkr_message = "Token refresh failed. Code: " + (string)response.code + ", Body: " + response.body;
+        tmkr_message = "Token refresh failed. Code: " + (string)response.code + ", Body: " + TmrRedactForLog(response.body);
         delete response;
     }
     
