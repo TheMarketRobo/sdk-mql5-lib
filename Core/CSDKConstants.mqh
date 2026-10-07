@@ -36,6 +36,19 @@
 //+------------------------------------------------------------------+
 //| SDK Version                                                       |
 //+------------------------------------------------------------------+
+// v1.4.3 (2026-10-07) — server bodies in error-level prints are now masked.
+//   1.4.2 masked the HTTP transport's prints but left four error-level
+//   messages echoing a raw server body: the start, end and refresh failures
+//   in Core/CSessionManager.mqh and the heartbeat failure in
+//   Core/CSDKContext.mqh. They are not debug-gated, so they print in
+//   production builds that set SDK_LOG_ERROR; they now go through
+//   TmrRedactForLog() like the transport's (sdk-mql5-lib #19). Also fixes
+//   end_session() and refresh_token() reading response.code and
+//   response.body on their failure path when post() returned NULL (an
+//   allocation failure), which stopped the program with "invalid pointer
+//   access": both now test the pointer first, as start_session() does, and
+//   report "No HTTP response" (sdk-mql5-lib #17). Only log text and that
+//   NULL path change. Additive: MIN_REQUIRED_SDK_VERSION unchanged.
 // v1.4.2 (2026-10-05) — credentials masked in the HTTP transport's log prints.
 //   At TMKR_LOG_ALL, the level the SDK starts at until a product lowers it,
 //   Services/CHttpService.mqh printed every request's headers and body and
@@ -194,7 +207,7 @@
 //   Required minimum version for products that must run in MT4/MT5
 //   Strategy Tester. Older SDKs don't have TMR_IsInTester() or the
 //   init_common tester gate.
-#define TMKR_SDK_VERSION "1.4.2"
+#define TMKR_SDK_VERSION "1.4.3"
 #define TMKR_UUID_LENGTH 36  // Standard UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 //+------------------------------------------------------------------+
