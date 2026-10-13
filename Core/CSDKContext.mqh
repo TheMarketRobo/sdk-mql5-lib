@@ -431,7 +431,20 @@ void CTMKR_Context::on_timer()
     {
         m_consecutive_heartbeat_failures = 0;
         if(SDKShouldLogInfo()) Print("SDK Info: Heartbeat sent successfully (HTTP 200)");
-        heartbeat_manager.process_heartbeat_response(response.json_body);
+        // process_heartbeat_response() takes a reference, and json_body is NULL when the body did not
+        // parse: binding it stopped the program with "invalid pointer access" (sdk-mql5-lib #26, the
+        // class of #20). Every field of a heartbeat reply is optional, so a 200 whose body does not
+        // parse confirms the beat and carries no instructions.
+        if(CheckPointer(response.json_body) != POINTER_INVALID)
+        {
+            heartbeat_manager.process_heartbeat_response(response.json_body);
+        }
+        else
+        {
+            if(SDKShouldLogWarning()) Print("SDK Warning: Heartbeat answered HTTP 200 without a JSON body; no server instructions read.");
+            CTMKR_JAVal tmkr_empty_reply(TMKR_JA_OBJECT);
+            heartbeat_manager.process_heartbeat_response(tmkr_empty_reply);
+        }
     }
     else if(response.code == 409)
     {
