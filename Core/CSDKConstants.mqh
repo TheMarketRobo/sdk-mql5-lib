@@ -36,6 +36,18 @@
 //+------------------------------------------------------------------+
 //| SDK Version                                                       |
 //+------------------------------------------------------------------+
+// v1.4.4 (2026-10-13) — a malformed 200 reply no longer stops the program.
+//   start_session(), refresh_token() and the heartbeat send read a 200
+//   reply through JSON nodes that are NULL when its body does not parse
+//   (CHttpService leaves json_body NULL) or lacks a key (operator[]
+//   returns NULL), which stopped the program with "invalid pointer
+//   access". start_session() now refuses a 200 without a jwt as a typed
+//   server error (TMKR-9001); refresh_token() reports it as a failed
+//   refresh and tests its payload allocations before Add()
+//   (sdk-mql5-lib #20); the heartbeat confirms a 200 whose body does not
+//   parse and reads no instructions from it (sdk-mql5-lib #26).
+//   Behaviour change: a 200 with an empty jwt no longer starts a session.
+//   Additive: MIN_REQUIRED_SDK_VERSION unchanged.
 // v1.4.3 (2026-10-07) — server bodies in error-level prints are now masked.
 //   1.4.2 masked the HTTP transport's prints but left four error-level
 //   messages echoing a raw server body: the start, end and refresh failures
@@ -207,7 +219,7 @@
 //   Required minimum version for products that must run in MT4/MT5
 //   Strategy Tester. Older SDKs don't have TMR_IsInTester() or the
 //   init_common tester gate.
-#define TMKR_SDK_VERSION "1.4.3"
+#define TMKR_SDK_VERSION "1.4.4"
 #define TMKR_UUID_LENGTH 36  // Standard UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 //+------------------------------------------------------------------+
