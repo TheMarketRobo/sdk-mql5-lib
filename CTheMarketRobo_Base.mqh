@@ -792,7 +792,8 @@ void CTMKR_RobotBase::on_deinit(const int tmkr_reason)
     {
         // Destructive deinit (or robot mode): terminate the session normally.
         m_sdk_context.clear_kill_file();  // User explicitly removed — allow fresh start later
-        m_sdk_context.terminate(tmkr_label + " Shutdown: reason " + (string)tmkr_reason);
+        m_sdk_context.terminate(TMKREndReasonForDeinit(tmkr_reason),
+                                tmkr_label + " Shutdown: reason " + (string)tmkr_reason);
         m_sdk_context.clear_session_state();
     }
 

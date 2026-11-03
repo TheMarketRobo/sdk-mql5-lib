@@ -26,12 +26,13 @@ This document provides a comprehensive explanation of the `/end` endpoint flow f
 
 ### Request Body Structure
 
-The SDK builds the payload with **session_id** (required for the server to identify the session), **reason**, and optionally **final_stats**. The SDK obtains session_id from the stored value after `/robot/start`.
+The body is the contract's `RobotEndRequest` (aws `contracts/api/robot/components/robot-end.yaml`):
+**reason** and **final_stats**. The bearer token names the session, so no `session_id` is sent
+(SDK ≤ 1.4.4 sent one, and the server never read it).
 
 ```json
 {
-  "session_id": 12345,
-  "reason": "string (optional)",
+  "reason": "normal_shutdown",
   "final_stats": {
     "total_trades": 25,
     "winning_trades": 18,
@@ -45,9 +46,33 @@ The SDK builds the payload with **session_id** (required for the server to ident
 }
 ```
 
-The **CFinalStats** class in the SDK (Models/CFinalStats.mqh) produces this structure via `to_json()`; field names match the above. When the SDK calls `terminate(reason)`, it creates a default CFinalStats instance (zeros and empty strings) and sends it with the end request; the programmer can extend the flow to populate final_stats if needed.
+**`reason`** is one of the contract's six values, `ENUM_TMKR_END_REASON` in `Models/CFinalStats.mqh`
+(`TMKREndReasonName()` gives the wire value). The SDK chooses it by how the session ended, and puts
+the readable detail in `final_stats.shutdown_reason`. SDK ≤ 1.4.4 sent that detail as `reason`
+(`"EA Shutdown: reason 1"`).
 
-**Optional reason values** (examples): `normal_shutdown`, `error_shutdown`, `user_request`, `license_expired`, `system_error`, etc.
+| How the session ended | `reason` | `shutdown_reason` |
+|---|---|---|
+| `OnDeinit`: removed from the chart, recompiled, chart closed or changed, inputs edited, account switched, template applied | `user_request` | `EA Shutdown: reason <code>` (`Indicator …` for an indicator) |
+| `OnDeinit`: the program removed itself (`REASON_PROGRAM`) or the terminal closed (`REASON_CLOSE`) | `normal_shutdown` | the same |
+| `OnDeinit` after a failed `OnInit` (`REASON_INITFAILED`) | `error_shutdown` | the same |
+| The heartbeat answered `termination_requested` (a person asked the platform) | `user_request` | the server's `termination_reason` |
+| Heartbeats failed past the allowed number of intervals | `error_shutdown` | `Connection lost: …` |
+| Vendor code calling `terminate("<text>")` (SDK ≤ 1.4.4's form) | `normal_shutdown` | the text |
+
+**`final_stats`** is a `CTMKR_FinalStats` (`Models/CFinalStats.mqh`, `to_json()`), filled at the end by
+`CTMKR_DataCollectorService::collect_session_stats()` from the session's own trades: those carrying
+the robot's magic number, at or after the session started (server time, recorded by
+`start_session()`).
+
+- `total_trades`: the exit deals (MQL5 `DEAL_ENTRY_OUT`, `DEAL_ENTRY_INOUT`, `DEAL_ENTRY_OUT_BY`);
+  on MQL4, the closed market orders (`OP_BUY`, `OP_SELL`).
+- `winning_trades` / `losing_trades`: those whose net (profit + swap + commission) is above / below 0.
+- `total_pnl`: the net of every session deal, an MQL5 entry deal's commission included.
+- `max_drawdown`: the deepest fall of that running total below its peak, in time order.
+- `session_duration_minutes`: whole minutes since the session started. An indicator that resumed
+  its session after a reinit counts from the resume.
+- An indicator (no magic number) reports no trades, only the duration.
 
 ## Server Processing Flow
 
@@ -81,11 +106,11 @@ The server performs session termination:
 - Log termination event
 
 ### Step 5: Final Statistics Storage
-If `final_stats` is provided, the server stores:
-- Total trades, winning trades, losing trades
-- Total P&L and max drawdown
-- Session duration
-- Last error and shutdown reason
+After the session close commits, the server stores `reason` in
+`runtime.sessions.termination_reason` and `final_stats` in
+`runtime.session_dynamic_data.final_stats` (the contract's eight keys, each with its type). Neither
+write can fail the request. An all-zero `final_stats` with no text is not stored: SDK ≤ 1.4.4 always
+sent exactly that.
 
 ### Step 6: Session Event Logging
 The server logs the session termination event with:
@@ -132,12 +157,9 @@ The server updates the session record:
 - Update `updated_at` timestamp
 
 ### Final Statistics Storage Query
-If final statistics are provided, the server inserts into `session_final_stats` table:
-- Session ID
-- Trading metrics (trades, P&L, drawdown)
-- Session duration
-- Error information
-- Shutdown reason
+There is no separate statistics table: `final_stats` is written to
+`runtime.session_dynamic_data.final_stats` (jsonb) and `reason` to
+`runtime.sessions.termination_reason` (see Step 5).
 
 ### Session Event Logging Query
 The server inserts termination event into `session_events` table with:
@@ -330,14 +352,14 @@ The SDK must resolve all pending configuration/symbol changes before termination
 
 1. **Termination Triggers**
    - **Manual**: Developer or user stops EA/Indicator (OnDeinit)
-   - **Automatic**: Server sends `termination_requested` in heartbeat response; SDK fires termination event then calls `terminate(reason)` and sends `/robot/end`
-   - **Graceful**: Normal shutdown; SDK calls `end_session(reason, final_stats)` from `CSessionManager`
+   - **Automatic**: Server sends `termination_requested` in heartbeat response; SDK fires termination event then calls `terminate(TMKR_END_USER_REQUEST, <server reason>)` and sends `/robot/end`
+   - **Graceful**: `CTMKR_Context::terminate(reason, detail)` fills the final stats and calls `end_session(reason, final_stats)` on `CSessionManager`
 
 2. **Pre-Termination**
    - SDK fires **termination start event** (`Fire_Termination_Start_Event`) before sending the request
 
 3. **End Request**
-   - Build payload: **session_id** (from stored value), **reason**, optional **final_stats** (CFinalStats: total_trades, winning_trades, losing_trades, total_pnl, max_drawdown, session_duration_minutes, last_error, shutdown_reason)
+   - Build payload: **reason** (one of the contract's six values) and **final_stats** (CFinalStats: total_trades, winning_trades, losing_trades, total_pnl, max_drawdown, session_duration_minutes, last_error, shutdown_reason); no session_id
    - POST to **`/robot/end`** (relative to `SDK_API_BASE_URL`) with Bearer token
 
 4. **Post-Response**
@@ -382,12 +404,10 @@ The SDK fires chart events for termination progress: **SDK_EVENT_TERMINATION_STA
 
 ### Final Statistics Collection
 
-**Automatic Tracking:**
-The SDK maintains running statistics throughout the session:
-- Trade counters and P&L tracking
-- Drawdown monitoring
-- Session timing
-- Error logging
+**Counted at the end:**
+The SDK keeps no running counters. When the session ends it reads the terminal's trade history
+(MQL5 `HistorySelect` over the session's span; MQL4 `MODE_HISTORY`) for the robot's magic number
+and counts what the session closed — see Request Body Structure above.
 
 **Statistics Structure:**
 - Total trades, winning trades, losing trades

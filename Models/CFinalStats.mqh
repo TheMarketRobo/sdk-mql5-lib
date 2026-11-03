@@ -10,6 +10,56 @@
 #include "../Services/Json.mqh"
 
 /**
+ * Why a session ended: the six values of `reason` on POST /robot/end
+ * (aws contracts/api/robot/components/robot-end.yaml, RobotEndRequest). The detail
+ * (the MetaTrader deinit code, the server's own words) travels in
+ * final_stats.shutdown_reason. SDK <= 1.4.4 sent that free text as `reason`.
+ */
+enum ENUM_TMKR_END_REASON
+{
+    TMKR_END_NORMAL_SHUTDOWN      = 0, // the program ended itself, or the terminal closed
+    TMKR_END_ERROR_SHUTDOWN       = 1, // an error ended it (lost connection, failed init)
+    TMKR_END_MAINTENANCE_SHUTDOWN = 2, // system maintenance
+    TMKR_END_USER_REQUEST         = 3, // a person ended it, here or through the platform
+    TMKR_END_LICENSE_EXPIRED      = 4, // the licence ended
+    TMKR_END_SYSTEM_ERROR         = 5  // a system-level error
+};
+
+//+------------------------------------------------------------------+
+//| The wire value of an end reason                                   |
+//+------------------------------------------------------------------+
+string TMKREndReasonName(ENUM_TMKR_END_REASON tmkr_reason)
+{
+    switch(tmkr_reason)
+    {
+        case TMKR_END_ERROR_SHUTDOWN:       return "error_shutdown";
+        case TMKR_END_MAINTENANCE_SHUTDOWN: return "maintenance_shutdown";
+        case TMKR_END_USER_REQUEST:         return "user_request";
+        case TMKR_END_LICENSE_EXPIRED:      return "license_expired";
+        case TMKR_END_SYSTEM_ERROR:         return "system_error";
+    }
+    return "normal_shutdown";
+}
+
+//+------------------------------------------------------------------+
+//| The end reason for an OnDeinit() reason code                      |
+//+------------------------------------------------------------------+
+ENUM_TMKR_END_REASON TMKREndReasonForDeinit(const int tmkr_deinit_reason)
+{
+    switch(tmkr_deinit_reason)
+    {
+        case REASON_PROGRAM:    // the program removed itself (ExpertRemove)
+        case REASON_CLOSE:      // the terminal is closing
+            return TMKR_END_NORMAL_SHUTDOWN;
+        case REASON_INITFAILED: // OnInit() failed after the session had started
+            return TMKR_END_ERROR_SHUTDOWN;
+    }
+    // Removed from the chart, recompiled, chart closed or changed, inputs edited,
+    // account switched, template applied: a person ended this run.
+    return TMKR_END_USER_REQUEST;
+}
+
+/**
  * @class CFinalStats
  * @brief Represents the final trading statistics for a session.
  *
@@ -41,6 +91,7 @@ public:
     void set_session_duration_minutes(int duration);
     void set_last_error(string last_error);
     void set_shutdown_reason(string tmkr_reason);
+    string get_shutdown_reason() const;
 
     CTMKR_JAVal* to_json();
 };
@@ -78,6 +129,7 @@ void CTMKR_FinalStats::set_max_drawdown(double max_drawdown) { m_max_drawdown = 
 void CTMKR_FinalStats::set_session_duration_minutes(int duration) { m_session_duration_minutes = duration; }
 void CTMKR_FinalStats::set_last_error(string last_error) { m_last_error = last_error; }
 void CTMKR_FinalStats::set_shutdown_reason(string tmkr_reason) { m_shutdown_reason = tmkr_reason; }
+string CTMKR_FinalStats::get_shutdown_reason() const { return m_shutdown_reason; }
 
 //+------------------------------------------------------------------+
 //| Convert to JSON                                                   |

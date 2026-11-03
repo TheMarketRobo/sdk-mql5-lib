@@ -58,7 +58,8 @@ public:
     bool check_kill_file() const;
     void clear_kill_file();
     void on_timer();
-    void terminate(string tmkr_reason);
+    void terminate(ENUM_TMKR_END_REASON tmkr_reason, string tmkr_detail);
+    void terminate(string tmkr_reason);   // SDK <= 1.4.4's form, kept for vendor code
     
     void set_token_refresh_threshold_seconds(int seconds);
     int  get_token_refresh_threshold_seconds() const;
@@ -417,7 +418,7 @@ void CTMKR_Context::on_timer()
                   "). Removing product from chart.");
             string tmkr_reason = "Connection lost: maximum heartbeat failure intervals (" +
                             IntegerToString(m_options.get_max_heartbeat_failure_intervals()) + ") exceeded.";
-            terminate(tmkr_reason);
+            terminate(TMKR_END_ERROR_SHUTDOWN, tmkr_reason);
             CTMKR_JAVal event_json(TMKR_JA_OBJECT);
             CTMKR_JAVal* reason_val = new CTMKR_JAVal();
             reason_val.set_string(tmkr_reason);
@@ -485,7 +486,7 @@ void CTMKR_Context::on_timer()
                   "). Removing product from chart.");
             string tmkr_reason = "Connection lost: maximum heartbeat failure intervals (" +
                             IntegerToString(m_options.get_max_heartbeat_failure_intervals()) + ") exceeded.";
-            terminate(tmkr_reason);
+            terminate(TMKR_END_ERROR_SHUTDOWN, tmkr_reason);
             CTMKR_JAVal event_json(TMKR_JA_OBJECT);
             CTMKR_JAVal* reason_val = new CTMKR_JAVal();
             reason_val.set_string(tmkr_reason);
@@ -507,16 +508,38 @@ void CTMKR_Context::on_timer()
 }
 
 //+------------------------------------------------------------------+
-//| Terminate session                                                 |
+//| Terminate session: POST /robot/end with why it ended and the      |
+//| session's final stats, counted from its own closed deals.         |
+//| tmkr_detail (a deinit code, the server's words) is kept in        |
+//| final_stats.shutdown_reason.                                      |
 //+------------------------------------------------------------------+
-void CTMKR_Context::terminate(string tmkr_reason)
+void CTMKR_Context::terminate(ENUM_TMKR_END_REASON tmkr_reason, string tmkr_detail)
 {
     if(CheckPointer(session_manager) != POINTER_INVALID && session_manager.is_session_active())
     {
         CTMKR_FinalStats* stats = new CTMKR_FinalStats();
+        if(CheckPointer(stats) != POINTER_INVALID)
+        {
+            stats.set_shutdown_reason(tmkr_detail);
+            if(CheckPointer(data_collector) != POINTER_INVALID)
+            {
+                long tmkr_magic = 0;   // an indicator places no trades
+                if(!is_indicator()) tmkr_magic = session_manager.get_magic_number();
+                data_collector.collect_session_stats(stats, tmkr_magic, session_manager.get_session_started_at());
+            }
+        }
         session_manager.end_session(tmkr_reason, stats);
-        delete stats;
+        if(CheckPointer(stats) == POINTER_DYNAMIC) delete stats;
     }
+}
+
+//+------------------------------------------------------------------+
+//| SDK <= 1.4.4's terminate: the text becomes the detail, and the    |
+//| program ending its own session is a normal shutdown.              |
+//+------------------------------------------------------------------+
+void CTMKR_Context::terminate(string tmkr_reason)
+{
+    terminate(TMKR_END_NORMAL_SHUTDOWN, tmkr_reason);
 }
 
 //+------------------------------------------------------------------+
