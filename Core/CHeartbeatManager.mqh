@@ -9,6 +9,7 @@
 #include <Object.mqh>
 #include "../Services/Json.mqh"
 #include "../Utils/CSDKLogger.mqh"
+#include "../Models/CFinalStats.mqh"
 
 class CTMKR_Context;
 
@@ -281,10 +282,12 @@ void CTMKR_HeartbeatManager::process_heartbeat_response(const CTMKR_JAVal &respo
             string event_str = event_json.to_string();
             Fire_Termination_Requested_Event(0, event_str);
             
-            // Also terminate the SDK session
+            // Also terminate the SDK session. A termination request is always a person's
+            // act on the platform (its row needs a human actor), so the reason is
+            // user_request and the server's words are the detail.
             if(SDKShouldLogInfo())
                 Print("SDK Info: Initiating session termination...");
-            m_context.terminate(tmkr_reason);
+            m_context.terminate(TMKR_END_USER_REQUEST, tmkr_reason);
             
             return; // Don't process other fields if terminating
         }

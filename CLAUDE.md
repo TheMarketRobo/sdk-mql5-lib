@@ -95,6 +95,9 @@ extensions.worktreeConfig`.) `tools/install-hooks.sh` detects the submodule case
 bug in hub and re-copy — never in place. The verb also red-proves the hook (a bad subject must be
 REFUSED) and runs `tools/lint-workflows.sh` (`actionlint` + `zizmor --pedantic` against the
 shrink-only `.github/zizmor-baseline.txt`); both are local-only and labelled as such in its header.
+So is `final-stats`, `tools/test-final-stats.sh` (T-55b, trade-feature-wave-1 Phase 18): a
+structural read of the headers that `POST /robot/end` sends the contract's `{reason, final_stats}`
+and that `final_stats.total_trades` is the session's closed-deal count.
 
 **Maintenance contract:** any change to `required-checks`'s `needs:` list, or to a mirrored step's
 commands, updates `tools/verify-local.sh`'s header, `.github/required-checks.snapshot` and this

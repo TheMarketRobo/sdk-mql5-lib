@@ -9,6 +9,7 @@
 #include <Object.mqh>
 #include "Json.mqh"
 #include "../Models/CSessionSymbol.mqh"
+#include "../Models/CFinalStats.mqh"
 #include "../Utils/CSDKLogger.mqh"
 #include "../TMR_Platform.mqh"
 
@@ -56,6 +57,7 @@ public:
     CTMKR_JAVal* get_static_fields(long expert_magic_number = 0);
     CArrayObj* get_session_symbols();
     CTMKR_JAVal* get_dynamic_data();
+    void collect_session_stats(CTMKR_FinalStats* tmkr_stats, long tmkr_magic, datetime tmkr_started_at);
     
     double get_initial_balance() const;
     double get_initial_equity() const;
@@ -414,6 +416,118 @@ void CTMKR_DataCollectorService::add_json_double(CTMKR_JAVal* json, string tmkr_
     if(tmkr_val == NULL) return;
     tmkr_val.set_double(tmkr_value);
     json.Add(tmkr_key, tmkr_val);
+}
+
+//+------------------------------------------------------------------+
+//| A session's own trades, counted into its final stats              |
+//| (POST /robot/end, final_stats). A deal belongs to the session     |
+//| when it carries the robot's magic number and happened at or after |
+//| the session started (server time). total_trades counts the exit   |
+//| deals (MQL5: DEAL_ENTRY_OUT, _INOUT, _OUT_BY; MQL4: closed market  |
+//| orders); a trade's net is profit + swap + commission. total_pnl   |
+//| is the net of every session deal (an MQL5 entry deal carries its  |
+//| commission), and max_drawdown the deepest fall of that running    |
+//| total below its peak, in time order. An indicator (magic 0) or a  |
+//| session that never started counts no trades.                       |
+//+------------------------------------------------------------------+
+void CTMKR_DataCollectorService::collect_session_stats(CTMKR_FinalStats* tmkr_stats, long tmkr_magic,
+                                                        datetime tmkr_started_at)
+{
+    if(CheckPointer(tmkr_stats) == POINTER_INVALID || tmkr_started_at <= 0) return;
+
+    datetime tmkr_now = TimeCurrent();
+    long tmkr_seconds = 0;
+    if(tmkr_now > tmkr_started_at) tmkr_seconds = (long)(tmkr_now - tmkr_started_at);
+    tmkr_stats.set_session_duration_minutes((int)(tmkr_seconds / 60));
+    if(tmkr_magic == 0) return;
+
+    int    tmkr_closed = 0;
+    int    tmkr_won    = 0;
+    int    tmkr_lost   = 0;
+    double tmkr_pnl    = 0.0;
+    // One row per session deal: tmkr_keys[r] = close time << 20 | r, so a single ArraySort
+    // orders the rows by time (the history list is not guaranteed to be in time order).
+    long   tmkr_keys[];
+    double tmkr_nets[];
+    int    tmkr_rows = 0;
+    const int tmkr_max_rows = 1048575;   // 2^20 - 1: the row number must fit under the shift
+
+#ifdef __MQL5__
+    if(HistorySelect(tmkr_started_at, tmkr_now + 3600))
+    {
+        int tmkr_deals = HistoryDealsTotal();
+        for(int tmkr_i = 0; tmkr_i < tmkr_deals; tmkr_i++)
+        {
+            ulong tmkr_ticket = HistoryDealGetTicket(tmkr_i);
+            if(tmkr_ticket == 0) continue;
+            if(HistoryDealGetInteger(tmkr_ticket, DEAL_MAGIC) != tmkr_magic) continue;
+            long tmkr_type = HistoryDealGetInteger(tmkr_ticket, DEAL_TYPE);
+            if(tmkr_type != DEAL_TYPE_BUY && tmkr_type != DEAL_TYPE_SELL) continue;
+
+            double tmkr_net = HistoryDealGetDouble(tmkr_ticket, DEAL_PROFIT)
+                            + HistoryDealGetDouble(tmkr_ticket, DEAL_SWAP)
+                            + HistoryDealGetDouble(tmkr_ticket, DEAL_COMMISSION);
+            tmkr_pnl += tmkr_net;
+            if(tmkr_rows < tmkr_max_rows)
+            {
+                ArrayResize(tmkr_keys, tmkr_rows + 1, 256);
+                ArrayResize(tmkr_nets, tmkr_rows + 1, 256);
+                tmkr_keys[tmkr_rows] = ((long)HistoryDealGetInteger(tmkr_ticket, DEAL_TIME) << 20) | tmkr_rows;
+                tmkr_nets[tmkr_rows] = tmkr_net;
+                tmkr_rows++;
+            }
+
+            long tmkr_entry = HistoryDealGetInteger(tmkr_ticket, DEAL_ENTRY);
+            if(tmkr_entry != DEAL_ENTRY_OUT && tmkr_entry != DEAL_ENTRY_INOUT && tmkr_entry != DEAL_ENTRY_OUT_BY)
+                continue;
+            tmkr_closed++;
+            if(tmkr_net > 0.0) tmkr_won++;
+            else if(tmkr_net < 0.0) tmkr_lost++;
+        }
+    }
+#endif
+#ifdef __MQL4__
+    int tmkr_orders = OrdersHistoryTotal();
+    for(int tmkr_i = 0; tmkr_i < tmkr_orders; tmkr_i++)
+    {
+        if(!OrderSelect(tmkr_i, SELECT_BY_POS, MODE_HISTORY)) continue;
+        if(OrderMagicNumber() != tmkr_magic) continue;
+        if(OrderType() != OP_BUY && OrderType() != OP_SELL) continue;   // not cancelled pending orders
+        if(OrderCloseTime() < tmkr_started_at) continue;
+
+        double tmkr_net = OrderProfit() + OrderSwap() + OrderCommission();
+        tmkr_pnl += tmkr_net;
+        if(tmkr_rows < tmkr_max_rows)
+        {
+            ArrayResize(tmkr_keys, tmkr_rows + 1, 256);
+            ArrayResize(tmkr_nets, tmkr_rows + 1, 256);
+            tmkr_keys[tmkr_rows] = ((long)OrderCloseTime() << 20) | tmkr_rows;
+            tmkr_nets[tmkr_rows] = tmkr_net;
+            tmkr_rows++;
+        }
+
+        tmkr_closed++;
+        if(tmkr_net > 0.0) tmkr_won++;
+        else if(tmkr_net < 0.0) tmkr_lost++;
+    }
+#endif
+
+    double tmkr_running  = 0.0;
+    double tmkr_peak     = 0.0;
+    double tmkr_drawdown = 0.0;
+    if(tmkr_rows > 0) ArraySort(tmkr_keys);
+    for(int tmkr_k = 0; tmkr_k < tmkr_rows; tmkr_k++)
+    {
+        tmkr_running += tmkr_nets[(int)(tmkr_keys[tmkr_k] & 0xFFFFF)];
+        if(tmkr_running > tmkr_peak) tmkr_peak = tmkr_running;
+        if(tmkr_peak - tmkr_running > tmkr_drawdown) tmkr_drawdown = tmkr_peak - tmkr_running;
+    }
+
+    tmkr_stats.set_total_trades(tmkr_closed);
+    tmkr_stats.set_winning_trades(tmkr_won);
+    tmkr_stats.set_losing_trades(tmkr_lost);
+    tmkr_stats.set_total_pnl(tmkr_pnl);
+    tmkr_stats.set_max_drawdown(tmkr_drawdown);
 }
 
 #endif

@@ -40,6 +40,12 @@
 #   |                 | already makes running it on every workflow edit a standing local |
 #   |                 | duty. ⚠️ If it is ever promoted to a CI job it joins             |
 #   |                 | required-checks `needs:` and this header in the SAME PR.        |
+#   | final-stats     | tools/test-final-stats.sh — T-55b (trade-feature-wave-1 P18):   |
+#   |                 | POST /robot/end sends the contract's {reason, final_stats}, and |
+#   |                 | final_stats.total_trades is the session's closed-deal count.    |
+#   |                 | A structural read of the headers: no MQL compiler or terminal   |
+#   |                 | runs on a laptop or a runner. Local-only because it is not a    |
+#   |                 | ci.yml job; promoting it joins required-checks `needs:`.        |
 #
 # One Δ no local mirror can close, in the other direction from the wrapper's: the
 # wrapper runs the same two source gates over the union of both trees, at the sha its
@@ -191,6 +197,11 @@ gate_commit_msg_hook() {
 gate_workflow_lint() { bash "$ROOT/tools/lint-workflows.sh"; }
 
 # ---------------------------------------------------------------------------
+# final-stats — T-55b, the end-of-session contract read from the headers. LOCAL-ONLY.
+# ---------------------------------------------------------------------------
+gate_final_stats() { bash "$ROOT/tools/test-final-stats.sh"; }
+
+# ---------------------------------------------------------------------------
 # Runner — run ALL gates, summarize, exit non-zero on any failure
 # ---------------------------------------------------------------------------
 OVERALL=0
@@ -221,6 +232,7 @@ run_gate "secret-defaults"  gate_secret_defaults
 run_gate "commitlint"       gate_commitlint
 run_gate "commit-msg-hook"  gate_commit_msg_hook
 run_gate "workflow-lint"    gate_workflow_lint
+run_gate "final-stats"      gate_final_stats
 
 printf '\n=== verify-local summary (required-checks mirror + local-only gates) ===\n%s' "$SUMMARY"
 printf '  NOTE = the gate ran but had nothing to examine (never counted as a pass).\n'

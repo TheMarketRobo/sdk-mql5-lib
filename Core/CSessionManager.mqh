@@ -26,6 +26,7 @@ private:
     string m_robot_version_uuid;
     long m_magic_number;
     bool m_is_active;
+    datetime m_session_started_at;    // server time the session began here; 0 = not yet
     CTMKR_Context* m_context;
 
     // Why the last start_session() did not start a session (see ENUM_TMKR_START_REFUSAL)
@@ -47,12 +48,14 @@ public:
 
     bool start_session();
     bool resume_session(ulong session_id);
-    bool end_session(string tmkr_reason, CTMKR_FinalStats* final_stats);
+    bool end_session(ENUM_TMKR_END_REASON tmkr_reason, CTMKR_FinalStats* final_stats);
     bool refresh_token();
     
     bool is_session_active() const;
     ulong get_session_id() const;
     string get_api_key() const;
+    long get_magic_number() const;
+    datetime get_session_started_at() const;
 
     // Typed start refusal — valid after start_session() returns
     ENUM_TMKR_START_REFUSAL get_start_refusal() const;
@@ -74,6 +77,7 @@ CTMKR_SessionManager::CTMKR_SessionManager(string api_key, string robot_version_
     m_magic_number = magic_number;
     m_session_id = 0;
     m_is_active = false;
+    m_session_started_at = 0;
     m_context = context;
     m_start_refusal = TMKR_START_NOT_ATTEMPTED;
     m_start_refusal_code = "";
@@ -114,6 +118,22 @@ ulong CTMKR_SessionManager::get_session_id() const
 string CTMKR_SessionManager::get_api_key() const
 {
     return m_api_key;
+}
+
+//+------------------------------------------------------------------+
+//| The magic number the session's trades carry (0 for an indicator)  |
+//+------------------------------------------------------------------+
+long CTMKR_SessionManager::get_magic_number() const
+{
+    return m_magic_number;
+}
+
+//+------------------------------------------------------------------+
+//| Server time the session began in this instance (0 = not started)  |
+//+------------------------------------------------------------------+
+datetime CTMKR_SessionManager::get_session_started_at() const
+{
+    return m_session_started_at;
 }
 
 //+------------------------------------------------------------------+
@@ -186,6 +206,9 @@ bool CTMKR_SessionManager::resume_session(ulong session_id)
 {
     m_session_id = session_id;
     m_is_active  = true;
+    // Only an indicator resumes, after a non-destructive reinit. Its final stats count no
+    // trades, so the one stat this affects is the duration, which runs from the resume.
+    m_session_started_at = TimeCurrent();
     m_context.heartbeat_manager.set_session_id(session_id);
     m_context.heartbeat_manager.request_immediate_heartbeat();
     if(SDKShouldLogInfo()) Print("SDK Info: Resumed existing session. Session ID: ", m_session_id);
@@ -312,6 +335,9 @@ bool CTMKR_SessionManager::start_session()
         return false;
     }
 
+    // The session's trades are counted from here when it ends (final_stats, server time).
+    m_session_started_at = TimeCurrent();
+
     // Server returns session_id as string, need to parse it
     CTMKR_JAVal* session_id_node = body["session_id"];
     if(CheckPointer(session_id_node) != POINTER_INVALID)
@@ -388,14 +414,25 @@ bool CTMKR_SessionManager::start_session()
 }
 
 //+------------------------------------------------------------------+
-//| End the current session                                           |
+//| End the current session: POST /robot/end {reason, final_stats}    |
+//| (aws contracts/api/robot/components/robot-end.yaml). `reason` is  |
+//| one of the contract's six values; the detail rides in             |
+//| final_stats.shutdown_reason. The token names the session, so no   |
+//| session_id is sent (SDK <= 1.4.4 sent one the server never read). |
 //+------------------------------------------------------------------+
-bool CTMKR_SessionManager::end_session(string tmkr_reason, CTMKR_FinalStats* final_stats)
+bool CTMKR_SessionManager::end_session(ENUM_TMKR_END_REASON tmkr_reason, CTMKR_FinalStats* final_stats)
 {
     if(!m_is_active) return false;
+
+    // The termination events keep carrying the readable detail, as they always have.
+    string tmkr_detail = TMKREndReasonName(tmkr_reason);
+    if(CheckPointer(final_stats) != POINTER_INVALID)
+    {
+        if(final_stats.get_shutdown_reason() != "") tmkr_detail = final_stats.get_shutdown_reason();
+    }
     
     STMKR_TerminationEvent start_event;
-    start_event.reason = tmkr_reason;
+    start_event.reason = tmkr_detail;
     start_event.success = false;
     start_event.message = "Termination started";
     start_event.session_id = m_session_id;
@@ -404,12 +441,9 @@ bool CTMKR_SessionManager::end_session(string tmkr_reason, CTMKR_FinalStats* fin
     CTMKR_JAVal* payload = new CTMKR_JAVal(TMKR_JA_OBJECT);
     if(payload == NULL) return false;
 
-    CTMKR_JAVal* session_id_val = new CTMKR_JAVal();
-    session_id_val.set_long(m_session_id);
-    payload.Add("session_id", session_id_val);
-
     CTMKR_JAVal* reason_val = new CTMKR_JAVal();
-    reason_val.set_string(tmkr_reason);
+    if(reason_val == NULL) { delete payload; return false; }
+    reason_val.set_string(TMKREndReasonName(tmkr_reason));
     payload.Add("reason", reason_val);
 
     if(CheckPointer(final_stats) != POINTER_INVALID)
@@ -446,7 +480,7 @@ bool CTMKR_SessionManager::end_session(string tmkr_reason, CTMKR_FinalStats* fin
     }
     
     STMKR_TerminationEvent end_event;
-    end_event.reason = tmkr_reason;
+    end_event.reason = tmkr_detail;
     end_event.success = success;
     end_event.message = tmkr_message;
     end_event.session_id = m_session_id;
